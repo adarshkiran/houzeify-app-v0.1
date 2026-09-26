@@ -26,6 +26,7 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import { isSiteTaskStatus } from "../domain/taskTransitions"
 import Gated from "../components/Gated"
 import { ISSUE_REPORT_PERMISSIONS, Permissions } from "../domain/permissions"
 import { useAccess } from "../session/useCan"
@@ -100,8 +101,10 @@ function TaskDetail({
   // Scope-aware: what the person may do to *this* task.
   const canManageTasks = can(Permissions.TASK_MANAGE, projectId, task)
   const canSubmitProgress = can(Permissions.PROGRESS_SUBMIT, projectId, task)
-  // Workers who can submit progress may also start/pause their own work.
-  const canMoveTask = canManageTasks || canSubmitProgress
+  // Site members who can only log progress may make the site moves
+  // (accept, start, flag a block); everything else needs task.manage.
+  const canMoveTo = (nextStatus: TaskStatus) =>
+    canManageTasks || (canSubmitProgress && isSiteTaskStatus(nextStatus))
   const canReportIssue = can(ISSUE_REPORT_PERMISSIONS, projectId, task)
   const taskIssues = scoped.issues.filter((issue) => issue.taskId === task.id)
   const transitions = getAllowedTaskTransitions(task.status)
@@ -160,7 +163,7 @@ function TaskDetail({
               Log today’s progress
             </Button>
             {transitions.slice(0, 3).map((nextStatus) => (
-              <Gated key={nextStatus} allowed={canMoveTask}>
+              <Gated key={nextStatus} allowed={canMoveTo(nextStatus)}>
                 <Button
                   type={nextStatus === "in-progress" || nextStatus === "completed" ? "primary" : "default"}
                   danger={nextStatus === "cancelled"}

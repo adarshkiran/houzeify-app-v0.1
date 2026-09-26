@@ -28,6 +28,7 @@ import type {
   Project,
   ProjectMembership,
   ProjectUnit,
+  Quantity,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -56,11 +57,17 @@ import {
 } from "./session"
 import {
   canTransitionTask,
+  isSiteTaskStatus,
   statusAfterProgressApproval,
   statusAfterProgressRejection,
   statusAfterProgressSubmit,
 } from "./taskTransitions"
 import { slugifyLibraryName } from "./workLibrary"
+import {
+  pathToInProgress,
+  workerAssignment,
+  workerForSession,
+} from "./workerTasks"
 
 /**
  * Pure construction-data commands. Each takes the current state, a context
@@ -496,15 +503,8 @@ export const transitionTask =
   (taskId: EntityId, nextStatus: TaskStatus): Command<void> =>
   (state, ctx) => {
     const projectId = projectIdOfTask(state, taskId, Permissions.TASK_MANAGE)
-    // Workers who can submit progress may also start/pause their own work.
     const task = state.tasks.find((item) => item.id === taskId)!
-    authorizeProject(
-      state,
-      ctx,
-      projectId,
-      [Permissions.TASK_MANAGE, Permissions.PROGRESS_SUBMIT],
-      taskTarget(task),
-    )
+    authorizeTaskMove(state, ctx, task, nextStatus)
     const timestamp = iso(ctx)
     return {
       state: {
@@ -513,6 +513,132 @@ export const transitionTask =
           task.id !== taskId || !canTransitionTask(task.status, nextStatus)
             ? task
             : { ...task, status: nextStatus, updatedAt: timestamp },
+        ),
+      },
+      result: undefined,
+    }
+  }
+
+/**
+ * Task managers may make any legal move. Site members who can only log
+ * progress may make the site moves (accept, get ready, start, flag a block)
+ * but not review outcomes or planning moves.
+ */
+function authorizeTaskMove(
+  state: ConstructionDataState,
+  ctx: CommandContext,
+  task: Task,
+  nextStatus: TaskStatus,
+): ProjectMembership {
+  const target = taskTarget(task)
+  const manager = authorizingMembership(
+    ctx.actor,
+    state.memberships,
+    state.projectUnits,
+    task.projectId,
+    [Permissions.TASK_MANAGE],
+    target,
+  )
+  if (manager) return manager
+  const siteMember = authorizeProject(
+    state,
+    ctx,
+    task.projectId,
+    [Permissions.PROGRESS_SUBMIT],
+    target,
+  )
+  if (!isSiteTaskStatus(nextStatus)) {
+    throw new PermissionError(Permissions.TASK_MANAGE, task.projectId)
+  }
+  return siteMember
+}
+
+/**
+ * For a worker account: the Worker it signs in as and their assignment on the
+ * task. Workers act only on tasks assigned to them. Other accounts get null.
+ */
+function workerOnTask(
+  state: ConstructionDataState,
+  ctx: CommandContext,
+  task: Task,
+): { worker: Worker; assignment: TaskAssignment } | null {
+  if (ctx.actor?.accountType !== "worker") return null
+  const worker = workerForSession(state, ctx.actor)
+  if (!worker) throw new PermissionError(Permissions.PROGRESS_SUBMIT, task.projectId)
+  const assignment = workerAssignment(state, worker.id, task.id)
+  if (!assignment) throw new ConflictError("This task isn't assigned to you.")
+  return { worker, assignment }
+}
+
+function taskOrThrow(
+  state: ConstructionDataState,
+  taskId: EntityId,
+  permission: Permission,
+): Task {
+  const task = state.tasks.find((item) => item.id === taskId)
+  if (!task) throw new PermissionError(permission)
+  return task
+}
+
+/**
+ * A worker takes on a task assigned to them: their assignment becomes
+ * accepted, and a task still waiting on acceptance moves to accepted.
+ */
+export const acceptTaskAssignment =
+  (taskId: EntityId): Command<void> =>
+  (state, ctx) => {
+    const task = taskOrThrow(state, taskId, Permissions.PROGRESS_SUBMIT)
+    const onTask = workerOnTask(state, ctx, task)
+    if (!onTask) throw new PermissionError(Permissions.PROGRESS_SUBMIT, task.projectId)
+    authorizeProject(state, ctx, task.projectId, [Permissions.PROGRESS_SUBMIT], taskTarget(task))
+    const { assignment } = onTask
+    const taskAccepts = canTransitionTask(task.status, "accepted")
+    if (assignment.status !== "assigned" && !taskAccepts) {
+      return { state, result: undefined }
+    }
+    const timestamp = iso(ctx)
+    return {
+      state: {
+        ...state,
+        assignments: state.assignments.map((item) =>
+          item.id === assignment.id && item.status === "assigned"
+            ? { ...item, status: "accepted" }
+            : item,
+        ),
+        tasks: state.tasks.map((item) =>
+          item.id === task.id && taskAccepts
+            ? { ...item, status: "accepted", updatedAt: timestamp }
+            : item,
+        ),
+      },
+      result: undefined,
+    }
+  }
+
+/**
+ * Start work on site: walks the legal path to in-progress (accepted → ready
+ * → in-progress). Workers must have accepted the task first.
+ */
+export const startTask =
+  (taskId: EntityId): Command<void> =>
+  (state, ctx) => {
+    const task = taskOrThrow(state, taskId, Permissions.PROGRESS_SUBMIT)
+    authorizeTaskMove(state, ctx, task, "in-progress")
+    const onTask = workerOnTask(state, ctx, task)
+    if (onTask && onTask.assignment.status === "assigned") {
+      throw new ConflictError("Accept the task before starting it.")
+    }
+    if (!pathToInProgress(task.status)) {
+      throw new ConflictError(`This task can't be started while it is ${task.status}.`)
+    }
+    const timestamp = iso(ctx)
+    return {
+      state: {
+        ...state,
+        tasks: state.tasks.map((item) =>
+          item.id === task.id
+            ? { ...item, status: "in-progress", updatedAt: timestamp }
+            : item,
         ),
       },
       result: undefined,
@@ -545,6 +671,43 @@ function buildAssignment(
   }
 }
 
+/**
+ * A worker who can sign in (linked to a person) acts on a project through a
+ * `worker` membership scoped like their assignment. Returns the membership to
+ * add, or null when the worker can't sign in or already has one.
+ */
+function workerMembershipFor(
+  state: ConstructionDataState,
+  ctx: CommandContext,
+  worker: Worker,
+  assignment: WorkerProjectAssignment,
+): ProjectMembership | null {
+  if (!worker.userId) return null
+  const alreadyMember = state.memberships.some(
+    (item) =>
+      item.projectId === assignment.projectId &&
+      item.principalType === "person" &&
+      item.principalId === worker.userId &&
+      item.role === "worker" &&
+      item.status === "active",
+  )
+  if (alreadyMember) return null
+  return {
+    id: ctx.ids.next("membership"),
+    projectId: assignment.projectId,
+    principalType: "person",
+    principalId: worker.userId,
+    role: "worker",
+    scope: {
+      projectUnitIds: [...assignment.projectUnitIds],
+      stageIds: [],
+      tradeIds: [...assignment.tradeIds],
+    },
+    permissions: permissionsForRole("worker"),
+    status: "active",
+  }
+}
+
 export const assignWorkerToProject =
   (input: AssignWorkerToProjectInput): Command<WorkerProjectAssignment> =>
   (state, ctx) => {
@@ -573,6 +736,7 @@ export const assignWorkerToProject =
     )
     if (existing) return { state, result: existing }
     const assignment = buildAssignment(ctx, assigner.id, input)
+    const membership = workerMembershipFor(state, ctx, worker, assignment)
     return {
       state: {
         ...state,
@@ -580,6 +744,9 @@ export const assignWorkerToProject =
           ...state.workerProjectAssignments,
           assignment,
         ],
+        memberships: membership
+          ? [...state.memberships, membership]
+          : state.memberships,
       },
       result: assignment,
     }
@@ -718,6 +885,25 @@ export const submitDailyProgress =
     assertUnitInProject(state, input.projectId, input.projectUnitId)
     assertTaskInProject(state, input.projectId, input.taskId)
     assertWorkTypeMatches(state, input)
+    const linkedTask = input.taskId
+      ? state.tasks.find((item) => item.id === input.taskId)
+      : undefined
+    if (linkedTask && linkedTask.projectUnitId !== input.projectUnitId) {
+      throw new IntegrityError(`Task ${linkedTask.id} is not at unit ${input.projectUnitId}`)
+    }
+    // Workers log progress only on tasks assigned to them, and their
+    // evidence is always attributed to them.
+    let workerId: EntityId | undefined
+    if (ctx.actor?.accountType === "worker") {
+      if (!linkedTask) throw new ConflictError("Choose the task this update is for.")
+      workerId = workerOnTask(state, ctx, linkedTask)!.worker.id
+    }
+    if (
+      input.completedQuantity &&
+      !(Number.isFinite(input.completedQuantity.value) && input.completedQuantity.value >= 0)
+    ) {
+      throw new ConflictError("Enter the quantity completed today as a number, 0 or more.")
+    }
     const progressId = ctx.ids.next("progress")
     const timestamp = iso(ctx)
     const submitter = submitterMembership.id
@@ -730,8 +916,10 @@ export const submitDailyProgress =
           taskId: input.taskId,
           dailyProgressId: progressId,
           capturedByMembershipId: submitter,
-          capturedByWorkerId: item.capturedByWorkerId,
-          customerVisibility: "review-required",
+          capturedByWorkerId: workerId ?? item.capturedByWorkerId,
+          // Voice notes are internal site communication; they never go to
+          // the customer. Photos, video and documents wait for review.
+          customerVisibility: item.type === "audio" ? "private" : "review-required",
         },
         ctx,
       ),
@@ -746,7 +934,11 @@ export const submitDailyProgress =
       workTypeId: input.workTypeId,
       date: todayISODate(ctx),
       workersPresent: input.workersPresent,
-      progressBefore: project.progress,
+      plannedQuantity: linkedTask?.plannedQuantity,
+      completedQuantity: input.completedQuantity,
+      // Only a submitter who reports project % records a before/after.
+      progressBefore:
+        typeof input.progressAfter === "number" ? project.progress : undefined,
       progressAfter: input.progressAfter,
       yesterdaySummary: input.yesterdaySummary,
       todaySummary: input.todaySummary,
@@ -774,6 +966,17 @@ export const submitDailyProgress =
       result: progress,
     }
   }
+
+/** Running total of approved quantity; mismatched units keep the total unchanged. */
+function addQuantity(
+  total: Quantity | undefined,
+  added: Quantity | undefined,
+): Quantity | undefined {
+  if (!added) return total
+  if (!total) return { ...added }
+  if (total.unit !== added.unit) return total
+  return { unit: total.unit, value: total.value + added.value }
+}
 
 export const reviewDailyProgress =
   (progressId: EntityId, decision: "approve" | "reject"): Command<void> =>
@@ -837,9 +1040,12 @@ export const reviewDailyProgress =
       state: {
         ...state,
         dailyProgress: updatedProgress,
+        // Approval publishes what was waiting for review; private items
+        // (voice notes) stay private.
         evidence: state.evidence.map((item) =>
-          progress.evidenceIds.includes(item.id) ||
-          item.dailyProgressId === progressId
+          (progress.evidenceIds.includes(item.id) ||
+            item.dailyProgressId === progressId) &&
+          item.customerVisibility === "review-required"
             ? { ...item, customerVisibility: "customer-visible" }
             : item,
         ),
@@ -857,9 +1063,13 @@ export const reviewDailyProgress =
             return task
           }
           const nextStatus = statusAfterProgressApproval(task.status)
-          return nextStatus === task.status
+          const completedQuantity = addQuantity(
+            task.completedQuantity,
+            progress.completedQuantity,
+          )
+          return nextStatus === task.status && completedQuantity === task.completedQuantity
             ? task
-            : { ...task, status: nextStatus, updatedAt: timestamp }
+            : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
         }),
       },
       result: undefined,

@@ -36,3 +36,13 @@ Project `%` is recalculated from the latest **approved** daily-progress `progres
 ## Permissions (Phase 0)
 
 Typed permission constants live in `src/domain/permissions.ts`. Memberships carry a permission string list derived from role defaults. Real authentication is not implemented yet.
+
+## Worker app (Phase 4)
+
+Site workers use a phone-first app: **Worker Today → Task → Accept → Start → Log progress (quantity, photo/video, voice note) → Supervisor review**.
+
+- **Try it:** Choose role → *Site Worker* → Continue (the demo number for Ravi Naik, civil lead on Sharma Residence, is pre-filled).
+- **Sign-in:** a `worker` session belongs to a person linked to a `Worker` record (`Worker.userId`). Phone lookup stands in for OTP until real auth exists.
+- **Authority:** workers act through a scoped `worker` project membership (created automatically when a sign-in-capable worker is assigned to a project), so the same scope rules apply as everywhere else. They act only on tasks assigned to them.
+- **Task moves:** members with `progress.submit` but not `task.manage` may only make site moves (accept, ready, in progress, blocked). Review outcomes and planning moves need `task.manage`.
+- **Publication:** workers report quantity done, not project %, so their updates never move project progress. Voice notes stay private and are never published to the homeowner; photos and video are published on approval.

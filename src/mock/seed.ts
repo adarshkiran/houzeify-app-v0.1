@@ -471,6 +471,38 @@ const workers: Worker[] = Array.from({ length: 42 }, (_, index) => ({
   status: "active",
 }))
 
+/**
+ * Demo site worker who can sign in to the worker app: Ravi Naik (worker-2),
+ * civil lead on Sharma Residence. Sign in with DEMO_WORKER_PHONE.
+ */
+export const DEMO_WORKER_PHONE = "+91 90000 11122"
+export const DEMO_WORKER_PERSON_ID = "person-ravi"
+workers[1] = {
+  ...workers[1],
+  userId: DEMO_WORKER_PERSON_ID,
+  phone: DEMO_WORKER_PHONE,
+  tradeIds: ["trade-civil"],
+  onboardingMethod: "otp",
+}
+
+/** Ravi acts on Sharma through a worker membership scoped like his assignment. */
+const workerMemberships: ProjectMembership[] = [
+  {
+    id: "membership-worker-ravi-sharma",
+    projectId: "project-sharma",
+    principalType: "person",
+    principalId: DEMO_WORKER_PERSON_ID,
+    role: "worker",
+    scope: {
+      projectUnitIds: ["unit-sharma-house"],
+      stageIds: [],
+      tradeIds: ["trade-civil"],
+    },
+    permissions: permissionsForRole("worker"),
+    status: "active",
+  },
+]
+
 const workerProjectAssignments: WorkerProjectAssignment[] = [
   {
     id: "wpa-1",
@@ -548,7 +580,7 @@ const taskSeeds = [
     "task-4",
     "project-sharma",
     "unit-sharma-house",
-    "stage-foundation",
+    "stage-rcc",
     "trade-civil",
     "work-curing",
     "Complete footing curing log",
@@ -654,7 +686,7 @@ const taskSeeds = [
   ],
 ] as const
 
-const tasks: Task[] = taskSeeds.map(
+const seededTasks: Task[] = taskSeeds.map(
   ([
     id,
     projectId,
@@ -685,6 +717,37 @@ const tasks: Task[] = taskSeeds.map(
     updatedAt: "2026-09-20T08:00:00+05:30",
   }),
 )
+
+/** A fresh task for the demo worker to accept, start and report on. */
+const backfillTemplate = taskTemplates.find(
+  (template) => template.workTypeId === "work-backfilling",
+)!
+const tasks: Task[] = [
+  ...seededTasks,
+  {
+    id: "task-13",
+    projectId: "project-sharma",
+    projectUnitId: "unit-sharma-house",
+    stageId: "stage-foundation",
+    tradeId: "trade-civil",
+    workTypeId: "work-backfilling",
+    templateId: backfillTemplate.id,
+    title: "Backfill around footings — Grid A",
+    status: "assigned",
+    priority: "high",
+    plannedQuantity: { value: 24, unit: "m3" },
+    plannedStart: "2026-09-26",
+    dueDate: "2026-09-29",
+    checklist: backfillTemplate.checklist.map((label, index) => ({
+      id: `check-${index + 1}`,
+      label,
+      completed: false,
+    })),
+    createdByMembershipId: "membership-manager-1",
+    createdAt: "2026-09-25T09:00:00+05:30",
+    updatedAt: "2026-09-25T09:00:00+05:30",
+  },
+]
 
 const dailyProgress: DailyProgress[] = [
   {
@@ -824,6 +887,11 @@ export const seedConstructionData: ConstructionDataState = {
       name: "Demo Homeowner",
       phone: "+91 98765 43210",
     },
+    {
+      id: DEMO_WORKER_PERSON_ID,
+      name: "Ravi Naik",
+      phone: DEMO_WORKER_PHONE,
+    },
   ],
   projects,
   projectUnits,
@@ -878,7 +946,7 @@ export const seedConstructionData: ConstructionDataState = {
       createdAt: "2026-09-03T11:00:00+05:30",
     },
   ],
-  memberships: [...memberships, ...homeownerMemberships],
+  memberships: [...memberships, ...homeownerMemberships, ...workerMemberships],
   workers,
   workerProjectAssignments,
   tasks,
@@ -900,6 +968,24 @@ export const seedConstructionData: ConstructionDataState = {
       assignedByMembershipId: "membership-manager-3",
       status: "assigned",
       assignedAt: "2026-09-18T10:00:00+05:30",
+    },
+    {
+      id: "assignment-task-4-ravi",
+      taskId: "task-4",
+      assigneeType: "worker",
+      assigneeId: "worker-2",
+      assignedByMembershipId: "membership-manager-1",
+      status: "accepted",
+      assignedAt: "2026-09-20T09:00:00+05:30",
+    },
+    {
+      id: "assignment-task-13-ravi",
+      taskId: "task-13",
+      assigneeType: "worker",
+      assigneeId: "worker-2",
+      assignedByMembershipId: "membership-manager-1",
+      status: "assigned",
+      assignedAt: "2026-09-25T09:30:00+05:30",
     },
   ],
   dailyProgress,

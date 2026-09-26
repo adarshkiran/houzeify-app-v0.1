@@ -42,6 +42,10 @@ const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressRevi
 const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
 const IssuesScreen = lazy(() => import('./screens/IssuesScreen'))
 const IssueDetailScreen = lazy(() => import('./screens/IssueDetailScreen'))
+const WorkerOnboardingScreen = lazy(() => import('./screens/WorkerOnboardingScreen'))
+const WorkerTodayScreen = lazy(() => import('./screens/WorkerTodayScreen'))
+const WorkerTaskScreen = lazy(() => import('./screens/WorkerTaskScreen'))
+const WorkerSubmitScreen = lazy(() => import('./screens/WorkerSubmitScreen'))
 
 function SplashRoute({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
@@ -188,6 +192,42 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <Suspense fallback={null}>
             <BusinessOnboardingScreen onNavigate={navigateTo} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'onboarding-worker' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <WorkerOnboardingScreen onNavigate={navigateTo} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'worker-today' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <WorkerTodayScreen onNavigate={navigateTo} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'worker-task' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <WorkerTaskScreen
+              onNavigate={navigateTo}
+              projectId={projectId}
+              taskId={params.task_id}
+            />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'worker-submit' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <WorkerSubmitScreen
+              onNavigate={navigateTo}
+              projectId={projectId}
+              taskId={params.task_id}
+            />
           </Suspense>
         </div>
       )}

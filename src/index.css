@@ -536,6 +536,22 @@ html, body, #root {
   box-shadow: none !important;
 }
 
+/* Worker app: one phone-width column, used on site. */
+.worker-app-header {
+  padding-inline: 16px;
+}
+
+.worker-app-content {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  padding: 24px 16px 40px;
+}
+
+.worker-task-card {
+  cursor: pointer;
+}
+
 .project-overview-empty {
   min-height: 100%;
   padding: 24px;

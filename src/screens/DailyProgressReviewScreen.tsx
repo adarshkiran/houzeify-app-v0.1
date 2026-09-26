@@ -24,6 +24,7 @@ import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getEvidenceForProgress,
+  getMembershipName,
   getPendingReview,
   getProject,
   getWorkTypeName,
@@ -51,6 +52,13 @@ function ReviewQueue({
   const evidence = selected ? getEvidenceForProgress(state, selected) : []
   // Company-wide queue: no project is implied until an item is selected.
   const homeownerViewProjectId = projectId ?? selected?.projectId
+
+  const submitter = selected
+    ? state.memberships.find((item) => item.id === selected.submittedByMembershipId)
+    : undefined
+  const submitterLabel = submitter
+    ? `${getMembershipName(state, submitter.id) ?? "Unknown"} · ${submitter.role.replace("-", " ")}`
+    : "—"
 
   const canReview = selected
     ? can(Permissions.PROGRESS_REVIEW, selected.projectId, selected)
@@ -100,7 +108,7 @@ function ReviewQueue({
             Site updates waiting
           </Title>
           <Text type="secondary">
-            Approve an update to publish it for the homeowner. Rejected updates stay off their record.
+            Approve an update to publish it for the homeowner. Rejected updates stay off their record. Voice notes are never shared with the homeowner.
           </Text>
         </Flex>
 
@@ -129,6 +137,9 @@ function ReviewQueue({
                         </Text>
                         <Text className={active ? "text-inherit!" : undefined} type={active ? undefined : "secondary"}>
                           {item.date} · {getWorkTypeName(state, item.workTypeId)}
+                          {getMembershipName(state, item.submittedByMembershipId)
+                            ? ` · ${getMembershipName(state, item.submittedByMembershipId)}`
+                            : ""}
                         </Text>
                       </Flex>
                     </Button>
@@ -150,12 +161,30 @@ function ReviewQueue({
                       column={{ xs: 1, sm: 2 }}
                       items={[
                         { key: "work", label: "Work", children: getWorkTypeName(state, selected.workTypeId) },
+                        { key: "by", label: "Submitted by", children: submitterLabel },
                         { key: "workers", label: "Workers", children: selected.workersPresent },
-                        {
-                          key: "delta",
-                          label: "Progress",
-                          children: `${selected.progressBefore ?? "—"}% → ${selected.progressAfter ?? "—"}%`,
-                        },
+                        ...(selected.completedQuantity
+                          ? [
+                              {
+                                key: "quantity",
+                                label: "Done today",
+                                children: `${selected.completedQuantity.value} ${selected.completedQuantity.unit}${
+                                  selected.plannedQuantity
+                                    ? ` of ${selected.plannedQuantity.value} ${selected.plannedQuantity.unit} planned`
+                                    : ""
+                                }`,
+                              },
+                            ]
+                          : []),
+                        ...(typeof selected.progressAfter === "number"
+                          ? [
+                              {
+                                key: "delta",
+                                label: "Progress",
+                                children: `${selected.progressBefore ?? "—"}% → ${selected.progressAfter}%`,
+                              },
+                            ]
+                          : []),
                         { key: "date", label: "Date", children: selected.date },
                       ]}
                     />

@@ -94,6 +94,8 @@ interface ConstructionDataContextValue {
     template: TaskTemplate
   }
   transitionTask: (taskId: EntityId, nextStatus: TaskStatus) => void
+  acceptTaskAssignment: (taskId: EntityId) => void
+  startTask: (taskId: EntityId) => void
   addEvidence: (input: Inputs.AddEvidenceInput) => Evidence
   submitDailyProgress: (input: Inputs.SubmitDailyProgressInput) => DailyProgress
   reviewDailyProgress: (
@@ -185,6 +187,9 @@ export default function ConstructionDataProvider({
       addLibraryWorkType: (input) => run(commands.addLibraryWorkType(input)),
       transitionTask: (taskId, status) =>
         run(commands.transitionTask(taskId, status)),
+      acceptTaskAssignment: (taskId) =>
+        run(commands.acceptTaskAssignment(taskId)),
+      startTask: (taskId) => run(commands.startTask(taskId)),
       addEvidence: (input) => run(commands.addEvidence(input)),
       submitDailyProgress: (input) => run(commands.submitDailyProgress(input)),
       reviewDailyProgress: (id, decision) =>

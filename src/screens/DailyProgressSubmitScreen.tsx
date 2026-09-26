@@ -1,11 +1,5 @@
-import { useMemo, useRef, useState } from "react"
-import {
-  ArrowLeftOutlined,
-  CameraOutlined,
-  DeleteOutlined,
-  PictureOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons"
+import { useMemo, useState } from "react"
+import { ArrowLeftOutlined } from "@ant-design/icons"
 import {
   Alert,
   Button,
@@ -19,15 +13,12 @@ import {
   Select,
   Tag,
   Typography,
-  Upload,
 } from "antd"
-import CameraCaptureModal, {
-  type CameraCaptureMode,
-} from "../components/CameraCaptureModal"
+import EvidenceCapture, { type DraftEvidence } from "../components/EvidenceCapture"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import VoiceTextArea from "../components/VoiceTextArea"
-import type { EntityId, EvidenceType } from "../domain/models"
+import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
 import { useAccess } from "../session/useCan"
@@ -43,12 +34,6 @@ import {
 
 const { Text, Title } = Typography
 
-interface DraftEvidence {
-  type: EvidenceType
-  url: string
-  caption: string
-}
-
 interface ProgressFormValues {
   taskId?: EntityId
   workersPresent: number
@@ -56,13 +41,6 @@ interface ProgressFormValues {
   todaySummary: string
   tomorrowPlan: string
   blockerSummary?: string
-}
-
-function isTouchDevice() {
-  return (
-    typeof window !== "undefined" &&
-    ("ontouchstart" in window || navigator.maxTouchPoints > 0)
-  )
 }
 
 function SubmitProgress({
@@ -78,10 +56,6 @@ function SubmitProgress({
   const run = useCommand()
   const can = useAccess()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
-  const [cameraOpen, setCameraOpen] = useState(false)
-  const [cameraMode, setCameraMode] = useState<CameraCaptureMode>("photo")
-  const cameraInputRef = useRef<HTMLInputElement>(null)
-  const videoInputRef = useRef<HTMLInputElement>(null)
   const [form] = Form.useForm<ProgressFormValues>()
   const project = getProject(state, projectId)
   // Only tasks the person may submit progress on (their own scope).
@@ -103,39 +77,6 @@ function SubmitProgress({
       getRecentProgress(state, projectId).find((item) => item.taskId === task?.id),
     [projectId, state, task?.id],
   )
-
-  const addEvidenceFile = (file: File) => {
-    const type: EvidenceType = file.type.startsWith("video/") ? "video" : "photo"
-    setEvidence((current) => [
-      ...current,
-      {
-        type,
-        url: URL.createObjectURL(file),
-        caption:
-          type === "video"
-            ? `Video ${new Date().toLocaleTimeString("en-IN")}`
-            : file.name,
-      },
-    ])
-  }
-
-  const openCapture = (mode: CameraCaptureMode) => {
-    setCameraMode(mode)
-    if (isTouchDevice()) {
-      if (mode === "video") videoInputRef.current?.click()
-      else cameraInputRef.current?.click()
-      return
-    }
-    setCameraOpen(true)
-  }
-
-  const removeEvidence = (url: string) => {
-    setEvidence((current) => {
-      const next = current.filter((item) => item.url !== url)
-      URL.revokeObjectURL(url)
-      return next
-    })
-  }
 
   if (!project) {
     return (
@@ -318,102 +259,7 @@ function SubmitProgress({
             }
             styles={{ body: { paddingTop: 16 } }}
           >
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              aria-hidden
-              tabIndex={-1}
-              style={{ display: "none" }}
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) addEvidenceFile(file)
-                event.target.value = ""
-              }}
-            />
-            <input
-              ref={videoInputRef}
-              type="file"
-              accept="video/*"
-              capture="environment"
-              aria-hidden
-              tabIndex={-1}
-              style={{ display: "none" }}
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) addEvidenceFile(file)
-                event.target.value = ""
-              }}
-            />
-
-            <Flex vertical gap="middle">
-              <Flex gap="small" wrap>
-                <Button
-                  type="primary"
-                  icon={<CameraOutlined />}
-                  onClick={() => openCapture("photo")}
-                >
-                  Photo
-                </Button>
-                <Button
-                  icon={<VideoCameraOutlined />}
-                  onClick={() => openCapture("video")}
-                >
-                  Record video
-                </Button>
-                <Upload
-                  accept="image/*,video/*"
-                  showUploadList={false}
-                  beforeUpload={(file) => {
-                    addEvidenceFile(file)
-                    return false
-                  }}
-                >
-                  <Button icon={<PictureOutlined />}>Gallery</Button>
-                </Upload>
-              </Flex>
-
-              {evidence.length ? (
-                <Flex gap="small" wrap>
-                  {evidence.map((item) => (
-                    <div key={item.url} className="relative shrink-0">
-                      {item.type === "video" ? (
-                        <video
-                          src={item.url}
-                          controls
-                          playsInline
-                          preload="metadata"
-                          className="h-24 w-36 object-cover bg-[#1C1917]"
-                          style={{ borderRadius: "var(--ant-border-radius-lg)" }}
-                        />
-                      ) : (
-                        <img
-                          src={item.url}
-                          alt={item.caption}
-                          className="h-24 w-36 object-cover"
-                          style={{ borderRadius: "var(--ant-border-radius-lg)" }}
-                        />
-                      )}
-                      <Tag className="absolute! left-1 bottom-1 m-0!">{item.type}</Tag>
-                      <Button
-                        size="small"
-                        danger
-                        type="primary"
-                        icon={<DeleteOutlined />}
-                        aria-label={`Remove ${item.caption}`}
-                        className="absolute! top-1 right-1"
-                        onClick={() => removeEvidence(item.url)}
-                      />
-                    </div>
-                  ))}
-                </Flex>
-              ) : (
-                <Text type="secondary" className="m-0! text-[13px]!">
-                  No files yet — use Photo, Record video, or Gallery above.
-                </Text>
-              )}
-            </Flex>
+            <EvidenceCapture value={evidence} onChange={setEvidence} />
           </Card>
 
           <Flex className="company-form-actions" justify="flex-end">
@@ -423,22 +269,6 @@ function SubmitProgress({
           </Flex>
         </Form>
       </Flex>
-
-      <CameraCaptureModal
-        open={cameraOpen}
-        mode={cameraMode}
-        onClose={() => setCameraOpen(false)}
-        onCapture={(_file, previewUrl, kind) => {
-          setEvidence((current) => [
-            ...current,
-            {
-              type: kind,
-              url: previewUrl,
-              caption: `${kind === "video" ? "Video" : "Photo"} ${new Date().toLocaleTimeString("en-IN")}`,
-            },
-          ])
-        }}
-      />
     </Flex>
   )
 }

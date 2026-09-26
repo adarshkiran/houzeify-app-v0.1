@@ -37,11 +37,18 @@ interface RouteDef {
 const PUBLIC: Access = { kind: "public" }
 const HOMEOWNER: Access = { kind: "account", accountTypes: ["homeowner"] }
 const BUSINESS: Access = { kind: "account", accountTypes: ["business"] }
+const WORKER: Access = { kind: "account", accountTypes: ["worker"] }
 /** Company-side project screens: business accounts holding `permission`. */
 const project = (permission: Permission): Access => ({
   kind: "project",
   permission,
   accountTypes: ["business"],
+})
+/** Worker-app project screens: worker accounts holding `permission`. */
+const workerProject = (permission: Permission): Access => ({
+  kind: "project",
+  permission,
+  accountTypes: ["worker"],
 })
 /** Customer-facing project screen: any account holding `permission`. */
 const customerProject = (permission: Permission): Access => ({
@@ -60,6 +67,7 @@ export const routes = {
   role: { access: PUBLIC },
   "onboarding-homeowner": { access: PUBLIC },
   "onboarding-business": { access: PUBLIC },
+  "onboarding-worker": { access: PUBLIC },
 
   "dashboard-home": { access: HOMEOWNER },
   "ai-advisor": { access: HOMEOWNER },
@@ -73,6 +81,16 @@ export const routes = {
   "company-create-project": { access: BUSINESS },
   "work-library": { access: BUSINESS },
   workforce: { access: BUSINESS },
+
+  "worker-today": { access: WORKER },
+  "worker-task": {
+    access: workerProject(Permissions.PROJECT_READ),
+    requires: ["project_id", "task_id"],
+  },
+  "worker-submit": {
+    access: workerProject(Permissions.PROGRESS_SUBMIT),
+    requires: ["project_id", "task_id"],
+  },
 
   "project-overview": {
     access: project(Permissions.PROJECT_READ),
@@ -182,9 +200,14 @@ export function nextParams(
 /** Where a signed-in session lands by default. */
 export function homeScreenFor(session: Session | null): AppScreen {
   if (!session) return "welcome"
-  return session.accountType === "business"
-    ? "company-dashboard"
-    : "dashboard-home"
+  switch (session.accountType) {
+    case "business":
+      return "company-dashboard"
+    case "worker":
+      return "worker-today"
+    default:
+      return "dashboard-home"
+  }
 }
 
 export type RouteDecision =
@@ -231,8 +254,10 @@ export function resolveRoute(
     }
     const granted = projectPermissions(session, ctx.memberships, projectId)
     if (!granted.includes(access.permission)) {
-      // Fall back to the project overview when the person can at least read it.
+      // Fall back to the (company-side) project overview when the person can
+      // at least read it.
       if (
+        session.accountType === "business" &&
         location.screen !== "project-overview" &&
         granted.includes(Permissions.PROJECT_READ)
       ) {

@@ -59,6 +59,15 @@ const BoxIcon = () => (
   </svg>
 )
 
+const HardHatIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 19C5 13.5 8.5 9 14 9C19.5 9 23 13.5 23 19"/>
+    <path d="M11.5 9.5V6H16.5V9.5"/>
+    <path d="M3 19H25V22H3Z"/>
+    <line x1="14" y1="6" x2="14" y2="19"/>
+  </svg>
+)
+
 // ─── Role data ────────────────────────────────────────────────────────────────
 
 interface Role {
@@ -75,6 +84,7 @@ const roles: Role[] = [
   { id: 'architect', title: 'Architect / Engineer', description: 'Design, plan and advise on projects.', icon: <CompassIcon />, destination: 'onboarding-professional' },
   { id: 'interior', title: 'Interior Designer', description: 'Create and manage interior projects.', icon: <BrushIcon />, destination: 'onboarding-professional' },
   { id: 'supplier', title: 'Material Supplier', description: 'Supply construction materials and products.', icon: <BoxIcon />, destination: 'onboarding-supplier' },
+  { id: 'worker', title: 'Site Worker', description: 'See your tasks and send daily updates from site.', icon: <HardHatIcon />, destination: 'onboarding-worker' },
 ]
 
 // ─── Role card ────────────────────────────────────────────────────────────────
@@ -134,7 +144,7 @@ function RoleCard({ role, selected, onSelect }: RoleCardProps) {
   )
 }
 
-// ─── Role grid (3+2 centered on desktop) ─────────────────────────────────────
+// ─── Role grid (3 + 3 on desktop) ─────────────────────────────────────────────
 
 interface RoleGridProps {
   selected: string | null
@@ -151,22 +161,11 @@ function RoleGrid({ selected, onSelect }: RoleGridProps) {
         ))}
       </div>
 
-      {/* Desktop: 3 + centered 2 */}
-      <div className="hidden lg:grid grid-cols-6 gap-4 w-full">
-        {/* Row 1 — 3 cards */}
-        {roles.slice(0, 3).map(role => (
-          <div key={role.id} className="col-span-2">
-            <RoleCard role={role} selected={selected === role.id} onSelect={onSelect} />
-          </div>
+      {/* Desktop: two rows of 3 */}
+      <div className="hidden lg:grid grid-cols-3 gap-4 w-full">
+        {roles.map(role => (
+          <RoleCard key={role.id} role={role} selected={selected === role.id} onSelect={onSelect} />
         ))}
-        {/* Row 2 — 2 cards centered (1 spacer + 2 cards + 1 spacer = 6 cols) */}
-        <div className="col-span-1" aria-hidden="true" />
-        {roles.slice(3).map(role => (
-          <div key={role.id} className="col-span-2">
-            <RoleCard role={role} selected={selected === role.id} onSelect={onSelect} />
-          </div>
-        ))}
-        <div className="col-span-1" aria-hidden="true" />
       </div>
     </>
   )
