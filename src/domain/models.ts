@@ -48,6 +48,8 @@ export interface Project {
   currentStageId?: EntityId
   progress: number
   trackingStartedMidProject: boolean
+  /** stageId → % of that stage already complete when tracking started (0–100). */
+  stageBaselines: Record<EntityId, number>
   createdAt: ISODateTime
   updatedAt: ISODateTime
 }
@@ -220,6 +222,32 @@ export interface Evidence {
   customerVisibility: "private" | "review-required" | "customer-visible"
 }
 
+export type ReviewStatus =
+  | "draft"
+  | "submitted"
+  | "approved"
+  | "changes-requested"
+  | "rejected"
+  | "superseded"
+
+export type ReviewDecision = "approve" | "request-changes" | "reject"
+
+/** The reviewer's decision on one version of a daily progress update. */
+export interface ProgressReview {
+  decision: ReviewDecision
+  /** Required for request-changes and reject. Never shown to the homeowner. */
+  note?: string
+  reviewedByMembershipId: EntityId
+  reviewedAt: ISODateTime
+}
+
+/** What was shared with the homeowner, and by whom. */
+export interface ProgressPublication {
+  publishedByMembershipId: EntityId
+  publishedAt: ISODateTime
+  evidenceIds: EntityId[]
+}
+
 export interface DailyProgress {
   id: EntityId
   projectId: EntityId
@@ -241,8 +269,14 @@ export interface DailyProgress {
   evidenceIds: EntityId[]
   submittedByMembershipId: EntityId
   submittedAt: ISODateTime
-  reviewStatus: "draft" | "submitted" | "approved" | "rejected"
-  publicationStatus: "private" | "ready" | "published"
+  reviewStatus: ReviewStatus
+  publicationStatus: "private" | "published"
+  /** 1 for the first submission; +1 for each resubmission after changes were requested. */
+  version: number
+  supersedesId?: EntityId
+  supersededById?: EntityId
+  review?: ProgressReview
+  publication?: ProgressPublication
 }
 
 export interface Issue {

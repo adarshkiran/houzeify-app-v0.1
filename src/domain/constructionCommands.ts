@@ -239,8 +239,9 @@ export const createProject =
       location: input.location,
       startDate: input.startDate,
       targetDate: input.targetDate,
-      progress: input.trackingStartedMidProject ? 1 : 0,
+      progress: 0,
       trackingStartedMidProject: input.trackingStartedMidProject,
+      stageBaselines: {},
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -949,6 +950,7 @@ export const submitDailyProgress =
       submittedAt: timestamp,
       reviewStatus: "submitted",
       publicationStatus: "private",
+      version: 1,
     }
     return {
       state: {

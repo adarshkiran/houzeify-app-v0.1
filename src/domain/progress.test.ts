@@ -12,6 +12,7 @@ const baseProject: Project = {
   location: "Hyderabad",
   progress: 20,
   trackingStartedMidProject: false,
+  stageBaselines: {},
   createdAt: "2026-09-01T00:00:00+05:30",
   updatedAt: "2026-09-01T00:00:00+05:30",
 }
@@ -32,6 +33,7 @@ function progress(
     submittedByMembershipId: "membership-1",
     publicationStatus:
       partial.reviewStatus === "approved" ? "published" : "private",
+    version: 1,
     ...partial,
   }
 }

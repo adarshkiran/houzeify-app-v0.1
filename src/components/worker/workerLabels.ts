@@ -48,7 +48,9 @@ export const reviewLabel: Record<DailyProgress["reviewStatus"], {
   draft: { text: "Draft", color: "default" },
   submitted: { text: "Waiting for review", color: "warning" },
   approved: { text: "Approved", color: "success" },
-  rejected: { text: "Sent back", color: "error" },
+  "changes-requested": { text: "Fix and resend", color: "error" },
+  rejected: { text: "Not accepted", color: "error" },
+  superseded: { text: "Replaced by a newer update", color: "default" },
 }
 
 export const formatQuantity = (quantity?: { value: number; unit: string }) =>

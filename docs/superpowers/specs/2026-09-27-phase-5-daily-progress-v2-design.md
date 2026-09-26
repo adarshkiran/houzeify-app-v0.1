@@ -85,7 +85,7 @@ stageBaselines: Record<EntityId, number> // stageId → % complete when tracking
 
 ### Permissions
 
-New `Permissions.PROGRESS_PUBLISH = "progress.publish"`, granted to the roles that hold `progress.review` today (project manager, supervisor). Publishing is a customer decision, separate from checking the work.
+Publishing uses the existing `Permissions.CUSTOMER_PUBLISH` (`"customer.publish"`), which project managers already hold; supervisors are granted it too. Publishing is a customer decision, separate from checking the work (`progress.review`).
 
 ## 2. Calculated project progress
 
