@@ -162,6 +162,28 @@ function projectOrThrow(state: ConstructionDataState, projectId: EntityId) {
   return project
 }
 
+/**
+ * Recalculates a project's stored progress from its tasks. Every command that
+ * changes a project's tasks runs its new state through this, so the stored
+ * figure never drifts from the calculation. updatedAt moves only on a change.
+ */
+function withProjectProgress(
+  state: ConstructionDataState,
+  projectId: EntityId,
+  timestamp: string,
+): ConstructionDataState {
+  const project = state.projects.find((item) => item.id === projectId)
+  if (!project) return state
+  const progress = calculateProjectProgress(project, state.stages, state.tasks)
+  if (progress === project.progress) return state
+  return {
+    ...state,
+    projects: state.projects.map((item) =>
+      item.id === projectId ? { ...project, progress, updatedAt: timestamp } : item,
+    ),
+  }
+}
+
 function assertUnitInProject(
   state: ConstructionDataState,
   projectId: EntityId,
@@ -461,7 +483,14 @@ export const createTask =
       createdAt: timestamp,
       updatedAt: timestamp,
     }
-    return { state: { ...state, tasks: [...state.tasks, task] }, result: task }
+    return {
+      state: withProjectProgress(
+        { ...state, tasks: [...state.tasks, task] },
+        input.projectId,
+        timestamp,
+      ),
+      result: task,
+    }
   }
 
 export const assignTask =
@@ -521,15 +550,19 @@ export const assignTask =
       assignedAt: timestamp,
     }
     return {
-      state: {
-        ...state,
-        assignments: [...state.assignments, assignment],
-        tasks: state.tasks.map((item) =>
-          item.id === taskId && item.status === "draft"
-            ? { ...item, status: "assigned", updatedAt: timestamp }
-            : item,
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          assignments: [...state.assignments, assignment],
+          tasks: state.tasks.map((item) =>
+            item.id === taskId && item.status === "draft"
+              ? { ...item, status: "assigned", updatedAt: timestamp }
+              : item,
+          ),
+        },
+        projectId,
+        timestamp,
+      ),
       result: assignment,
     }
   }
@@ -542,14 +575,18 @@ export const transitionTask =
     authorizeTaskMove(state, ctx, task, nextStatus)
     const timestamp = iso(ctx)
     return {
-      state: {
-        ...state,
-        tasks: state.tasks.map((task) =>
-          task.id !== taskId || !canTransitionTask(task.status, nextStatus)
-            ? task
-            : { ...task, status: nextStatus, updatedAt: timestamp },
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          tasks: state.tasks.map((task) =>
+            task.id !== taskId || !canTransitionTask(task.status, nextStatus)
+              ? task
+              : { ...task, status: nextStatus, updatedAt: timestamp },
+          ),
+        },
+        projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }
@@ -633,19 +670,23 @@ export const acceptTaskAssignment =
     }
     const timestamp = iso(ctx)
     return {
-      state: {
-        ...state,
-        assignments: state.assignments.map((item) =>
-          item.id === assignment.id && item.status === "assigned"
-            ? { ...item, status: "accepted" }
-            : item,
-        ),
-        tasks: state.tasks.map((item) =>
-          item.id === task.id && taskAccepts
-            ? { ...item, status: "accepted", updatedAt: timestamp }
-            : item,
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          assignments: state.assignments.map((item) =>
+            item.id === assignment.id && item.status === "assigned"
+              ? { ...item, status: "accepted" }
+              : item,
+          ),
+          tasks: state.tasks.map((item) =>
+            item.id === task.id && taskAccepts
+              ? { ...item, status: "accepted", updatedAt: timestamp }
+              : item,
+          ),
+        },
+        task.projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }
@@ -668,14 +709,18 @@ export const startTask =
     }
     const timestamp = iso(ctx)
     return {
-      state: {
-        ...state,
-        tasks: state.tasks.map((item) =>
-          item.id === task.id
-            ? { ...item, status: "in-progress", updatedAt: timestamp }
-            : item,
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          tasks: state.tasks.map((item) =>
+            item.id === task.id
+              ? { ...item, status: "in-progress", updatedAt: timestamp }
+              : item,
+          ),
+        },
+        task.projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }
@@ -987,18 +1032,22 @@ export const submitDailyProgress =
       version: 1,
     }
     return {
-      state: {
-        ...state,
-        evidence: [...state.evidence, ...evidence],
-        dailyProgress: [progress, ...state.dailyProgress],
-        tasks: state.tasks.map((task) => {
-          if (task.id !== input.taskId) return task
-          const nextStatus = statusAfterProgressSubmit(task.status)
-          return nextStatus
-            ? { ...task, status: nextStatus, updatedAt: timestamp }
-            : task
-        }),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          evidence: [...state.evidence, ...evidence],
+          dailyProgress: [progress, ...state.dailyProgress],
+          tasks: state.tasks.map((task) => {
+            if (task.id !== input.taskId) return task
+            const nextStatus = statusAfterProgressSubmit(task.status)
+            return nextStatus
+              ? { ...task, status: nextStatus, updatedAt: timestamp }
+              : task
+          }),
+        },
+        input.projectId,
+        timestamp,
+      ),
       result: progress,
     }
   }
@@ -1153,25 +1202,14 @@ export const reviewDailyProgress =
       return nextStatus ? { ...task, status: nextStatus, updatedAt: timestamp } : task
     })
 
+    // Every decision can change a task (approve completes it, reject reopens
+    // it), so the official figure is recalculated each time. Publishing is separate.
     return {
-      state: {
-        ...state,
-        dailyProgress,
-        tasks,
-        // Only approved work moves the official figure. Publishing is separate.
-        projects:
-          decision !== "approve"
-            ? state.projects
-            : state.projects.map((project) =>
-                project.id !== progress.projectId
-                  ? project
-                  : {
-                      ...project,
-                      progress: calculateProjectProgress(project, state.stages, tasks),
-                      updatedAt: timestamp,
-                    },
-              ),
-      },
+      state: withProjectProgress(
+        { ...state, dailyProgress, tasks },
+        progress.projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }

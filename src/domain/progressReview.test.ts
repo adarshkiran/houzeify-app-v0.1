@@ -260,3 +260,68 @@ describe("setStageBaselines", () => {
     expect(() => run(seed, ravi, commands.setStageBaselines("project-sharma", {}))).toThrow(PermissionError)
   })
 })
+
+describe("stored project progress follows every task change", () => {
+  // project-sharma seed: SITE baseline 100 (no tasks) → 5; FND baseline 90,
+  // task-1 + task-13 at 0% → 90% × 12 = 10.8; RCC baseline 73, task-4 at 0%
+  // → 73% × 25 = 18.25; SRV baseline 0, task-9 at 0% → 0. Total 34.05 → 34.
+  const t4 = seed.tasks.find((item) => item.id === "task-4")!
+  // Seed tasks are task-1…task-N, so new ids get their own namespace here.
+  beforeEach(() => {
+    let n = 0
+    ids = { next: (prefix) => `${prefix}-new-${++n}`, short: () => `s${++n}` }
+  })
+  const progressOf = (state: ConstructionDataState) =>
+    state.projects.find((p) => p.id === "project-sharma")!.progress
+  const task4Input: SubmitDailyProgressInput = {
+    projectId: t4.projectId,
+    projectUnitId: t4.projectUnitId,
+    taskId: t4.id,
+    stageId: t4.stageId,
+    tradeId: t4.tradeId,
+    workTypeId: t4.workTypeId,
+    workersPresent: 2,
+    todaySummary: "Curing log done",
+    tomorrowPlan: "Next pour",
+    evidence: [],
+  }
+
+  /** Manager submits and approves an update on task-4 (no planned quantity → 100%). */
+  function task4Approved() {
+    const submitted = run(seed, manager, commands.submitDailyProgress(task4Input))
+    return run(submitted.state, manager, commands.reviewDailyProgress(submitted.result.id, "approve")).state
+  }
+
+  it("approving a no-quantity task counts it as done", () => {
+    // RCC: task-4 at 100% → 73 + 27 × 100% = 100% × 25 = 25. Total 5 + 10.8 + 25 = 40.8 → 41
+    expect(progressOf(task4Approved())).toBe(41)
+  })
+
+  it("rejecting a later update on an approved task recalculates down", () => {
+    const approved = task4Approved()
+    const again = run(approved, manager, commands.submitDailyProgress(task4Input))
+    expect(again.state.tasks.find((t) => t.id === "task-4")!.status).toBe("approved")
+    const { state } = run(again.state, manager, commands.reviewDailyProgress(again.result.id, "reject", "Duplicate"))
+    // task-4 approved → reopened (0%): back to the seed figure, 34
+    expect(state.tasks.find((t) => t.id === "task-4")!.status).toBe("reopened")
+    expect(progressOf(state)).toBe(34)
+  })
+
+  it("creating a task recalculates, and cancelling it recalculates back", () => {
+    const approved = task4Approved()
+    const created = run(approved, manager, commands.createTask({
+      projectId: t4.projectId,
+      projectUnitId: t4.projectUnitId,
+      stageId: t4.stageId,
+      tradeId: t4.tradeId,
+      workTypeId: t4.workTypeId,
+      title: "Second curing check",
+      priority: "medium",
+    }))
+    // RCC: avg(100, 0) = 50% → 73 + 27 × 50% = 86.5% × 25 = 21.625. Total 5 + 10.8 + 21.625 = 37.425 → 37
+    expect(progressOf(created.state)).toBe(37)
+    const { state } = run(created.state, manager, commands.transitionTask(created.result.id, "cancelled"))
+    // Cancelled tasks don't count: back to 41
+    expect(progressOf(state)).toBe(41)
+  })
+})
