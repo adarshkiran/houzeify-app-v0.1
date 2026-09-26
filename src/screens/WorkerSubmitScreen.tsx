@@ -67,7 +67,9 @@ function SubmitWork({
   const run = useCommand()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
   const [evidenceError, setEvidenceError] = useState<string>()
-  const [keptIds, setKeptIds] = useState<string[] | null>(null)
+  // Tied to the sent-back update it was made for, so a choice made for one
+  // update is never applied to another.
+  const [keptChoice, setKeptChoice] = useState<{ forId: EntityId; ids: string[] } | null>(null)
   const [form] = Form.useForm<WorkerProgressValues>()
 
   const found = state.tasks.find(
@@ -141,7 +143,10 @@ function SubmitWork({
 
   const sentBack = getChangesRequested(state, myMembershipIds, task.id)[0]
   const sentBackEvidence = sentBack ? getEvidenceForProgress(state, sentBack) : []
-  const kept = keptIds ?? sentBack?.evidenceIds ?? []
+  const kept =
+    keptChoice && sentBack && keptChoice.forId === sentBack.id
+      ? keptChoice.ids
+      : sentBack?.evidenceIds ?? []
 
   const updateEvidence = (next: DraftEvidence[]) => {
     setEvidence(next)
@@ -329,7 +334,9 @@ function SubmitWork({
                 </Text>
                 <Checkbox.Group
                   value={kept}
-                  onChange={(values) => setKeptIds(values as string[])}
+                  onChange={(values) =>
+                    sentBack && setKeptChoice({ forId: sentBack.id, ids: values as string[] })
+                  }
                   options={sentBackEvidence.map((item) => ({
                     value: item.id,
                     label: item.caption || item.type,
@@ -357,8 +364,9 @@ function SubmitWork({
               }
             />
             <Text type="secondary" className="text-[12px]!">
-              Voice notes go only to your supervisor. Photos and video are shown
-              to the homeowner after approval.
+              Voice notes go only to your supervisor. Photos and video are shared
+              with the homeowner only after your supervisor reviews and publishes
+              them.
             </Text>
             {evidenceError && (
               <Alert type="error" showIcon message={evidenceError} />

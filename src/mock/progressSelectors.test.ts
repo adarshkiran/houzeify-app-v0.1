@@ -5,6 +5,7 @@ import {
   getChangesRequested,
   getMyMembershipIds,
   getProgressHistory,
+  getPublishedForCustomer,
   getPublishedEvidence,
   getReadyToPublish,
   getVersionChain,
@@ -43,5 +44,28 @@ describe("progress selectors", () => {
     expect(getPublishedEvidence(seed, sharma).map((e) => e.id)).toEqual(["evidence-sharma-1", "evidence-sharma-2"])
     const reddy = seed.dailyProgress.find((p) => p.id === "progress-reddy-1809")!
     expect(getPublishedEvidence(seed, reddy)).toEqual([])
+  })
+})
+
+describe("getPublishedForCustomer", () => {
+  // Every non-approved status is also tried as "published", so the review
+  // gate is proven on its own and not only through the publication flag.
+  const cases: [DailyProgress["reviewStatus"], DailyProgress["publicationStatus"], boolean][] = [
+    ["submitted", "private", false],
+    ["submitted", "published", false],
+    ["changes-requested", "private", false],
+    ["changes-requested", "published", false],
+    ["rejected", "private", false],
+    ["rejected", "published", false],
+    ["superseded", "private", false],
+    ["superseded", "published", false],
+    ["approved", "private", false],
+    ["approved", "published", true],
+  ]
+
+  it.each(cases)("%s + %s → shown to the homeowner: %s", (reviewStatus, publicationStatus, shown) => {
+    const item: DailyProgress = { ...sharma, id: "case", reviewStatus, publicationStatus }
+    const state = { ...seed, dailyProgress: [item] }
+    expect(getPublishedForCustomer(state, "project-sharma").map((p) => p.id)).toEqual(shown ? ["case"] : [])
   })
 })

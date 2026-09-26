@@ -149,7 +149,7 @@ function HistoryTab({ items }: { items: DailyProgress[] }) {
           },
         ]}
       />
-      <Drawer open={Boolean(open)} width={640} title="Daily update" onClose={() => setOpenId(undefined)}>
+      <Drawer open={Boolean(open)} size={640} title="Daily update" onClose={() => setOpenId(undefined)}>
         {open && <ProgressDetail progress={open} />}
       </Drawer>
     </Card>

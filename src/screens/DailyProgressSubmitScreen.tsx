@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Flex,
   Form,
@@ -27,6 +28,7 @@ import { useSession } from "../session/SessionProvider"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getChangesRequested,
+  getEvidenceForProgress,
   getMyMembershipIds,
   getProject,
   getProjectUnits,
@@ -60,6 +62,9 @@ function SubmitProgress({
   const can = useAccess()
   const { session } = useSession()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
+  // Tied to the sent-back update it was made for, so a choice made for one
+  // update is never applied to another.
+  const [keptChoice, setKeptChoice] = useState<{ forId: EntityId; ids: string[] } | null>(null)
   const [form] = Form.useForm<ProgressFormValues>()
   const project = getProject(state, projectId)
   // Only tasks the person may submit progress on (their own scope).
@@ -84,9 +89,25 @@ function SubmitProgress({
   const sentBack = task
     ? getChangesRequested(state, getMyMembershipIds(state, session?.personId), task.id)[0]
     : undefined
+  const sentBackEvidence = sentBack ? getEvidenceForProgress(state, sentBack) : []
+  const kept =
+    keptChoice && sentBack && keptChoice.forId === sentBack.id
+      ? keptChoice.ids
+      : sentBack?.evidenceIds ?? []
 
   useEffect(() => {
-    if (!sentBack) return
+    if (!sentBack) {
+      // Switched to a task with nothing sent back: drop the pre-filled text so
+      // it can't be submitted as a new update. The chosen task stays.
+      form.resetFields([
+        "workersPresent",
+        "progressAfter",
+        "todaySummary",
+        "tomorrowPlan",
+        "blockerSummary",
+      ])
+      return
+    }
     form.setFieldsValue({
       workersPresent: sentBack.workersPresent,
       progressAfter: sentBack.progressAfter,
@@ -119,7 +140,7 @@ function SubmitProgress({
               tomorrowPlan: values.tomorrowPlan.trim(),
               yesterdaySummary: previous?.todaySummary,
               blockerSummary: values.blockerSummary?.trim() || undefined,
-              keepEvidenceIds: sentBack.evidenceIds,
+              keepEvidenceIds: kept,
               evidence,
             })
           : submitDailyProgress({
@@ -297,7 +318,26 @@ function SubmitProgress({
                 }
                 styles={{ body: { paddingTop: 16 } }}
               >
-                <EvidenceCapture value={evidence} onChange={setEvidence} />
+                <Flex vertical gap="small">
+                  {sentBackEvidence.length > 0 && (
+                    <Flex vertical gap={6}>
+                      <Text type="secondary" className="text-[12px]!">
+                        From the last update — untick to leave out
+                      </Text>
+                      <Checkbox.Group
+                        value={kept}
+                        onChange={(values) =>
+                          sentBack && setKeptChoice({ forId: sentBack.id, ids: values as string[] })
+                        }
+                        options={sentBackEvidence.map((item) => ({
+                          value: item.id,
+                          label: item.caption || item.type,
+                        }))}
+                      />
+                    </Flex>
+                  )}
+                  <EvidenceCapture value={evidence} onChange={setEvidence} />
+                </Flex>
               </Card>
             </Col>
           </Row>

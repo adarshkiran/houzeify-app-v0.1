@@ -108,6 +108,18 @@ function ProjectStructure({
   const [baselines, setBaselines] = useState<Record<string, number>>(() => project?.stageBaselines ?? {})
   const saveBaselines = () =>
     run(() => setStageBaselines(projectId, baselines), { success: "Work already done saved" })
+  const showBaselines = Boolean(setup && project?.trackingStartedMidProject)
+  const baselinesEdited = Boolean(
+    project &&
+      [...new Set([...Object.keys(baselines), ...Object.keys(project.stageBaselines)])].some(
+        (stageId) => (baselines[stageId] ?? 0) !== (project.stageBaselines[stageId] ?? 0),
+      ),
+  )
+  // Unsaved "work already done" edits are saved on the way out, not lost.
+  const continueToTeam = () => {
+    if (showBaselines && baselinesEdited && !saveBaselines().ok) return
+    onNavigate("project-team", { project_id: projectId, setup: "1" })
+  }
 
   const handleAddUnit = (values: UnitFormValues) => {
     const count = values.count && values.count > 1 ? Math.floor(values.count) : 1
@@ -173,7 +185,7 @@ function ProjectStructure({
           </Card>
         )}
 
-        {setup && project?.trackingStartedMidProject && (
+        {showBaselines && project && (
           <Card
             title={<Title level={5} className="company-heading! m-0!">Work already done</Title>}
             extra={<Text type="secondary">Project progress now: {project.progress}%</Text>}
@@ -240,7 +252,7 @@ function ProjectStructure({
             <Button
               type="primary"
               disabled={!units.length}
-              onClick={() => onNavigate("project-team", { project_id: projectId, setup: "1" })}
+              onClick={continueToTeam}
             >
               Continue to project team
             </Button>
