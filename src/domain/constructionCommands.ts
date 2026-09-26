@@ -43,7 +43,11 @@ import {
 import type { Command, CommandContext } from "./ports"
 import { calculateProjectProgress } from "./progress"
 import { defaultRootUnitForKind } from "./projectSetup"
-import { PermissionError, projectPermissions } from "./session"
+import {
+  authorizingMembership,
+  PermissionError,
+  type ScopeTarget,
+} from "./session"
 import {
   canTransitionTask,
   statusAfterProgressApproval,
@@ -62,17 +66,29 @@ import { slugifyLibraryName } from "./workLibrary"
 
 // ─── Authorization ────────────────────────────────────────────────────────────
 
-/** Throws unless the actor holds one of `permissions` on the project. */
+/**
+ * Throws unless the actor holds one of `permissions` on the project through an
+ * active membership whose scope covers `target`. Returns that membership, which
+ * is also who the resulting record is attributed to. The default target is a
+ * whole-project operation, so unit/stage/trade-scoped members are denied.
+ */
 function authorizeProject(
   state: ConstructionDataState,
   ctx: CommandContext,
   projectId: EntityId,
-  ...permissions: Permission[]
-) {
-  const granted = projectPermissions(ctx.actor, state.memberships, projectId)
-  if (!permissions.some((permission) => granted.includes(permission))) {
-    throw new PermissionError(permissions[0], projectId)
-  }
+  permissions: Permission[],
+  target: ScopeTarget = {},
+): ProjectMembership {
+  const membership = authorizingMembership(
+    ctx.actor,
+    state.memberships,
+    state.projectUnits,
+    projectId,
+    permissions,
+    target,
+  )
+  if (!membership) throw new PermissionError(permissions[0], projectId)
+  return membership
 }
 
 /** Throws unless the actor is a business user (of `organizationId`, if given). */
@@ -101,24 +117,25 @@ function projectIdOfTask(
   return projectId
 }
 
-/**
- * The actor's own active membership on a project. Records are attributed to
- * this, never to another member and never to a caller-supplied id.
- */
-function actorMembership(
-  state: ConstructionDataState,
-  ctx: CommandContext,
-  projectId: EntityId,
-): ProjectMembership {
-  const membership = state.memberships.find(
-    (item) =>
-      item.projectId === projectId &&
-      item.status === "active" &&
-      item.principalType === "person" &&
-      item.principalId === ctx.actor?.personId,
+/** Scope target for a task's own unit, stage and trade. */
+function taskTarget(task: Task): ScopeTarget {
+  return {
+    projectUnitId: task.projectUnitId,
+    stageId: task.stageId,
+    tradeId: task.tradeId,
+  }
+}
+
+/** Every unit x trade combination an assignment touches (empty list = whole project). */
+function assignmentTargets(
+  projectUnitIds: readonly EntityId[] | undefined,
+  tradeIds: readonly EntityId[] | undefined,
+): ScopeTarget[] {
+  const units = projectUnitIds?.length ? projectUnitIds : [undefined]
+  const trades = tradeIds?.length ? tradeIds : [undefined]
+  return units.flatMap((projectUnitId) =>
+    trades.map((tradeId) => ({ projectUnitId, tradeId })),
   )
-  if (!membership) throw new PermissionError(Permissions.PROJECT_READ, projectId)
-  return membership
 }
 
 function projectOrThrow(state: ConstructionDataState, projectId: EntityId) {
@@ -285,7 +302,11 @@ export const addProjectUnits =
   (inputs: readonly AddProjectUnitInput[]): Command<ProjectUnit[]> =>
   (state, ctx) => {
     for (const input of inputs) {
-      authorizeProject(state, ctx, input.projectId, Permissions.PROJECT_MANAGE)
+      // Beneath a parent unit needs that unit in scope; a root unit is whole-project.
+      authorizeProject(state, ctx, input.projectId, [Permissions.PROJECT_MANAGE], {
+        projectUnitId: input.parentUnitId,
+      })
+      assertUnitInProject(state, input.projectId, input.parentUnitId)
     }
     // Sequence numbers depend on earlier units in the same batch.
     let units: ProjectUnit[] = state.projectUnits
@@ -308,7 +329,7 @@ export const addProjectUnit =
 export const inviteProjectMember =
   (input: InviteProjectMemberInput): Command<ProjectMembership> =>
   (state, ctx) => {
-    authorizeProject(state, ctx, input.projectId, Permissions.PROJECT_MANAGE)
+    authorizeProject(state, ctx, input.projectId, [Permissions.PROJECT_MANAGE])
     const person: Person = {
       id: ctx.ids.next("person"),
       name: input.name,
@@ -344,7 +365,7 @@ export const inviteProjectMember =
 export const addWorkPlanItem =
   (input: AddWorkPlanItemInput): Command<WorkPlanItem> =>
   (state, ctx) => {
-    authorizeProject(state, ctx, input.projectId, Permissions.TASK_MANAGE)
+    authorizeProject(state, ctx, input.projectId, [Permissions.TASK_MANAGE], input)
     assertUnitInProject(state, input.projectId, input.projectUnitId)
     assertWorkTypeMatches(state, input)
     const item: WorkPlanItem = {
@@ -362,8 +383,7 @@ export const addWorkPlanItem =
 export const createTask =
   (input: CreateTaskInput): Command<Task> =>
   (state, ctx) => {
-    authorizeProject(state, ctx, input.projectId, Permissions.TASK_MANAGE)
-    const creator = actorMembership(state, ctx, input.projectId)
+    const creator = authorizeProject(state, ctx, input.projectId, [Permissions.TASK_MANAGE], input)
     assertUnitInProject(state, input.projectId, input.projectUnitId)
     assertWorkTypeMatches(state, input)
     const template = state.taskTemplates.find(
@@ -394,8 +414,10 @@ export const assignTask =
   ): Command<TaskAssignment> =>
   (state, ctx) => {
     const projectId = projectIdOfTask(state, taskId, Permissions.TASK_MANAGE)
-    authorizeProject(state, ctx, projectId, Permissions.TASK_MANAGE)
-    const assigner = actorMembership(state, ctx, projectId)
+    const task = state.tasks.find((item) => item.id === taskId)!
+    const assigner = authorizeProject(
+      state, ctx, projectId, [Permissions.TASK_MANAGE], taskTarget(task),
+    )
 
     if (assigneeType === "worker") {
       const project = projectOrThrow(state, projectId)
@@ -459,12 +481,13 @@ export const transitionTask =
   (state, ctx) => {
     const projectId = projectIdOfTask(state, taskId, Permissions.TASK_MANAGE)
     // Workers who can submit progress may also start/pause their own work.
+    const task = state.tasks.find((item) => item.id === taskId)!
     authorizeProject(
       state,
       ctx,
       projectId,
-      Permissions.TASK_MANAGE,
-      Permissions.PROGRESS_SUBMIT,
+      [Permissions.TASK_MANAGE, Permissions.PROGRESS_SUBMIT],
+      taskTarget(task),
     )
     const timestamp = iso(ctx)
     return {
@@ -509,7 +532,10 @@ function buildAssignment(
 export const assignWorkerToProject =
   (input: AssignWorkerToProjectInput): Command<WorkerProjectAssignment> =>
   (state, ctx) => {
-    authorizeProject(state, ctx, input.projectId, Permissions.WORKFORCE_MANAGE)
+    const memberships = assignmentTargets(input.projectUnitIds, input.tradeIds).map(
+      (target) =>
+        authorizeProject(state, ctx, input.projectId, [Permissions.WORKFORCE_MANAGE], target),
+    )
     const project = projectOrThrow(state, input.projectId)
     const worker = state.workers.find((item) => item.id === input.workerId)
     if (!worker || worker.organizationId !== project.organizationId) {
@@ -520,7 +546,7 @@ export const assignWorkerToProject =
     for (const unitId of input.projectUnitIds ?? []) {
       assertUnitInProject(state, input.projectId, unitId)
     }
-    const assigner = actorMembership(state, ctx, input.projectId)
+    const assigner = memberships[0]
     // A worker has at most one active assignment per project; re-assigning
     // returns the existing one instead of a record that was never stored.
     const existing = state.workerProjectAssignments.find(
@@ -553,13 +579,18 @@ export const addWorker =
       input.organizationId,
       Permissions.WORKFORCE_MANAGE,
     )
+    const projectMemberships = input.projectId
+      ? assignmentTargets(input.projectUnitIds, input.tradeIds).map((target) =>
+          authorizeProject(
+            state,
+            ctx,
+            input.projectId!,
+            [Permissions.WORKFORCE_MANAGE],
+            target,
+          ),
+        )
+      : []
     if (input.projectId) {
-      authorizeProject(
-        state,
-        ctx,
-        input.projectId,
-        Permissions.WORKFORCE_MANAGE,
-      )
       if (projectOrThrow(state, input.projectId).organizationId !== input.organizationId) {
         throw new IntegrityError(
           `Project ${input.projectId} belongs to a different organization`,
@@ -582,7 +613,7 @@ export const addWorker =
     const assignment = input.projectId
       ? buildAssignment(
           ctx,
-          actorMembership(state, ctx, input.projectId).id,
+          projectMemberships[0].id,
           {
             workerId: worker.id,
             projectId: input.projectId,
@@ -630,14 +661,21 @@ function buildEvidence(input: EvidenceDraft, ctx: CommandContext): Evidence {
 export const addEvidence =
   (input: AddEvidenceInput): Command<Evidence> =>
   (state, ctx) => {
-    authorizeProject(state, ctx, input.projectId, Permissions.EVIDENCE_CAPTURE)
+    // Evidence takes the scope of the task it is attached to, else its unit.
+    const task = input.taskId
+      ? state.tasks.find((item) => item.id === input.taskId)
+      : undefined
+    const author = authorizeProject(
+      state,
+      ctx,
+      input.projectId,
+      [Permissions.EVIDENCE_CAPTURE],
+      task ? taskTarget(task) : { projectUnitId: input.projectUnitId },
+    )
     assertUnitInProject(state, input.projectId, input.projectUnitId)
     assertTaskInProject(state, input.projectId, input.taskId)
     const evidence = buildEvidence(
-      {
-        ...input,
-        capturedByMembershipId: actorMembership(state, ctx, input.projectId).id,
-      },
+      { ...input, capturedByMembershipId: author.id },
       ctx,
     )
     return {
@@ -649,14 +687,16 @@ export const addEvidence =
 export const submitDailyProgress =
   (input: SubmitDailyProgressInput): Command<DailyProgress> =>
   (state, ctx) => {
-    authorizeProject(state, ctx, input.projectId, Permissions.PROGRESS_SUBMIT)
+    const submitterMembership = authorizeProject(
+      state, ctx, input.projectId, [Permissions.PROGRESS_SUBMIT], input,
+    )
     const project = projectOrThrow(state, input.projectId)
     assertUnitInProject(state, input.projectId, input.projectUnitId)
     assertTaskInProject(state, input.projectId, input.taskId)
     assertWorkTypeMatches(state, input)
     const progressId = ctx.ids.next("progress")
     const timestamp = iso(ctx)
-    const submitter = actorMembership(state, ctx, input.projectId).id
+    const submitter = submitterMembership.id
     const evidence = input.evidence.map((item) =>
       buildEvidence(
         {
@@ -721,7 +761,8 @@ export const reviewDailyProgress =
       state,
       ctx,
       progress.projectId,
-      Permissions.PROGRESS_REVIEW,
+      [Permissions.PROGRESS_REVIEW],
+      progress,
     )
     if (
       progress.reviewStatus === "approved" ||
