@@ -11,3 +11,6 @@ logs/
 *.log
 .claude-replay.*
 .tmp-*
+
+# macOS
+.DS_Store

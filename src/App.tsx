@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import SplashScreen from './screens/SplashScreen'
 import WelcomeScreen from './screens/WelcomeScreen'
 import LoginScreen from './screens/LoginScreen'
@@ -43,10 +43,13 @@ const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpda
 
 function SplashRoute({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
+  // Latest callback without restarting the timers when the parent re-renders.
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
 
   useEffect(() => {
     const fadeTimer = setTimeout(() => setFading(true), 2600)
-    const completeTimer = setTimeout(onComplete, 3000)
+    const completeTimer = setTimeout(() => onCompleteRef.current(), 3000)
 
     return () => {
       clearTimeout(fadeTimer)
