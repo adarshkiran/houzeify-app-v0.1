@@ -19,6 +19,7 @@ import type {
   Project,
   ProjectMembership,
   ProjectUnit,
+  ReviewDecision,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -100,7 +101,8 @@ interface ConstructionDataContextValue {
   submitDailyProgress: (input: Inputs.SubmitDailyProgressInput) => DailyProgress
   reviewDailyProgress: (
     progressId: EntityId,
-    decision: "approve" | "reject",
+    decision: ReviewDecision,
+    note?: string,
   ) => void
   reportIssue: (input: Inputs.ReportIssueInput) => Issue
   assignIssue: (issueId: EntityId, membershipId: EntityId | undefined) => void
@@ -192,8 +194,8 @@ export default function ConstructionDataProvider({
       startTask: (taskId) => run(commands.startTask(taskId)),
       addEvidence: (input) => run(commands.addEvidence(input)),
       submitDailyProgress: (input) => run(commands.submitDailyProgress(input)),
-      reviewDailyProgress: (id, decision) =>
-        run(commands.reviewDailyProgress(id, decision)),
+      reviewDailyProgress: (id, decision, note) =>
+        run(commands.reviewDailyProgress(id, decision, note)),
       reportIssue: (input) => run(commands.reportIssue(input)),
       assignIssue: (id, membershipId) =>
         run(commands.assignIssue(id, membershipId)),

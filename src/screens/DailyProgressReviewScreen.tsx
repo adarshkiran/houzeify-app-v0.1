@@ -65,9 +65,15 @@ function ReviewQueue({
 
   const decide = (decision: "approve" | "reject") => {
     if (!selected) return
-    const outcome = run(() => reviewDailyProgress(selected.id, decision), {
-      success: decision === "approve" ? "Progress approved" : "Progress rejected",
-    })
+    const outcome = run(
+      () =>
+        reviewDailyProgress(
+          selected.id,
+          decision,
+          decision === "reject" ? "Rejected in review" : undefined,
+        ),
+      { success: decision === "approve" ? "Progress approved" : "Progress rejected" },
+    )
     if (outcome.ok) setSelectedId(undefined)
   }
 
@@ -202,7 +208,7 @@ function ReviewQueue({
                     <Flex gap="small" wrap>
                       <Gated allowed={canReview}>
                         <Button type="primary" onClick={() => decide("approve")}>
-                          Approve and publish
+                          Approve
                         </Button>
                       </Gated>
                       <Gated allowed={canReview}>

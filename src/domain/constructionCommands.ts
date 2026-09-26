@@ -28,7 +28,9 @@ import type {
   Project,
   ProjectMembership,
   ProjectUnit,
+  ProgressReview,
   Quantity,
+  ReviewDecision,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -58,6 +60,7 @@ import {
 import {
   canTransitionTask,
   isSiteTaskStatus,
+  statusAfterChangesRequested,
   statusAfterProgressApproval,
   statusAfterProgressRejection,
   statusAfterProgressSubmit,
@@ -980,100 +983,94 @@ function addQuantity(
   return { unit: total.unit, value: total.value + added.value }
 }
 
+const NOTE_REQUIRED: Record<Exclude<ReviewDecision, "approve">, string> = {
+  "request-changes": "Add a note so the worker knows what to fix.",
+  reject: "Add a note saying why this update is rejected.",
+}
+
 export const reviewDailyProgress =
-  (progressId: EntityId, decision: "approve" | "reject"): Command<void> =>
+  (
+    progressId: EntityId,
+    decision: ReviewDecision,
+    note?: string,
+  ): Command<void> =>
   (state, ctx) => {
     // Authorize against the stored item's project, never a caller-supplied one.
     const progress = state.dailyProgress.find((item) => item.id === progressId)
     if (!progress) throw new PermissionError(Permissions.PROGRESS_REVIEW)
-    authorizeProject(
+    const reviewer = authorizeProject(
       state,
       ctx,
       progress.projectId,
       [Permissions.PROGRESS_REVIEW],
       progress,
     )
-    if (
-      progress.reviewStatus === "approved" ||
-      progress.reviewStatus === "rejected"
-    ) {
-      return { state, result: undefined }
+    // Only a waiting update can be reviewed; a repeat review is a no-op.
+    if (progress.reviewStatus !== "submitted") return { state, result: undefined }
+
+    const trimmed = note?.trim() || undefined
+    if (decision !== "approve" && !trimmed) {
+      throw new ConflictError(NOTE_REQUIRED[decision])
     }
 
     const timestamp = iso(ctx)
-
-    if (decision === "reject") {
-      return {
-        state: {
-          ...state,
-          dailyProgress: state.dailyProgress.map((item) =>
-            item.id === progressId
-              ? {
-                  ...item,
-                  reviewStatus: "rejected",
-                  publicationStatus: "private",
-                }
-              : item,
-          ),
-          tasks: state.tasks.map((task) => {
-            if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
-              return task
-            }
-            const nextStatus = statusAfterProgressRejection(task.status)
-            return nextStatus
-              ? { ...task, status: nextStatus, updatedAt: timestamp }
-              : task
-          }),
-        },
-        result: undefined,
-      }
+    const review: ProgressReview = {
+      decision,
+      note: trimmed,
+      reviewedByMembershipId: reviewer.id,
+      reviewedAt: timestamp,
     }
-
-    const updatedProgress = state.dailyProgress.map((item) =>
+    const nextReviewStatus: DailyProgress["reviewStatus"] =
+      decision === "approve"
+        ? "approved"
+        : decision === "reject"
+          ? "rejected"
+          : "changes-requested"
+    const dailyProgress = state.dailyProgress.map((item) =>
       item.id === progressId
-        ? {
-            ...item,
-            reviewStatus: "approved" as const,
-            publicationStatus: "published" as const,
-          }
+        ? { ...item, reviewStatus: nextReviewStatus, review }
         : item,
     )
+
     const tasks = state.tasks.map((task) => {
       if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
         return task
       }
-      const nextStatus = statusAfterProgressApproval(task.status)
-      const completedQuantity = addQuantity(
-        task.completedQuantity,
-        progress.completedQuantity,
-      )
-      return nextStatus === task.status && completedQuantity === task.completedQuantity
-        ? task
-        : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
+      if (decision === "approve") {
+        const nextStatus = statusAfterProgressApproval(task.status)
+        const completedQuantity = addQuantity(
+          task.completedQuantity,
+          progress.completedQuantity,
+        )
+        return nextStatus === task.status && completedQuantity === task.completedQuantity
+          ? task
+          : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
+      }
+      const nextStatus =
+        decision === "reject"
+          ? statusAfterProgressRejection(task.status)
+          : statusAfterChangesRequested(task.status)
+      return nextStatus ? { ...task, status: nextStatus, updatedAt: timestamp } : task
     })
+
     return {
       state: {
         ...state,
-        dailyProgress: updatedProgress,
-        // Approval publishes what was waiting for review; private items
-        // (voice notes) stay private.
-        evidence: state.evidence.map((item) =>
-          (progress.evidenceIds.includes(item.id) ||
-            item.dailyProgressId === progressId) &&
-          item.customerVisibility === "review-required"
-            ? { ...item, customerVisibility: "customer-visible" }
-            : item,
-        ),
-        projects: state.projects.map((project) =>
-          project.id !== progress.projectId
-            ? project
-            : {
-                ...project,
-                progress: calculateProjectProgress(project, state.stages, tasks),
-                updatedAt: timestamp,
-              },
-        ),
+        dailyProgress,
         tasks,
+        // Only approved work moves the official figure. Publishing is separate.
+        projects:
+          decision !== "approve"
+            ? state.projects
+            : state.projects.map((project) =>
+                project.id !== progress.projectId
+                  ? project
+                  : {
+                      ...project,
+                      progress: calculateProjectProgress(project, state.stages, tasks),
+                      updatedAt: timestamp,
+                    },
+              ),
       },
       result: undefined,
     }

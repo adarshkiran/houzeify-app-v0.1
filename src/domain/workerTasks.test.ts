@@ -290,7 +290,7 @@ describe("worker progress submission and supervisor review", () => {
     ).toBe(false)
   })
 
-  it("publishes on approval, except voice notes, without moving project %", () => {
+  it("approval keeps the update private until it is published", () => {
     const submitted = commands.submitDailyProgress(workerSubmit("task-13"))(
       started(),
       ctxFor(ravi),
@@ -312,12 +312,12 @@ describe("worker progress submission and supervisor review", () => {
       getPublishedForCustomer(state, "project-sharma").some(
         (p) => p.id === progressId,
       ),
-    ).toBe(true)
+    ).toBe(false)
     const evidence = state.evidence.filter(
       (e) => e.dailyProgressId === progressId,
     )
     expect(evidence.map((e) => e.customerVisibility)).toEqual([
-      "customer-visible",
+      "review-required",
       "private",
     ])
     expect(
@@ -338,7 +338,7 @@ describe("worker progress submission and supervisor review", () => {
     const state = apply(
       submitted.state,
       manager,
-      commands.reviewDailyProgress(submitted.result.id, "reject"),
+      commands.reviewDailyProgress(submitted.result.id, "reject", "Wrong grid"),
     )
     expect(
       getPublishedForCustomer(state, "project-sharma").some(
