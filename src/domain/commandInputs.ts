@@ -89,7 +89,6 @@ export interface AddEvidenceInput {
   url: string
   thumbnailUrl?: string
   caption?: string
-  capturedByMembershipId?: EntityId
   capturedByWorkerId?: EntityId
   customerVisibility?: Evidence["customerVisibility"]
 }
@@ -107,7 +106,6 @@ export interface SubmitDailyProgressInput {
   tomorrowPlan: string
   yesterdaySummary?: string
   blockerSummary?: string
-  submittedByMembershipId?: EntityId
   evidence: Array<{
     type: EvidenceType
     url: string
@@ -123,7 +121,6 @@ export interface AssignWorkerToProjectInput {
   projectUnitIds?: EntityId[]
   tradeIds?: EntityId[]
   role?: WorkerProjectAssignment["role"]
-  assignedByMembershipId?: EntityId
 }
 
 export interface AddWorkerInput {
@@ -136,7 +133,6 @@ export interface AddWorkerInput {
   projectId?: EntityId
   projectUnitIds?: EntityId[]
   role?: WorkerProjectAssignment["role"]
-  assignedByMembershipId?: EntityId
 }
 
 export interface AddLibraryStageInput {

@@ -1,3 +1,4 @@
+import { IntegrityError } from "./errors"
 import type {
   AddEvidenceInput,
   AddLibraryStageInput,
@@ -98,6 +99,73 @@ function projectIdOfTask(
   const projectId = state.tasks.find((task) => task.id === taskId)?.projectId
   if (!projectId) throw new PermissionError(permission)
   return projectId
+}
+
+/**
+ * The actor's own active membership on a project. Records are attributed to
+ * this, never to another member and never to a caller-supplied id.
+ */
+function actorMembership(
+  state: ConstructionDataState,
+  ctx: CommandContext,
+  projectId: EntityId,
+): ProjectMembership {
+  const membership = state.memberships.find(
+    (item) =>
+      item.projectId === projectId &&
+      item.status === "active" &&
+      item.principalType === "person" &&
+      item.principalId === ctx.actor?.personId,
+  )
+  if (!membership) throw new PermissionError(Permissions.PROJECT_READ, projectId)
+  return membership
+}
+
+function projectOrThrow(state: ConstructionDataState, projectId: EntityId) {
+  const project = state.projects.find((item) => item.id === projectId)
+  if (!project) throw new IntegrityError(`Unknown project ${projectId}`)
+  return project
+}
+
+function assertUnitInProject(
+  state: ConstructionDataState,
+  projectId: EntityId,
+  unitId: EntityId | undefined,
+) {
+  if (!unitId) return
+  const unit = state.projectUnits.find((item) => item.id === unitId)
+  if (!unit || unit.projectId !== projectId) {
+    throw new IntegrityError(`Unit ${unitId} does not belong to project ${projectId}`)
+  }
+}
+
+function assertTaskInProject(
+  state: ConstructionDataState,
+  projectId: EntityId,
+  taskId: EntityId | undefined,
+) {
+  if (!taskId) return
+  const task = state.tasks.find((item) => item.id === taskId)
+  if (!task || task.projectId !== projectId) {
+    throw new IntegrityError(`Task ${taskId} does not belong to project ${projectId}`)
+  }
+}
+
+/** The stage and trade must be the ones the work type is defined under. */
+function assertWorkTypeMatches(
+  state: ConstructionDataState,
+  ref: { workTypeId: EntityId; stageId: EntityId; tradeId: EntityId },
+) {
+  const workType = state.workTypes.find((item) => item.id === ref.workTypeId)
+  if (
+    !workType ||
+    workType.stageId !== ref.stageId ||
+    workType.tradeId !== ref.tradeId
+  ) {
+    throw new IntegrityError(
+      `Work type ${ref.workTypeId} does not match stage ${ref.stageId} / trade ${ref.tradeId}`,
+    )
+  }
 }
 
 const iso = (ctx: CommandContext) => ctx.clock.now().toISOString()
@@ -277,6 +345,8 @@ export const addWorkPlanItem =
   (input: AddWorkPlanItemInput): Command<WorkPlanItem> =>
   (state, ctx) => {
     authorizeProject(state, ctx, input.projectId, Permissions.TASK_MANAGE)
+    assertUnitInProject(state, input.projectId, input.projectUnitId)
+    assertWorkTypeMatches(state, input)
     const item: WorkPlanItem = {
       id: ctx.ids.next("plan"),
       ...input,
@@ -293,11 +363,9 @@ export const createTask =
   (input: CreateTaskInput): Command<Task> =>
   (state, ctx) => {
     authorizeProject(state, ctx, input.projectId, Permissions.TASK_MANAGE)
-    const creator = state.memberships.find(
-      (membership) =>
-        membership.projectId === input.projectId &&
-        membership.role === "project-manager",
-    )
+    const creator = actorMembership(state, ctx, input.projectId)
+    assertUnitInProject(state, input.projectId, input.projectUnitId)
+    assertWorkTypeMatches(state, input)
     const template = state.taskTemplates.find(
       (item) => item.id === input.templateId,
     )
@@ -311,7 +379,7 @@ export const createTask =
         label,
         completed: false,
       })),
-      createdByMembershipId: creator?.id ?? "",
+      createdByMembershipId: creator.id,
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -325,20 +393,50 @@ export const assignTask =
     assigneeId: EntityId,
   ): Command<TaskAssignment> =>
   (state, ctx) => {
-    authorizeProject(
-      state,
-      ctx,
-      projectIdOfTask(state, taskId, Permissions.TASK_MANAGE),
-      Permissions.TASK_MANAGE,
+    const projectId = projectIdOfTask(state, taskId, Permissions.TASK_MANAGE)
+    authorizeProject(state, ctx, projectId, Permissions.TASK_MANAGE)
+    const assigner = actorMembership(state, ctx, projectId)
+
+    if (assigneeType === "worker") {
+      const project = projectOrThrow(state, projectId)
+      const worker = state.workers.find((item) => item.id === assigneeId)
+      if (!worker || worker.organizationId !== project.organizationId) {
+        throw new IntegrityError(`Worker ${assigneeId} is not in this organization`)
+      }
+      const onProject = state.workerProjectAssignments.some(
+        (item) =>
+          item.workerId === assigneeId &&
+          item.projectId === projectId &&
+          item.status === "active",
+      )
+      if (!onProject) {
+        throw new IntegrityError(
+          `Worker ${assigneeId} is not assigned to project ${projectId}`,
+        )
+      }
+    } else if (assigneeType === "membership") {
+      const member = state.memberships.find((item) => item.id === assigneeId)
+      if (!member || member.projectId !== projectId) {
+        throw new IntegrityError(`Membership ${assigneeId} is not on project ${projectId}`)
+      }
+    }
+
+    const existing = state.assignments.find(
+      (item) =>
+        item.taskId === taskId &&
+        item.assigneeType === assigneeType &&
+        item.assigneeId === assigneeId &&
+        item.status !== "declined",
     )
-    const task = state.tasks.find((item) => item.id === taskId)
+    if (existing) return { state, result: existing }
+
     const timestamp = iso(ctx)
     const assignment: TaskAssignment = {
       id: ctx.ids.next("assignment"),
       taskId,
       assigneeType,
       assigneeId,
-      assignedByMembershipId: task?.createdByMembershipId ?? "",
+      assignedByMembershipId: assigner.id,
       status: "assigned",
       assignedAt: timestamp,
     }
@@ -386,13 +484,13 @@ export const transitionTask =
 
 function buildAssignment(
   ctx: CommandContext,
+  assignedByMembershipId: EntityId,
   input: {
     workerId: EntityId
     projectId: EntityId
     projectUnitIds?: EntityId[]
     tradeIds?: EntityId[]
     role?: WorkerProjectAssignment["role"]
-    assignedByMembershipId?: EntityId
   },
 ): WorkerProjectAssignment {
   return {
@@ -404,7 +502,7 @@ function buildAssignment(
     role: input.role ?? "worker",
     status: "active",
     assignedAt: iso(ctx),
-    assignedByMembershipId: input.assignedByMembershipId,
+    assignedByMembershipId,
   }
 }
 
@@ -412,6 +510,17 @@ export const assignWorkerToProject =
   (input: AssignWorkerToProjectInput): Command<WorkerProjectAssignment> =>
   (state, ctx) => {
     authorizeProject(state, ctx, input.projectId, Permissions.WORKFORCE_MANAGE)
+    const project = projectOrThrow(state, input.projectId)
+    const worker = state.workers.find((item) => item.id === input.workerId)
+    if (!worker || worker.organizationId !== project.organizationId) {
+      throw new IntegrityError(
+        `Worker ${input.workerId} is not in the organization that owns project ${input.projectId}`,
+      )
+    }
+    for (const unitId of input.projectUnitIds ?? []) {
+      assertUnitInProject(state, input.projectId, unitId)
+    }
+    const assigner = actorMembership(state, ctx, input.projectId)
     // A worker has at most one active assignment per project; re-assigning
     // returns the existing one instead of a record that was never stored.
     const existing = state.workerProjectAssignments.find(
@@ -421,7 +530,7 @@ export const assignWorkerToProject =
         item.status === "active",
     )
     if (existing) return { state, result: existing }
-    const assignment = buildAssignment(ctx, input)
+    const assignment = buildAssignment(ctx, assigner.id, input)
     return {
       state: {
         ...state,
@@ -451,6 +560,14 @@ export const addWorker =
         input.projectId,
         Permissions.WORKFORCE_MANAGE,
       )
+      if (projectOrThrow(state, input.projectId).organizationId !== input.organizationId) {
+        throw new IntegrityError(
+          `Project ${input.projectId} belongs to a different organization`,
+        )
+      }
+      for (const unitId of input.projectUnitIds ?? []) {
+        assertUnitInProject(state, input.projectId, unitId)
+      }
     }
     const worker: Worker = {
       id: `worker-${ctx.ids.short()}`,
@@ -463,14 +580,17 @@ export const addWorker =
       status: "active",
     }
     const assignment = input.projectId
-      ? buildAssignment(ctx, {
-          workerId: worker.id,
-          projectId: input.projectId,
-          projectUnitIds: input.projectUnitIds,
-          tradeIds: input.tradeIds,
-          role: input.role,
-          assignedByMembershipId: input.assignedByMembershipId,
-        })
+      ? buildAssignment(
+          ctx,
+          actorMembership(state, ctx, input.projectId).id,
+          {
+            workerId: worker.id,
+            projectId: input.projectId,
+            projectUnitIds: input.projectUnitIds,
+            tradeIds: input.tradeIds,
+            role: input.role,
+          },
+        )
       : undefined
     return {
       state: {
@@ -486,7 +606,10 @@ export const addWorker =
 
 // ─── Evidence & daily progress ────────────────────────────────────────────────
 
-function buildEvidence(input: AddEvidenceInput, ctx: CommandContext): Evidence {
+/** Evidence with its author already resolved from the session by the caller. */
+type EvidenceDraft = AddEvidenceInput & { capturedByMembershipId: EntityId }
+
+function buildEvidence(input: EvidenceDraft, ctx: CommandContext): Evidence {
   return {
     id: ctx.ids.next("evidence"),
     projectId: input.projectId,
@@ -508,7 +631,15 @@ export const addEvidence =
   (input: AddEvidenceInput): Command<Evidence> =>
   (state, ctx) => {
     authorizeProject(state, ctx, input.projectId, Permissions.EVIDENCE_CAPTURE)
-    const evidence = buildEvidence(input, ctx)
+    assertUnitInProject(state, input.projectId, input.projectUnitId)
+    assertTaskInProject(state, input.projectId, input.taskId)
+    const evidence = buildEvidence(
+      {
+        ...input,
+        capturedByMembershipId: actorMembership(state, ctx, input.projectId).id,
+      },
+      ctx,
+    )
     return {
       state: { ...state, evidence: [...state.evidence, evidence] },
       result: evidence,
@@ -519,17 +650,13 @@ export const submitDailyProgress =
   (input: SubmitDailyProgressInput): Command<DailyProgress> =>
   (state, ctx) => {
     authorizeProject(state, ctx, input.projectId, Permissions.PROGRESS_SUBMIT)
+    const project = projectOrThrow(state, input.projectId)
+    assertUnitInProject(state, input.projectId, input.projectUnitId)
+    assertTaskInProject(state, input.projectId, input.taskId)
+    assertWorkTypeMatches(state, input)
     const progressId = ctx.ids.next("progress")
     const timestamp = iso(ctx)
-    const project = state.projects.find((item) => item.id === input.projectId)
-    const submitter =
-      input.submittedByMembershipId ??
-      state.memberships.find(
-        (membership) =>
-          membership.projectId === input.projectId &&
-          membership.role === "project-manager",
-      )?.id ??
-      ""
+    const submitter = actorMembership(state, ctx, input.projectId).id
     const evidence = input.evidence.map((item) =>
       buildEvidence(
         {
@@ -555,7 +682,7 @@ export const submitDailyProgress =
       workTypeId: input.workTypeId,
       date: todayISODate(ctx),
       workersPresent: input.workersPresent,
-      progressBefore: project?.progress,
+      progressBefore: project.progress,
       progressAfter: input.progressAfter,
       yesterdaySummary: input.yesterdaySummary,
       todaySummary: input.todaySummary,
@@ -619,7 +746,9 @@ export const reviewDailyProgress =
               : item,
           ),
           tasks: state.tasks.map((task) => {
-            if (task.id !== progress.taskId) return task
+            if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
+              return task
+            }
             const nextStatus = statusAfterProgressRejection(task.status)
             return nextStatus
               ? { ...task, status: nextStatus, updatedAt: timestamp }
@@ -659,7 +788,9 @@ export const reviewDailyProgress =
               },
         ),
         tasks: state.tasks.map((task) => {
-          if (task.id !== progress.taskId) return task
+          if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
+            return task
+          }
           const nextStatus = statusAfterProgressApproval(task.status)
           return nextStatus === task.status
             ? task
