@@ -55,7 +55,7 @@ const workTypeDefinitions = [
   ["stage-site-prep", "trade-survey", "Site Survey", "m2"],
   ["stage-site-prep", "trade-survey", "Soil Investigation", "nos"],
   ["stage-site-prep", "trade-civil", "Site Clearing", "m2"],
-  ["stage-site-prep", "trade-civil", "Demolition", "m2"],
+  ["stage-site-prep", "trade-civil", "Demolition", "hour"],
   ["stage-site-prep", "trade-civil", "Temporary Fencing and Hoarding", "m"],
   ["stage-site-prep", "trade-survey", "Grid Setting Out", "nos"],
   ["stage-site-prep", "trade-survey", "Benchmark Establishment", "nos"],

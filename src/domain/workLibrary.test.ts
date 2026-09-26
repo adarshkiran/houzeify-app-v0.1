@@ -1,16 +1,26 @@
 import { describe, expect, it } from "vitest"
 import { seedConstructionData } from "../mock/seed"
 import {
+  QUANTITY_UNITS,
   WORK_LIBRARY_VERSION,
   defaultTaskTitle,
   getTemplateForWorkType,
   getTradesForStage,
   getWorkTypesForStageTrade,
+  slugifyLibraryName,
 } from "./workLibrary"
 
 describe("workLibrary", () => {
   it("exposes a catalog version", () => {
     expect(WORK_LIBRARY_VERSION).toMatch(/^\d{4}\.\d{2}\.\d+$/)
+  })
+
+  it("exposes quantity units and slugifies names", () => {
+    expect(QUANTITY_UNITS).toContain("m2")
+    expect(QUANTITY_UNITS).toContain("hour")
+    expect(slugifyLibraryName("Terrace Waterproofing")).toBe(
+      "terrace-waterproofing",
+    )
   })
 
   it("cascades RCC → Reinforcement → Column Reinforcement", () => {

@@ -128,7 +128,7 @@ function CustomerUpdate({
               }
             >
               {evidence.length ? (
-                <Row gutter={[12, 12]}>
+                <Row gutter={[16, 16]}>
                   {evidence.map((item) => (
                     <Col key={item.id} xs={12} sm={8}>
                       <EvidenceThumb evidence={item} />

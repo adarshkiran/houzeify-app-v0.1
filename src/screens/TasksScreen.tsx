@@ -33,6 +33,10 @@ import type {
 } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
+  QUANTITY_UNITS,
+  quantityUnitLabel,
+} from "../domain/workLibrary"
+import {
   useConstructionData,
   type CreateTaskInput,
 } from "../mock/ConstructionDataProvider"
@@ -317,9 +321,10 @@ function Tasks({
             <Col span={10}>
               <Form.Item label="Unit" name="unit">
                 <Select
-                  options={["nos", "m", "m2", "m3", "kg", "tonne", "day", "percentage"].map(
-                    (value) => ({ value, label: value }),
-                  )}
+                  options={QUANTITY_UNITS.map((value) => ({
+                    value,
+                    label: quantityUnitLabel(value),
+                  }))}
                 />
               </Form.Item>
             </Col>

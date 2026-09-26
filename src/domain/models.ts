@@ -2,7 +2,16 @@ export type EntityId = string
 export type ISODate = string
 export type ISODateTime = string
 
-export type QuantityUnit = "nos" | "m" | "m2" | "m3" | "kg" | "tonne" | "day" | "percentage"
+export type QuantityUnit =
+  | "nos"
+  | "m"
+  | "m2"
+  | "m3"
+  | "kg"
+  | "tonne"
+  | "hour"
+  | "day"
+  | "percentage"
 
 export interface Quantity {
   value: number

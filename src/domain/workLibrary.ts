@@ -1,13 +1,49 @@
 import type {
   ConstructionDataState,
   EntityId,
+  QuantityUnit,
   TaskTemplate,
   Trade,
   WorkType,
 } from "./models"
 
-/** Catalog version for seed-backed construction library (Phase 2). */
-export const WORK_LIBRARY_VERSION = "2026.09.1"
+/** Catalog version for construction library. */
+export const WORK_LIBRARY_VERSION = "2026.09.3"
+
+export const QUANTITY_UNITS: QuantityUnit[] = [
+  "nos",
+  "m",
+  "m2",
+  "m3",
+  "kg",
+  "tonne",
+  "hour",
+  "day",
+  "percentage",
+]
+
+/** Short labels for unit selects (hour = machine/labour hire). */
+export function quantityUnitLabel(unit: QuantityUnit): string {
+  switch (unit) {
+    case "hour":
+      return "hour (hire)"
+    case "day":
+      return "day"
+    case "percentage":
+      return "%"
+    case "nos":
+      return "nos"
+    default:
+      return unit
+  }
+}
+
+export function slugifyLibraryName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+}
 
 export function getTradesForStage(
   state: ConstructionDataState,

@@ -27,6 +27,10 @@ import WorkTypeCascadeFields from "../components/WorkTypeCascadeFields"
 import type { EntityId, QuantityUnit, WorkPlanItem } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
+  QUANTITY_UNITS,
+  quantityUnitLabel,
+} from "../domain/workLibrary"
+import {
   useConstructionData,
   type AddWorkPlanItemInput,
 } from "../mock/ConstructionDataProvider"
@@ -219,9 +223,10 @@ function WorkPlan({
                 rules={[{ required: true }]}
               >
                 <Select
-                  options={["nos", "m", "m2", "m3", "kg", "tonne", "day", "percentage"].map(
-                    (unit) => ({ value: unit, label: unit }),
-                  )}
+                  options={QUANTITY_UNITS.map((unit) => ({
+                    value: unit,
+                    label: quantityUnitLabel(unit),
+                  }))}
                 />
               </Form.Item>
             </Col>

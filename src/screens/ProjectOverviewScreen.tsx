@@ -265,7 +265,7 @@ function ProjectOverview({
                 </Space>
               }
             >
-              <Row gutter={[20, 20]}>
+              <Row gutter={[16, 16]}>
                 <Col xs={24} md={8}>
                   <Card size="small" className="project-narrative-card">
                     <Flex vertical gap="small">
@@ -317,9 +317,9 @@ function ProjectOverview({
                     classNames={{ item: "company-listy-item" }}
                     itemRender={(task) => (
                       <Flex align="center" justify="space-between" gap="middle">
-                        <Flex vertical gap={4} className="min-w-0">
+                        <Flex vertical gap={4} className="company-list-stack">
                           <Text strong>{task.title}</Text>
-                          <Space wrap>
+                          <Space size={8} wrap>
                             <Tag>{getTradeName(state, task.tradeId)}</Tag>
                             <Text type="secondary">Due {formatDate(task.dueDate)}</Text>
                           </Space>
@@ -347,10 +347,10 @@ function ProjectOverview({
                       rowKey="id"
                       classNames={{ item: "company-listy-item" }}
                       itemRender={(unit) => (
-                        <Flex align="center" justify="space-between">
-                          <Flex align="center" gap="small">
+                        <Flex align="center" justify="space-between" gap="middle">
+                          <Flex align="center" gap="small" className="company-list-stack">
                             <Avatar shape="square" icon={<SafetyCertificateOutlined />} />
-                            <Flex vertical>
+                            <Flex vertical gap={2} className="min-w-0">
                               <Text strong>{unit.name}</Text>
                               <Text type="secondary">{unit.kind}</Text>
                             </Flex>
@@ -374,9 +374,9 @@ function ProjectOverview({
                         rowKey="id"
                         classNames={{ item: "company-listy-item" }}
                         itemRender={(issue) => (
-                          <Flex vertical gap="small">
+                          <Flex vertical gap={4} className="company-list-stack">
                             <Text strong>{issue.title}</Text>
-                            <Space>
+                            <Space size={8} wrap>
                               <Tag color={issue.severity === "high" ? "error" : "warning"}>
                                 {issue.severity}
                               </Tag>

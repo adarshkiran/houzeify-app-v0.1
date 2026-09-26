@@ -258,9 +258,10 @@ html, body, #root {
 }
 
 .company-dashboard .company-content {
+  /* Left-right layout: Fixed sider + Auto main (fills remaining width) */
   width: 100%;
-  max-width: 1180px;
-  margin-inline: auto;
+  max-width: none;
+  margin-inline: 0;
   padding: 24px 32px;
 }
 
@@ -294,6 +295,7 @@ html, body, #root {
 .company-dashboard .company-project-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 16px;
   height: auto;
   min-height: 84px;
@@ -306,11 +308,51 @@ html, body, #root {
   background: var(--ant-color-fill-tertiary);
 }
 
+/*
+ * Ant Design link/text buttons default to justify-content: center.
+ * In list rows they stretch full width — force start alignment so
+ * titles line up with tags/meta below (Proximity + Alignment).
+ */
+.company-dashboard .company-listy-item .ant-btn-link,
 .company-dashboard .company-task-link {
+  display: inline-flex;
   height: auto;
-  padding: 0;
+  width: 100%;
+  padding-block: 0;
+  padding-inline: 0;
+  justify-content: flex-start;
+  align-items: flex-start;
   text-align: left;
   white-space: normal;
+  line-height: 1.4;
+}
+
+.company-dashboard .company-inline-link {
+  display: inline-flex;
+  height: auto;
+  width: auto;
+  padding-block: 0;
+  padding-inline: 0;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: left;
+}
+
+.company-dashboard .company-listy-item .ant-btn-link > span,
+.company-dashboard .company-task-link > span {
+  text-align: left;
+  white-space: normal;
+}
+
+.company-dashboard .company-listy-item .ant-flex {
+  width: 100%;
+}
+
+.company-dashboard .company-list-stack {
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .company-dashboard .company-project-row .ant-progress {
@@ -320,11 +362,13 @@ html, body, #root {
 
 .company-dashboard .company-project-stats {
   flex-shrink: 0;
+  margin-inline-start: auto;
 }
 
 .company-dashboard .company-issue-icon {
   color: var(--ant-color-error);
   background: var(--ant-color-error-bg);
+  flex-shrink: 0;
 }
 
 .company-dashboard .company-listy-item {
@@ -384,6 +428,66 @@ html, body, #root {
 
 .company-table-card-body {
   padding: 0 !important;
+}
+
+/* Table card with Ant Design size="small" inset (matches list card 12px) */
+.company-dashboard .company-table-card-body-inset {
+  padding: 12px !important;
+}
+
+/* Equal-height companion: templates column fills work-types height and scrolls */
+.company-dashboard .company-equal-height-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.company-dashboard .company-equal-height-card > .ant-card-head {
+  flex-shrink: 0;
+}
+
+.company-dashboard .company-equal-height-card > .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* List body: Ant Design Card size="small" padding (12px) + internal scroll */
+.company-dashboard .company-scroll-card-body-fill {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 12px !important;
+}
+
+/*
+ * Desktop split: right column is taken out of height contribution so the
+ * left card defines the row height; right card absolutely fills that height.
+ */
+@media (min-width: 1200px) {
+  .company-dashboard .company-split-side {
+    position: relative;
+  }
+
+  .company-dashboard .company-split-side-card {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    margin: 0;
+  }
+}
+
+/* Ant Design scroll panel: 100vh − header(64) − content padding Y(24+24) */
+.company-dashboard .company-scroll-card-body {
+  max-height: calc(100vh - 64px - 48px);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Same + filter/toolbar strip (64 = controlHeight × 2) */
+.company-dashboard .company-scroll-card-body-with-toolbar {
+  max-height: calc(100vh - 64px - 48px - 64px);
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .company-project-search {
@@ -464,7 +568,7 @@ html, body, #root {
   }
 
   .company-dashboard .company-content {
-    padding: 20px 16px;
+    padding: 16px;
   }
 
   .company-dashboard .company-project-stats {

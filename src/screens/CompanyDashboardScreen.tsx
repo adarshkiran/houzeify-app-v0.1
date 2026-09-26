@@ -462,7 +462,7 @@ function CompanyDashboard({
                       itemRender={(task) => (
                         <Flex align="flex-start" gap="middle">
                           <Checkbox aria-label={`Complete ${task.title}`} />
-                          <Flex vertical gap="small" className="min-w-0 flex-1">
+                          <Flex vertical gap={4} className="company-list-stack">
                             <Button
                               type="link"
                               className="company-task-link"
@@ -475,7 +475,7 @@ function CompanyDashboard({
                             >
                               {task.title}
                             </Button>
-                            <Space wrap>
+                            <Space size={8} wrap>
                               <Tag color={getTaskTone(task.priority)}>{task.priority}</Tag>
                               <Text type="secondary">Due {getDateLabel(task.dueDate)}</Text>
                             </Space>
@@ -510,9 +510,9 @@ function CompanyDashboard({
                             className="company-issue-icon"
                             icon={<ExclamationCircleOutlined />}
                           />
-                          <Flex vertical gap="small" className="min-w-0 flex-1">
+                          <Flex vertical gap={4} className="company-list-stack">
                             <Text>{issue.title}</Text>
-                            <Space wrap>
+                            <Space size={8} wrap>
                               <Tag color={getIssueTone(issue.severity)}>{issue.severity}</Tag>
                               <Text type="secondary">
                                 {getProject(state, issue.projectId)?.name ?? "Project"} ·{" "}
@@ -538,7 +538,7 @@ function CompanyDashboard({
                         open issue requiring your attention today. Reddy Villa&apos;s
                         plinth beam milestone has been completed.
                       </Paragraph>
-                      <Button type="link" className="self-start p-0!">
+                      <Button type="link" className="company-inline-link">
                         Ask Hozie <ArrowRightOutlined />
                       </Button>
                     </Flex>

@@ -8,6 +8,7 @@ import {
 } from "react"
 import type {
   ConstructionDataState,
+  ConstructionStage,
   DailyProgress,
   EntityId,
   Evidence,
@@ -22,10 +23,14 @@ import type {
   ProjectUnitKind,
   ProjectRole,
   Quantity,
+  QuantityUnit,
   Task,
   TaskAssignment,
   TaskStatus,
+  TaskTemplate,
+  Trade,
   WorkPlanItem,
+  WorkType,
   WorkerProjectAssignment,
 } from "../domain/models"
 import { calculateProjectProgress } from "../domain/progress"
@@ -38,6 +43,7 @@ import {
   statusAfterProgressRejection,
   statusAfterProgressSubmit,
 } from "../domain/taskTransitions"
+import { slugifyLibraryName } from "../domain/workLibrary"
 import { seedConstructionData } from "./seed"
 
 interface BusinessProfileInput {
@@ -149,6 +155,27 @@ export interface AssignWorkerToProjectInput {
   assignedByMembershipId?: EntityId
 }
 
+export interface AddLibraryStageInput {
+  name: string
+  code?: string
+}
+
+export interface AddLibraryTradeInput {
+  name: string
+  code?: string
+}
+
+export interface AddLibraryWorkTypeInput {
+  name: string
+  stageId?: EntityId
+  tradeId?: EntityId
+  newStageName?: string
+  newTradeName?: string
+  defaultUnit: QuantityUnit
+  checklist?: string[]
+  requiredEvidence?: EvidenceType[]
+}
+
 interface ConstructionDataContextValue {
   state: ConstructionDataState
   updateOrganizationProfile: (
@@ -169,6 +196,12 @@ interface ConstructionDataContextValue {
   assignWorkerToProject: (
     input: AssignWorkerToProjectInput,
   ) => WorkerProjectAssignment
+  addLibraryStage: (input: AddLibraryStageInput) => ConstructionStage
+  addLibraryTrade: (input: AddLibraryTradeInput) => Trade
+  addLibraryWorkType: (input: AddLibraryWorkTypeInput) => {
+    workType: WorkType
+    template: TaskTemplate
+  }
   transitionTask: (taskId: EntityId, nextStatus: TaskStatus) => void
   addEvidence: (input: AddEvidenceInput) => Evidence
   submitDailyProgress: (input: SubmitDailyProgressInput) => DailyProgress
@@ -655,6 +688,147 @@ export default function ConstructionDataProvider({
     [],
   )
 
+  const addLibraryStage = useCallback((input: AddLibraryStageInput) => {
+    const slug =
+      slugifyLibraryName(input.name) ||
+      `stage-${crypto.randomUUID().slice(0, 8)}`
+    const stage: ConstructionStage = {
+      id: `stage-${slug}`,
+      code: (input.code ?? slug.slice(0, 6)).toUpperCase(),
+      name: input.name.trim(),
+      sequence: state.stages.length + 1,
+    }
+    setState((current) => {
+      if (current.stages.some((item) => item.id === stage.id)) {
+        return current
+      }
+      return {
+        ...current,
+        stages: [
+          ...current.stages,
+          { ...stage, sequence: current.stages.length + 1 },
+        ],
+      }
+    })
+    return stage
+  }, [state.stages.length])
+
+  const addLibraryTrade = useCallback((input: AddLibraryTradeInput) => {
+    const slug =
+      slugifyLibraryName(input.name) ||
+      `trade-${crypto.randomUUID().slice(0, 8)}`
+    const trade: Trade = {
+      id: `trade-${slug}`,
+      code: (input.code ?? slug.slice(0, 6)).toUpperCase(),
+      name: input.name.trim(),
+    }
+    setState((current) => {
+      if (current.trades.some((item) => item.id === trade.id)) {
+        return current
+      }
+      return { ...current, trades: [...current.trades, trade] }
+    })
+    return trade
+  }, [])
+
+  const addLibraryWorkType = useCallback((input: AddLibraryWorkTypeInput) => {
+    let stage: ConstructionStage | undefined
+    let trade: Trade | undefined
+
+    if (input.newStageName?.trim()) {
+      const slug =
+        slugifyLibraryName(input.newStageName) ||
+        `stage-${crypto.randomUUID().slice(0, 8)}`
+      stage = {
+        id: `stage-${slug}`,
+        code: slug.slice(0, 6).toUpperCase(),
+        name: input.newStageName.trim(),
+        sequence: 0,
+      }
+    }
+
+    if (input.newTradeName?.trim()) {
+      const slug =
+        slugifyLibraryName(input.newTradeName) ||
+        `trade-${crypto.randomUUID().slice(0, 8)}`
+      trade = {
+        id: `trade-${slug}`,
+        code: slug.slice(0, 6).toUpperCase(),
+        name: input.newTradeName.trim(),
+      }
+    }
+
+    const stageId = stage?.id ?? input.stageId
+    const tradeId = trade?.id ?? input.tradeId
+    if (!stageId || !tradeId) {
+      throw new Error("Stage and trade are required to add a work type")
+    }
+
+    const slug =
+      slugifyLibraryName(input.name) ||
+      `work-${crypto.randomUUID().slice(0, 8)}`
+    const workType: WorkType = {
+      id: `work-${slug}`,
+      stageId,
+      tradeId,
+      code: slug.toUpperCase(),
+      name: input.name.trim(),
+      defaultUnit: input.defaultUnit,
+    }
+    const checklist =
+      input.checklist?.map((item) => item.trim()).filter(Boolean) ??
+      [
+        `${workType.name} scope confirmed on site`,
+        "Quality checks completed before submission",
+        "Site evidence captured for review",
+      ]
+    const requiredEvidence =
+      input.requiredEvidence && input.requiredEvidence.length
+        ? input.requiredEvidence
+        : (["photo"] as EvidenceType[])
+    const template: TaskTemplate = {
+      id: `template-${slug}`,
+      workTypeId: workType.id,
+      name: `${workType.name} — Standard`,
+      checklist,
+      requiredEvidence,
+      defaultUnit: workType.defaultUnit,
+      dependencyWorkTypeIds: [],
+    }
+
+    setState((current) => {
+      let stages = current.stages
+      let trades = current.trades
+
+      if (stage && !current.stages.some((item) => item.id === stage!.id)) {
+        stages = [
+          ...current.stages,
+          { ...stage, sequence: current.stages.length + 1 },
+        ]
+      }
+      if (trade && !current.trades.some((item) => item.id === trade!.id)) {
+        trades = [...current.trades, trade]
+      }
+
+      const stagesOk = stages.some((item) => item.id === stageId)
+      const tradesOk = trades.some((item) => item.id === tradeId)
+      if (!stagesOk || !tradesOk) return current
+      if (current.workTypes.some((item) => item.id === workType.id)) {
+        return { ...current, stages, trades }
+      }
+
+      return {
+        ...current,
+        stages,
+        trades,
+        workTypes: [...current.workTypes, workType],
+        taskTemplates: [...current.taskTemplates, template],
+      }
+    })
+
+    return { workType, template }
+  }, [])
+
   const value = useMemo(
     () => ({
       state,
@@ -667,6 +841,9 @@ export default function ConstructionDataProvider({
       createTask,
       assignTask,
       assignWorkerToProject,
+      addLibraryStage,
+      addLibraryTrade,
+      addLibraryWorkType,
       transitionTask,
       addEvidence,
       submitDailyProgress,
@@ -683,6 +860,9 @@ export default function ConstructionDataProvider({
       createTask,
       assignTask,
       assignWorkerToProject,
+      addLibraryStage,
+      addLibraryTrade,
+      addLibraryWorkType,
       transitionTask,
       addEvidence,
       submitDailyProgress,
