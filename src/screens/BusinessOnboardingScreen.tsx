@@ -25,6 +25,7 @@ import type { OrganizationKind } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { ACTIVE_ORGANIZATION_ID } from "../mock/seed"
+import { DEMO_IDENTITIES, useSession } from "../session/SessionProvider"
 
 const { Paragraph, Text, Title } = Typography
 
@@ -38,12 +39,14 @@ interface BusinessFormValues {
 
 function BusinessOnboarding({ onNavigate }: { onNavigate: Navigate }) {
   const { state, updateOrganizationProfile } = useConstructionData()
+  const { signIn } = useSession()
   const organization = state.organizations.find(
     (item) => item.id === ACTIVE_ORGANIZATION_ID,
   )
 
   const handleFinish = (values: BusinessFormValues) => {
     updateOrganizationProfile(ACTIVE_ORGANIZATION_ID, values)
+    signIn({ ...DEMO_IDENTITIES.business, phone: values.phone })
     onNavigate("company-dashboard")
   }
 

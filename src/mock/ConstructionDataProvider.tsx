@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -35,7 +36,13 @@ import type {
   WorkerProjectAssignment,
 } from "../domain/models"
 import { calculateProjectProgress } from "../domain/progress"
-import { permissionsForRole } from "../domain/permissions"
+import {
+  Permissions,
+  permissionsForRole,
+  type Permission,
+} from "../domain/permissions"
+import { PermissionError, projectPermissions } from "../domain/session"
+import { useSession } from "../session/SessionProvider"
 import { defaultRootUnitForKind } from "../domain/projectSetup"
 import {
   canTransitionTask,
@@ -265,7 +272,43 @@ export default function ConstructionDataProvider({
 }) {
   const [state, setState] =
     useState<ConstructionDataState>(seedConstructionData)
+  const { session } = useSession()
 
+  // Mutations are memoised with stable deps, so they read the latest session
+  // and data through a ref rather than closing over stale values.
+  const latest = useRef({ session, state })
+  latest.current = { session, state }
+
+  /** Throws unless the signed-in person holds one of `permissions` on the project. */
+  const authorize = useCallback(
+    (projectId: EntityId, ...permissions: Permission[]) => {
+      const { session, state } = latest.current
+      const granted = projectPermissions(session, state.memberships, projectId)
+      if (!permissions.some((permission) => granted.includes(permission))) {
+        throw new PermissionError(permissions[0], projectId)
+      }
+    },
+    [],
+  )
+
+  /** Throws unless the signed-in person is a business user of this organization. */
+  const authorizeOrganization = useCallback(
+    (organizationId: EntityId | undefined, permission: Permission) => {
+      const { session } = latest.current
+      if (
+        session?.accountType !== "business" ||
+        (organizationId && session.organizationId !== organizationId)
+      ) {
+        throw new PermissionError(permission)
+      }
+    },
+    [],
+  )
+
+  const projectOfTask = (taskId: EntityId) =>
+    latest.current.state.tasks.find((task) => task.id === taskId)?.projectId
+
+  // Deliberately unguarded: business onboarding fills the profile before sign-in.
   const updateOrganizationProfile = useCallback(
     (organizationId: EntityId, input: BusinessProfileInput) => {
       setState((current) => ({
@@ -281,6 +324,7 @@ export default function ConstructionDataProvider({
   )
 
   const createProject = useCallback((input: CreateProjectInput) => {
+    authorizeOrganization(input.organizationId, Permissions.PROJECT_MANAGE)
     const id = `project-${crypto.randomUUID()}`
     const timestamp = new Date().toISOString()
     const project: Project = {
@@ -313,9 +357,9 @@ export default function ConstructionDataProvider({
       : null
 
     setState((current) => {
-      const creatorPerson =
-        current.people.find((person) => person.id === "person-arjun") ??
-        current.people[0]
+      const creatorPerson = current.people.find(
+        (person) => person.id === latest.current.session?.personId,
+      )
       const membership: ProjectMembership | null = creatorPerson
         ? {
             id: `membership-${crypto.randomUUID()}`,
@@ -345,6 +389,7 @@ export default function ConstructionDataProvider({
 
   const addProjectUnit = useCallback(
     (input: AddProjectUnitInput) => {
+      authorize(input.projectId, Permissions.PROJECT_MANAGE)
       const siblings = state.projectUnits.filter(
         (unit) =>
           unit.projectId === input.projectId &&
@@ -371,6 +416,9 @@ export default function ConstructionDataProvider({
   )
 
   const addProjectUnits = useCallback((inputs: AddProjectUnitInput[]) => {
+    for (const input of inputs) {
+      authorize(input.projectId, Permissions.PROJECT_MANAGE)
+    }
     const created: ProjectUnit[] = []
     if (!inputs.length) return created
 
@@ -402,6 +450,7 @@ export default function ConstructionDataProvider({
   }, [])
 
   const inviteProjectMember = useCallback((input: InviteProjectMemberInput) => {
+    authorize(input.projectId, Permissions.PROJECT_MANAGE)
     const person: Person = {
       id: `person-${crypto.randomUUID()}`,
       name: input.name,
@@ -432,6 +481,7 @@ export default function ConstructionDataProvider({
   }, [])
 
   const addWorkPlanItem = useCallback((input: AddWorkPlanItemInput) => {
+    authorize(input.projectId, Permissions.TASK_MANAGE)
     const item: WorkPlanItem = {
       id: `plan-${crypto.randomUUID()}`,
       ...input,
@@ -447,6 +497,7 @@ export default function ConstructionDataProvider({
 
   const createTask = useCallback(
     (input: CreateTaskInput) => {
+      authorize(input.projectId, Permissions.TASK_MANAGE)
       const creator = state.memberships.find(
         (membership) =>
           membership.projectId === input.projectId &&
@@ -481,6 +532,9 @@ export default function ConstructionDataProvider({
       assigneeType: TaskAssignment["assigneeType"],
       assigneeId: EntityId,
     ) => {
+      const taskProjectId = projectOfTask(taskId)
+      if (taskProjectId) authorize(taskProjectId, Permissions.TASK_MANAGE)
+      else throw new PermissionError(Permissions.TASK_MANAGE)
       const task = state.tasks.find((item) => item.id === taskId)
       const assignment: TaskAssignment = {
         id: `assignment-${crypto.randomUUID()}`,
@@ -511,6 +565,7 @@ export default function ConstructionDataProvider({
 
   const assignWorkerToProject = useCallback(
     (input: AssignWorkerToProjectInput) => {
+      authorize(input.projectId, Permissions.WORKFORCE_MANAGE)
       const assignment: WorkerProjectAssignment = {
         id: `wpa-${crypto.randomUUID()}`,
         workerId: input.workerId,
@@ -544,6 +599,10 @@ export default function ConstructionDataProvider({
   )
 
   const addWorker = useCallback((input: AddWorkerInput) => {
+    authorizeOrganization(input.organizationId, Permissions.WORKFORCE_MANAGE)
+    if (input.projectId) {
+      authorize(input.projectId, Permissions.WORKFORCE_MANAGE)
+    }
     const worker: Worker = {
       id: `worker-${crypto.randomUUID().slice(0, 8)}`,
       organizationId: input.organizationId,
@@ -581,6 +640,7 @@ export default function ConstructionDataProvider({
   }, [])
 
   const addEvidence = useCallback((input: AddEvidenceInput) => {
+    authorize(input.projectId, Permissions.EVIDENCE_CAPTURE)
     const evidence = buildEvidence(input)
     setState((current) => ({
       ...current,
@@ -591,6 +651,7 @@ export default function ConstructionDataProvider({
 
   const submitDailyProgress = useCallback(
     (input: SubmitDailyProgressInput) => {
+      authorize(input.projectId, Permissions.PROGRESS_SUBMIT)
       const progressId = `progress-${crypto.randomUUID()}`
       const timestamp = new Date().toISOString()
       const project = state.projects.find((item) => item.id === input.projectId)
@@ -656,6 +717,11 @@ export default function ConstructionDataProvider({
 
   const reviewDailyProgress = useCallback(
     (progressId: EntityId, decision: "approve" | "reject") => {
+      const progressProjectId = latest.current.state.dailyProgress.find(
+        (item) => item.id === progressId,
+      )?.projectId
+      if (progressProjectId) authorize(progressProjectId, Permissions.PROGRESS_REVIEW)
+      else throw new PermissionError(Permissions.PROGRESS_REVIEW)
       setState((current) => {
         const progress = current.dailyProgress.find(
           (item) => item.id === progressId,
@@ -732,6 +798,10 @@ export default function ConstructionDataProvider({
 
   const transitionTask = useCallback(
     (taskId: EntityId, nextStatus: TaskStatus) => {
+      const taskProjectId = projectOfTask(taskId)
+      if (!taskProjectId) throw new PermissionError(Permissions.TASK_MANAGE)
+      // Workers who can submit progress may also start/pause their own work.
+      authorize(taskProjectId, Permissions.TASK_MANAGE, Permissions.PROGRESS_SUBMIT)
       setState((current) => ({
         ...current,
         tasks: current.tasks.map((task) => {
@@ -753,6 +823,7 @@ export default function ConstructionDataProvider({
   )
 
   const addLibraryStage = useCallback((input: AddLibraryStageInput) => {
+    authorizeOrganization(undefined, Permissions.PROJECT_MANAGE)
     const slug =
       slugifyLibraryName(input.name) ||
       `stage-${crypto.randomUUID().slice(0, 8)}`
@@ -778,6 +849,7 @@ export default function ConstructionDataProvider({
   }, [state.stages.length])
 
   const addLibraryTrade = useCallback((input: AddLibraryTradeInput) => {
+    authorizeOrganization(undefined, Permissions.PROJECT_MANAGE)
     const slug =
       slugifyLibraryName(input.name) ||
       `trade-${crypto.randomUUID().slice(0, 8)}`
@@ -796,6 +868,7 @@ export default function ConstructionDataProvider({
   }, [])
 
   const addLibraryWorkType = useCallback((input: AddLibraryWorkTypeInput) => {
+    authorizeOrganization(undefined, Permissions.PROJECT_MANAGE)
     let stage: ConstructionStage | undefined
     let trade: Trade | undefined
 

@@ -430,6 +430,20 @@ const memberships: ProjectMembership[] = projects.flatMap((project, index) => [
   },
 ])
 
+/** Demo homeowner: read-only member of the Sharma project (customer view). */
+const homeownerMemberships: ProjectMembership[] = [
+  {
+    id: "membership-homeowner-sharma",
+    projectId: "project-sharma",
+    principalType: "person",
+    principalId: "person-demo-homeowner",
+    role: "homeowner",
+    scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+    permissions: permissionsForRole("homeowner"),
+    status: "active",
+  },
+]
+
 const workerNames = [
   "Suresh Kumar",
   "Ravi Naik",
@@ -805,6 +819,11 @@ export const seedConstructionData: ConstructionDataState = {
       phone: "+91 98765 43210",
       email: "arjun@buildright.in",
     },
+    {
+      id: "person-demo-homeowner",
+      name: "Demo Homeowner",
+      phone: "+91 98765 43210",
+    },
   ],
   projects,
   projectUnits,
@@ -859,7 +878,7 @@ export const seedConstructionData: ConstructionDataState = {
       createdAt: "2026-09-03T11:00:00+05:30",
     },
   ],
-  memberships,
+  memberships: [...memberships, ...homeownerMemberships],
   workers,
   workerProjectAssignments,
   tasks,

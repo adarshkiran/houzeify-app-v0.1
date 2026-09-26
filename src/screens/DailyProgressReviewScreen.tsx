@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { ArrowLeftOutlined } from "@ant-design/icons"
 import {
   Alert,
@@ -17,6 +17,9 @@ import EvidenceThumb from "../components/EvidenceThumb"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import { Permissions } from "../domain/permissions"
+import { projectIdsWithPermission } from "../domain/session"
+import { useSession } from "../session/SessionProvider"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getEvidenceForProgress,
@@ -35,11 +38,19 @@ function ReviewQueue({
   projectId?: EntityId
 }) {
   const { state, reviewDailyProgress } = useConstructionData()
-  const pending = getPendingReview(state, projectId)
+  const { session } = useSession()
+  const reviewable = useMemo(
+    () =>
+      projectIdsWithPermission(session, state.memberships, Permissions.PROGRESS_REVIEW),
+    [session, state.memberships],
+  )
+  const pending = getPendingReview(state, projectId, reviewable)
   const [selectedId, setSelectedId] = useState<EntityId | undefined>(pending[0]?.id)
   const selected = pending.find((item) => item.id === selectedId) ?? pending[0]
   const project = selected ? getProject(state, selected.projectId) : undefined
   const evidence = selected ? getEvidenceForProgress(state, selected) : []
+  // Company-wide queue: no project is implied until an item is selected.
+  const homeownerViewProjectId = projectId ?? selected?.projectId
 
   const decide = (decision: "approve" | "reject") => {
     if (!selected) return
@@ -53,9 +64,11 @@ function ReviewQueue({
         <LogoHorizontal height={24} />
         <Flex gap="small">
           <Button
+            disabled={!homeownerViewProjectId}
             onClick={() =>
+              homeownerViewProjectId &&
               onNavigate("customer-daily-update", {
-                project_id: projectId || selected?.projectId || "project-sharma",
+                project_id: homeownerViewProjectId,
               })
             }
           >

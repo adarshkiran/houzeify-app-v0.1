@@ -91,14 +91,20 @@ export function getRecentProgress(
     .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }
 
+/**
+ * Pending review items, optionally scoped to one project and/or to the
+ * projects the caller may review (`reviewableProjectIds`).
+ */
 export function getPendingReview(
   state: ConstructionDataState,
   projectId?: EntityId,
+  reviewableProjectIds?: ReadonlySet<EntityId>,
 ) {
   return state.dailyProgress
     .filter(
       (progress) =>
         (!projectId || progress.projectId === projectId) &&
+        (!reviewableProjectIds || reviewableProjectIds.has(progress.projectId)) &&
         (progress.reviewStatus === "submitted" ||
           progress.reviewStatus === "draft"),
     )
