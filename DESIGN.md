@@ -371,12 +371,27 @@ Estimates → estimate-dashboard
 
 ## Navigation — Construction Management
 
+One sidebar for every company screen, rendered by `CompanyLayout` from the
+definitions in `src/components/company/companyNav.tsx`.
+
 ```
-Sidebar items: Home, Projects, Progress, Site Operations,
+Company menu:  Home, Projects, Work Library, Progress, Site Operations,
                Workforce, Live Site, Documents, Reports, Team, Hozie AI
+Project menu:  ← Company home, then (under the project name)
+               Overview, Structure, Work Plan, Tasks, Progress, Issues,
+               Project Team, Documents
 Bottom: Settings
-Badge counts on: Projects (4), Site Operations (3)
+Badge counts on: Projects
 ```
+
+- Every screen inside a project shows the project menu with its section
+  highlighted; workspace screens show the company menu.
+- Items not built yet stay visible, greyed out with a "Soon" tag.
+- Items the person may not open (route permission) are hidden.
+- Below `md` the sidebar becomes a drawer opened from the header menu button.
+- Header: project name + section (or section + "Company workspace"), with
+  page actions on the right. Back buttons only for "up one level" links
+  (e.g. Task → Task register), never for sidebar destinations.
 
 ---
 
@@ -438,7 +453,7 @@ Never redraw or recreate the logo or H icon.
 1. Primary color is always `#722ED1` — never `#4C12A1` or any other purple variant
 2. Brand name is always **Houzeify** — never HOUZEIFY, houzeify, or Houzeify AI
 3. Never edit files under `src/imports/` — they are Figma-generated and read-only
-4. Each screen is self-contained with its own Sidebar copy — no shared Sidebar component
+4. Company (construction) screens use the shared `CompanyLayout` (`src/components/company/`) for the sidebar, phone menu and header — never a per-screen Sidebar copy. Menu items live only in `companyNav.tsx`
 5. All screens accept `onNavigate: (s: string, data?: Record<string, string>) => void`
 6. `projectData` state in App.tsx carries shared data between screens
 7. Dashboard screens manage their own internal scroll — App.tsx wraps them without `overflowY: auto`

@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react"
-import { ArrowLeftOutlined } from "@ant-design/icons"
+import { useState } from "react"
 import {
   Alert,
   Button,
@@ -12,9 +11,9 @@ import {
   Tag,
   Typography,
 } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import EvidenceThumb from "../components/EvidenceThumb"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
@@ -24,6 +23,7 @@ import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getEvidenceForProgress,
+  getMembershipName,
   getPendingReview,
   getProject,
   getWorkTypeName,
@@ -52,6 +52,13 @@ function ReviewQueue({
   // Company-wide queue: no project is implied until an item is selected.
   const homeownerViewProjectId = projectId ?? selected?.projectId
 
+  const submitter = selected
+    ? state.memberships.find((item) => item.id === selected.submittedByMembershipId)
+    : undefined
+  const submitterLabel = submitter
+    ? `${getMembershipName(state, submitter.id) ?? "Unknown"} · ${submitter.role.replace("-", " ")}`
+    : "—"
+
   const canReview = selected
     ? can(Permissions.PROGRESS_REVIEW, selected.projectId, selected)
     : false
@@ -65,44 +72,30 @@ function ReviewQueue({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Flex gap="small">
-          <Button
-            disabled={!homeownerViewProjectId}
-            onClick={() =>
-              homeownerViewProjectId &&
-              onNavigate("customer-daily-update", {
-                project_id: homeownerViewProjectId,
-              })
-            }
-          >
-            Homeowner view
-          </Button>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() =>
-              projectId
-                ? onNavigate("project-overview", { project_id: projectId })
-                : onNavigate("company-dashboard")
-            }
-          >
-            {projectId ? "Project" : "Company home"}
-          </Button>
-        </Flex>
-      </Flex>
-
-      <Flex vertical gap="large" className="company-form-content">
-        <Flex vertical gap="small">
-          <Text className="company-eyebrow">Review</Text>
-          <Title level={2} className="company-heading! m-0!">
-            Site updates waiting
-          </Title>
-          <Text type="secondary">
-            Approve an update to publish it for the homeowner. Rejected updates stay off their record.
-          </Text>
-        </Flex>
+    <CompanyLayout
+      nav={projectId ? { menu: "project", projectId, active: "progress" } : { menu: "company", active: "progress" }}
+      onNavigate={onNavigate}
+      description="Approve site updates before the homeowner sees them"
+      actions={
+        <Button
+          disabled={!homeownerViewProjectId}
+          onClick={() =>
+            homeownerViewProjectId &&
+            onNavigate("customer-daily-update", {
+              project_id: homeownerViewProjectId,
+            })
+          }
+        >
+          Homeowner view
+        </Button>
+      }
+    >
+      <Flex vertical gap="large" className="company-content">
+        <Alert
+          type="info"
+          showIcon
+          message="Approved updates are published to the homeowner. Rejected updates stay off their record, and voice notes are never shared with them."
+        />
 
         {pending.length === 0 ? (
           <Card>
@@ -129,6 +122,9 @@ function ReviewQueue({
                         </Text>
                         <Text className={active ? "text-inherit!" : undefined} type={active ? undefined : "secondary"}>
                           {item.date} · {getWorkTypeName(state, item.workTypeId)}
+                          {getMembershipName(state, item.submittedByMembershipId)
+                            ? ` · ${getMembershipName(state, item.submittedByMembershipId)}`
+                            : ""}
                         </Text>
                       </Flex>
                     </Button>
@@ -150,12 +146,30 @@ function ReviewQueue({
                       column={{ xs: 1, sm: 2 }}
                       items={[
                         { key: "work", label: "Work", children: getWorkTypeName(state, selected.workTypeId) },
+                        { key: "by", label: "Submitted by", children: submitterLabel },
                         { key: "workers", label: "Workers", children: selected.workersPresent },
-                        {
-                          key: "delta",
-                          label: "Progress",
-                          children: `${selected.progressBefore ?? "—"}% → ${selected.progressAfter ?? "—"}%`,
-                        },
+                        ...(selected.completedQuantity
+                          ? [
+                              {
+                                key: "quantity",
+                                label: "Done today",
+                                children: `${selected.completedQuantity.value} ${selected.completedQuantity.unit}${
+                                  selected.plannedQuantity
+                                    ? ` of ${selected.plannedQuantity.value} ${selected.plannedQuantity.unit} planned`
+                                    : ""
+                                }`,
+                              },
+                            ]
+                          : []),
+                        ...(typeof selected.progressAfter === "number"
+                          ? [
+                              {
+                                key: "delta",
+                                label: "Progress",
+                                children: `${selected.progressBefore ?? "—"}% → ${selected.progressAfter}%`,
+                              },
+                            ]
+                          : []),
                         { key: "date", label: "Date", children: selected.date },
                       ]}
                     />
@@ -204,7 +218,7 @@ function ReviewQueue({
           </Row>
         )}
       </Flex>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

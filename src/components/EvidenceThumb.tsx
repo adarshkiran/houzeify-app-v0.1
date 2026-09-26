@@ -1,5 +1,10 @@
 import { useState } from "react"
-import { CameraOutlined, PlayCircleOutlined } from "@ant-design/icons"
+import {
+  AudioOutlined,
+  CameraOutlined,
+  FileOutlined,
+  PlayCircleOutlined,
+} from "@ant-design/icons"
 import { Flex, Typography } from "antd"
 import type { Evidence } from "../domain/models"
 
@@ -8,7 +13,13 @@ const { Text } = Typography
 export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
   const [failed, setFailed] = useState(evidence.url.startsWith("/mock-evidence"))
   const isVideo = evidence.type === "video"
-  const Icon = isVideo ? PlayCircleOutlined : CameraOutlined
+  const Icon = isVideo
+    ? PlayCircleOutlined
+    : evidence.type === "audio"
+      ? AudioOutlined
+      : evidence.type === "document"
+        ? FileOutlined
+        : CameraOutlined
 
   return (
     <Flex vertical gap={6} className="min-w-0">
@@ -19,9 +30,20 @@ export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
           borderRadius: "var(--ant-border-radius-lg)",
         }}
       >
-        {failed ? (
+        {failed || evidence.type === "document" ? (
           <Flex align="center" justify="center" className="h-full text-[#722ED1]">
             <Icon style={{ fontSize: 28 }} />
+          </Flex>
+        ) : evidence.type === "audio" ? (
+          <Flex vertical align="center" justify="center" gap={8} className="h-full px-2 text-[#722ED1]">
+            <AudioOutlined style={{ fontSize: 24 }} />
+            <audio
+              src={evidence.url}
+              controls
+              preload="metadata"
+              className="w-full"
+              onError={() => setFailed(true)}
+            />
           </Flex>
         ) : isVideo ? (
           <video

@@ -6,7 +6,6 @@ import { visibleMemberships } from "../domain/readScope"
 import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
-  ArrowLeftOutlined,
   CheckCircleOutlined,
   MailOutlined,
   PlusOutlined,
@@ -16,13 +15,11 @@ import {
   Avatar,
   Button,
   Card,
-  Col,
   Empty,
   Flex,
   Form,
   Input,
   Modal,
-  Row,
   Select,
   Space,
   Steps,
@@ -31,8 +28,8 @@ import {
   Typography,
 } from "antd"
 import type { TableProps } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type {
   EntityId,
   ProjectMembership,
@@ -43,9 +40,9 @@ import {
   useConstructionData,
   type InviteProjectMemberInput,
 } from "../mock/ConstructionDataProvider"
-import { getProject, getProjectUnits } from "../mock/selectors"
+import { getProjectUnits } from "../mock/selectors"
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 interface InviteFormValues {
   name: string
@@ -58,9 +55,12 @@ interface InviteFormValues {
 function ProjectTeam({
   onNavigate,
   projectId,
+  setup,
 }: {
   onNavigate: Navigate
   projectId: EntityId
+  /** Reached from project setup: show the steps and the finish button. */
+  setup: boolean
 }) {
   const { state, inviteProjectMember } = useConstructionData()
   const run = useCommand()
@@ -68,7 +68,6 @@ function ProjectTeam({
   const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<InviteFormValues>()
-  const project = getProject(state, projectId)
   const units = getProjectUnits(state, projectId)
   // A scoped viewer sees project-wide roles and members who overlap their scope.
   const memberships = visibleMemberships(
@@ -153,105 +152,71 @@ function ProjectTeam({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() =>
-            onNavigate("project-structure", { project_id: projectId })
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "team" }}
+      onNavigate={onNavigate}
+      description="Roles here apply only within this project"
+      actions={
+        <Gated allowed={canManage} reason="Inviting members needs project-wide access.">
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Invite member
+          </Button>
+        </Gated>
+      }
+    >
+      <Flex vertical gap="large" className="company-content">
+        {setup && (
+          <Card>
+            <Steps
+              current={2}
+              items={[
+                { title: "Project details", icon: <CheckCircleOutlined /> },
+                { title: "Structure", icon: <CheckCircleOutlined /> },
+                { title: "Team" },
+              ]}
+            />
+          </Card>
+        )}
+
+        <Card
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Project members
+            </Title>
           }
+          extra={<Text type="secondary">{memberships.length} {memberships.length === 1 ? "member" : "members"}</Text>}
+          className="company-section-card"
+          classNames={{ body: memberships.length ? "company-table-card-body" : undefined }}
         >
-          Project structure
-        </Button>
-      </Flex>
+          {memberships.length ? (
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={memberships}
+              pagination={false}
+              scroll={{ x: 640 }}
+            />
+          ) : (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No members yet">
+              <Gated allowed={canManage} reason="Inviting members needs project-wide access.">
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+                  Add first member
+                </Button>
+              </Gated>
+            </Empty>
+          )}
+        </Card>
 
-      <Flex vertical gap="large" className="company-form-content">
-        <Steps
-          current={2}
-          items={[
-            { title: "Project details", icon: <CheckCircleOutlined /> },
-            { title: "Structure", icon: <CheckCircleOutlined /> },
-            { title: "Team" },
-          ]}
-        />
-
-        <Row gutter={[32, 24]} align="top">
-          <Col xs={24} lg={8}>
-            <Flex vertical gap="middle" className="business-onboarding-intro">
-              <Text className="company-eyebrow">Project team</Text>
-              <Title className="company-heading! m-0!">
-                Add people with project-specific roles
-              </Title>
-              <Paragraph type="secondary">
-                Add project managers, contractors, supervisors, consultants, and
-                homeowners to {project?.name ?? "this project"}. Roles apply only within
-                this project.
-              </Paragraph>
-            </Flex>
-          </Col>
-
-          <Col xs={24} lg={16}>
-            <Card
-              title={
-                <Title level={5} className="company-heading! m-0!">
-                  Project members
-                </Title>
-              }
-              extra={
-                <Gated
-                allowed={canManage}
-                reason="Inviting members needs project-wide access."
-              >
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setModalOpen(true)}
-                  >
-                    Invite member
-                  </Button>
-                </Gated>
-              }
-              classNames={{ body: "company-table-card-body" }}
+        {setup && (
+          <Flex justify="flex-end">
+            <Button
+              type="primary"
+              onClick={() => onNavigate("project-overview", { project_id: projectId })}
             >
-              {memberships.length ? (
-                <Table
-                  rowKey="id"
-                  columns={columns}
-                  dataSource={memberships}
-                  pagination={false}
-                  scroll={{ x: 640 }}
-                />
-              ) : (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No members yet">
-                  <Gated
-                allowed={canManage}
-                reason="Inviting members needs project-wide access."
-              >
-                    <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      onClick={() => setModalOpen(true)}
-                    >
-                      Add first member
-                    </Button>
-                  </Gated>
-                </Empty>
-              )}
-            </Card>
-
-            <Flex justify="flex-end" className="company-form-actions">
-              <Button
-                type="primary"
-                onClick={() =>
-                  onNavigate("project-overview", { project_id: projectId })
-                }
-              >
-                Finish project setup
-              </Button>
-            </Flex>
-          </Col>
-        </Row>
+              Finish project setup
+            </Button>
+          </Flex>
+        )}
       </Flex>
 
       <Modal
@@ -320,20 +285,22 @@ function ProjectTeam({
           </Flex>
         </Form>
       </Modal>
-    </Flex>
+    </CompanyLayout>
   )
 }
 
 export default function ProjectTeamScreen({
   onNavigate,
   projectId,
+  setup = false,
 }: {
   onNavigate: Navigate
   projectId: EntityId
+  setup?: boolean
 }) {
   return (
     <CompanyThemeProvider>
-      <ProjectTeam onNavigate={onNavigate} projectId={projectId} />
+      <ProjectTeam onNavigate={onNavigate} projectId={projectId} setup={setup} />
     </CompanyThemeProvider>
   )
 }

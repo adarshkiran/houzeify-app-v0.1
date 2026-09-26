@@ -5,7 +5,6 @@ import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
   ApartmentOutlined,
-  ArrowLeftOutlined,
   HomeOutlined,
   PlusOutlined,
 } from "@ant-design/icons"
@@ -28,8 +27,8 @@ import {
   Typography,
 } from "antd"
 import type { TreeDataNode } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, ProjectUnitKind } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
@@ -42,7 +41,7 @@ import {
 } from "../mock/ConstructionDataProvider"
 import { getProject, getProjectUnits } from "../mock/selectors"
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 interface UnitFormValues {
   parentUnitId?: EntityId
@@ -83,9 +82,12 @@ function buildTreeData(units: ReturnType<typeof getProjectUnits>): TreeDataNode[
 function ProjectStructure({
   onNavigate,
   projectId,
+  setup,
 }: {
   onNavigate: Navigate
   projectId: EntityId
+  /** Reached from project creation: show the steps and the continue button. */
+  setup: boolean
 }) {
   const { state, addProjectUnit, addProjectUnits } = useConstructionData()
   const run = useCommand()
@@ -141,102 +143,70 @@ function ProjectStructure({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() =>
-            onNavigate("project-overview", { project_id: projectId })
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "structure" }}
+      onNavigate={onNavigate}
+      description="Where construction happens — tasks and progress attach here"
+      actions={
+        <Gated allowed={canManage}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Add location
+          </Button>
+        </Gated>
+      }
+    >
+      <Flex vertical gap="large" className="company-content">
+        {setup && (
+          <Card>
+            <Steps
+              current={1}
+              items={[
+                { title: "Project details" },
+                { title: "Structure" },
+                { title: "Team" },
+              ]}
+            />
+          </Card>
+        )}
+
+        <Card
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Units and locations
+            </Title>
           }
+          extra={<Text type="secondary">{units.length} {units.length === 1 ? "location" : "locations"}</Text>}
         >
-          Project overview
-        </Button>
-      </Flex>
+          {treeData.length ? (
+            <Tree
+              showIcon
+              blockNode
+              defaultExpandAll
+              treeData={treeData}
+              className="company-structure-tree"
+            />
+          ) : (
+            <Empty description="No project locations yet" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+              <Gated allowed={canManage}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+                  Add first location
+                </Button>
+              </Gated>
+            </Empty>
+          )}
+        </Card>
 
-      <Flex vertical gap="large" className="company-form-content">
-        <Steps
-          current={1}
-          items={[
-            { title: "Project details" },
-            { title: "Structure" },
-            { title: "Team" },
-          ]}
-        />
-
-        <Row gutter={[32, 24]} align="top">
-          <Col xs={24} lg={8}>
-            <Flex vertical gap="middle" className="business-onboarding-intro">
-              <Text className="company-eyebrow">Project structure</Text>
-              <Title className="company-heading! m-0!">
-                Define where construction happens
-              </Title>
-              <Paragraph type="secondary">
-                Structure {project?.name ?? "this project"} using phases, blocks, towers,
-                units, floors, zones, and locations. Tasks and progress will attach to
-                these records.
-              </Paragraph>
-            </Flex>
-          </Col>
-
-          <Col xs={24} lg={16}>
-            <Card
-              title={
-                <Title level={5} className="company-heading! m-0!">
-                  Units and locations
-                </Title>
-              }
-              extra={
-                <Gated allowed={canManage}>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setModalOpen(true)}
-                  >
-                    Add location
-                  </Button>
-                </Gated>
-              }
+        {setup && (
+          <Flex justify="flex-end">
+            <Button
+              type="primary"
+              disabled={!units.length}
+              onClick={() => onNavigate("project-team", { project_id: projectId, setup: "1" })}
             >
-              {treeData.length ? (
-                <Tree
-                  showIcon
-                  blockNode
-                  defaultExpandAll
-                  treeData={treeData}
-                  className="company-structure-tree"
-                />
-              ) : (
-                <Empty
-                  description="No project locations yet"
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                >
-                  <Gated allowed={canManage}>
-                    <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      onClick={() => setModalOpen(true)}
-                    >
-                      Add first location
-                    </Button>
-                  </Gated>
-                </Empty>
-              )}
-            </Card>
-
-            <Flex justify="flex-end" className="company-form-actions">
-              <Button
-                type="primary"
-                disabled={!units.length}
-                onClick={() =>
-                  onNavigate("project-team", { project_id: projectId })
-                }
-              >
-                Continue to project team
-              </Button>
-            </Flex>
-          </Col>
-        </Row>
+              Continue to project team
+            </Button>
+          </Flex>
+        )}
       </Flex>
 
       <Modal
@@ -317,20 +287,22 @@ function ProjectStructure({
           </Flex>
         </Form>
       </Modal>
-    </Flex>
+    </CompanyLayout>
   )
 }
 
 export default function ProjectStructureScreen({
   onNavigate,
   projectId,
+  setup = false,
 }: {
   onNavigate: Navigate
   projectId: EntityId
+  setup?: boolean
 }) {
   return (
     <CompanyThemeProvider>
-      <ProjectStructure onNavigate={onNavigate} projectId={projectId} />
+      <ProjectStructure onNavigate={onNavigate} projectId={projectId} setup={setup} />
     </CompanyThemeProvider>
   )
 }

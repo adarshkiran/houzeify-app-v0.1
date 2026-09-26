@@ -6,19 +6,22 @@ import type {
 } from "./models"
 import { isPermission, type Permission } from "./permissions"
 
-export type AccountType = "homeowner" | "business"
+export type AccountType = "homeowner" | "business" | "worker"
 
 export interface Session {
   accountType: AccountType
   personId: EntityId
-  /** Set for business accounts; homeowners have no organization. */
+  /**
+   * Set for business and worker accounts (the company a worker is on);
+   * homeowners have no organization.
+   */
   organizationId?: EntityId
   phone?: string
 }
 
 /**
  * Validate a persisted session. Anything malformed or incomplete is treated
- * as signed out; a business session must name its organization.
+ * as signed out; business and worker sessions must name their organization.
  */
 export function parseStoredSession(raw: string | null): Session | null {
   if (!raw) return null
@@ -27,7 +30,7 @@ export function parseStoredSession(raw: string | null): Session | null {
     if (!parsed || typeof parsed.personId !== "string") return null
     if (parsed.accountType === "homeowner") return parsed as Session
     if (
-      parsed.accountType === "business" &&
+      (parsed.accountType === "business" || parsed.accountType === "worker") &&
       typeof parsed.organizationId === "string"
     ) {
       return parsed as Session

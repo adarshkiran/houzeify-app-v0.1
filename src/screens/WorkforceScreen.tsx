@@ -1,11 +1,7 @@
 import { useMemo, useState } from "react"
 import {
-  HomeOutlined,
   PlusOutlined,
-  ProjectOutlined,
   SearchOutlined,
-  SnippetsOutlined,
-  TeamOutlined,
 } from "@ant-design/icons"
 import {
   Avatar,
@@ -14,8 +10,6 @@ import {
   Flex,
   Form,
   Input,
-  Layout,
-  Menu,
   Modal,
   Select,
   Space,
@@ -24,8 +18,8 @@ import {
   Typography,
 } from "antd"
 import type { TableProps } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import HIcon from "../components/HIcon"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type {
   EntityId,
@@ -53,7 +47,6 @@ import {
   getTradeName,
 } from "../mock/selectors"
 
-const { Content, Header, Sider } = Layout
 const { Paragraph, Text, Title } = Typography
 
 interface AddWorkerFormValues {
@@ -296,140 +289,103 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const assignUnits = workforceUnits(assignProjectId)
 
   return (
-    <Layout className="company-dashboard h-full">
-      <Sider
-        breakpoint="lg"
-        collapsedWidth={72}
-        width={240}
-        theme="light"
-        trigger={null}
-        className="hidden md:block company-sider"
-      >
-        <Flex vertical className="h-full">
-          <Flex align="center" className="company-logo">
-            <LogoHorizontal height={24} className="company-logo-full" />
-            <span className="company-logo-mark">
-              <HIcon size={28} />
-            </span>
+    <CompanyLayout
+      nav={{ menu: "company", active: "workforce" }}
+      onNavigate={onNavigate}
+      header={
+        <Flex align="center" justify="space-between" className="h-full gap-3">
+          <Flex vertical justify="center">
+            <Title level={5} className="company-heading! m-0!">
+              Site Workforce
+            </Title>
+            <Text type="secondary">
+              Add workers and assign them to projects by trade
+            </Text>
           </Flex>
-          <Menu
-            mode="inline"
-            selectedKeys={["workforce"]}
-            inlineIndent={18}
-            className="company-main-menu flex-1 border-0!"
-            items={[
-              { key: "home", icon: <HomeOutlined />, label: "Company Home" },
-              { key: "projects", icon: <ProjectOutlined />, label: "Projects" },
-              { key: "library", icon: <SnippetsOutlined />, label: "Work Library" },
-              { key: "workforce", icon: <TeamOutlined />, label: "Workforce" },
-            ]}
-            onClick={({ key }) => {
-              if (key === "home") onNavigate("company-dashboard")
-              if (key === "projects") onNavigate("company-projects")
-              if (key === "library") onNavigate("work-library")
-            }}
-          />
-        </Flex>
-      </Sider>
-
-      <Layout>
-        <Header className="company-header">
-          <Flex align="center" justify="space-between" className="h-full gap-3">
-            <Flex vertical justify="center">
-              <Title level={5} className="company-heading! m-0!">
-                Site Workforce
-              </Title>
-              <Text type="secondary">
-                Add workers and assign them to projects by trade
-              </Text>
-            </Flex>
-            <Space>
-              <Gated
-                allowed={manageableProjects.length > 0}
-                reason="You don't manage workforce on any project."
-              >
-                <Button onClick={() => openAssign()}>Assign existing</Button>
-              </Gated>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
-                Add worker
-              </Button>
-            </Space>
-          </Flex>
-        </Header>
-
-        <Content className="overflow-y-auto">
-          <Flex vertical gap="middle" className="company-content">
-            <Card size="small">
-              <Flex gap="small" wrap>
-                <Input
-                  allowClear
-                  prefix={<SearchOutlined />}
-                  placeholder="Search workers"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  className="company-project-search"
-                />
-                <Select
-                  value={projectFilter}
-                  onChange={setProjectFilter}
-                  className="company-project-filter"
-                  options={[
-                    { value: "all", label: "All projects" },
-                    ...projects.map((project) => ({
-                      value: project.id,
-                      label: project.name,
-                    })),
-                  ]}
-                />
-                <Select
-                  value={tradeFilter}
-                  onChange={setTradeFilter}
-                  className="company-project-filter"
-                  options={[
-                    { value: "all", label: "All trades" },
-                    ...state.trades.map((trade) => ({
-                      value: trade.id,
-                      label: trade.name,
-                    })),
-                  ]}
-                />
-                <Select
-                  value={assignmentFilter}
-                  onChange={setAssignmentFilter}
-                  className="company-project-filter"
-                  options={[
-                    { value: "all", label: "All assignments" },
-                    { value: "assigned", label: "Assigned" },
-                    { value: "unassigned", label: "Unassigned" },
-                  ]}
-                />
-              </Flex>
-            </Card>
-
-            <Card
-              size="small"
-              title={
-                <Title level={5} className="company-heading! m-0!">
-                  Workers
-                </Title>
-              }
-              extra={
-                <Text type="secondary">{filteredWorkers.length} workers</Text>
-              }
-              classNames={{ body: "company-table-card-body-inset" }}
+          <Space>
+            <Gated
+              allowed={manageableProjects.length > 0}
+              reason="You don't manage workforce on any project."
             >
-              <Table
-                rowKey="id"
-                size="small"
-                columns={columns}
-                dataSource={filteredWorkers}
-                pagination={{ pageSize: 10, showSizeChanger: false }}
-                scroll={{ x: 880 }}
-              />
-            </Card>
+              <Button onClick={() => openAssign()}>Assign existing</Button>
+            </Gated>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
+              Add worker
+            </Button>
+          </Space>
+        </Flex>
+      }
+    >
+      <Flex vertical gap="middle" className="company-content">
+        <Card size="small">
+          <Flex gap="small" wrap>
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="Search workers"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="company-project-search"
+            />
+            <Select
+              value={projectFilter}
+              onChange={setProjectFilter}
+              className="company-project-filter"
+              options={[
+                { value: "all", label: "All projects" },
+                ...projects.map((project) => ({
+                  value: project.id,
+                  label: project.name,
+                })),
+              ]}
+            />
+            <Select
+              value={tradeFilter}
+              onChange={setTradeFilter}
+              className="company-project-filter"
+              options={[
+                { value: "all", label: "All trades" },
+                ...state.trades.map((trade) => ({
+                  value: trade.id,
+                  label: trade.name,
+                })),
+              ]}
+            />
+            <Select
+              value={assignmentFilter}
+              onChange={setAssignmentFilter}
+              className="company-project-filter"
+              options={[
+                { value: "all", label: "All assignments" },
+                { value: "assigned", label: "Assigned" },
+                { value: "unassigned", label: "Unassigned" },
+              ]}
+            />
           </Flex>
-        </Content>
-      </Layout>
+        </Card>
+
+        <Card
+          size="small"
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Workers
+            </Title>
+          }
+          extra={
+            <Text type="secondary">{filteredWorkers.length} workers</Text>
+          }
+          classNames={{ body: "company-table-card-body-inset" }}
+        >
+          <Table
+            rowKey="id"
+            size="small"
+            columns={columns}
+            dataSource={filteredWorkers}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 880 }}
+          />
+        </Card>
+      </Flex>
 
       <Modal
         title="Add worker"
@@ -653,7 +609,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
           </Flex>
         </Form>
       </Modal>
-    </Layout>
+    </CompanyLayout>
   )
 }
 

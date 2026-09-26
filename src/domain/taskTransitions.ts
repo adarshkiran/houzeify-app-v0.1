@@ -55,3 +55,20 @@ export function statusAfterProgressRejection(
   if (canTransitionTask(status, "reopened")) return "reopened"
   return null
 }
+
+/**
+ * Statuses someone who can log site work (progress.submit) but not manage
+ * tasks (task.manage) may move a task into: taking it on, getting ready,
+ * starting, and flagging a block. Review outcomes (approved, completed,
+ * reopened) and planning moves (assigned, delayed, cancelled) need task.manage.
+ */
+export const SITE_TASK_STATUSES: readonly TaskStatus[] = [
+  "accepted",
+  "ready",
+  "in-progress",
+  "blocked",
+]
+
+export function isSiteTaskStatus(status: TaskStatus): boolean {
+  return SITE_TASK_STATUSES.includes(status)
+}

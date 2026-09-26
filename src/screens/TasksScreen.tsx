@@ -5,7 +5,6 @@ import { useScopedLibrary } from "../session/useScopedLibrary"
 import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
-  ArrowLeftOutlined,
   ArrowRightOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -27,8 +26,8 @@ import {
   Typography,
 } from "antd"
 import type { TableProps } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import WorkTypeCascadeFields from "../components/WorkTypeCascadeFields"
 import type {
   EntityId,
@@ -46,14 +45,13 @@ import {
   type CreateTaskInput,
 } from "../mock/ConstructionDataProvider"
 import {
-  getProject,
   getProjectUnits,
   getStageName,
   getTradeName,
   getWorkTypeName,
 } from "../mock/selectors"
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 interface TaskFormValues {
   projectUnitId: EntityId
@@ -109,7 +107,6 @@ function Tasks({
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<TaskFormValues>()
-  const project = getProject(state, projectId)
   // Reading follows scope too: a scoped member sees only their own tasks/locations.
   const units = getProjectUnits(state, projectId).filter((unit) =>
     can(Permissions.PROJECT_READ, projectId, { projectUnitId: unit.id }),
@@ -229,34 +226,19 @@ function Tasks({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => onNavigate("project-overview", { project_id: projectId })}
-        >
-          Project overview
-        </Button>
-      </Flex>
-
-      <Flex vertical gap="large" className="company-form-content">
-        <Flex align="flex-start" justify="space-between" gap="middle" wrap>
-          <Flex vertical gap="small">
-            <Text className="company-eyebrow">Project tasks</Text>
-            <Title level={2} className="company-heading! m-0!">
-              {project?.name ?? "Project"}
-            </Title>
-            <Paragraph type="secondary" className="m-0!">
-              Structured work across locations, trades, and responsible teams.
-            </Paragraph>
-          </Flex>
-          <Gated allowed={canManage}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-              Create task
-            </Button>
-          </Gated>
-        </Flex>
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "tasks" }}
+      onNavigate={onNavigate}
+      description="Work across locations, trades and teams"
+      actions={
+        <Gated allowed={canManage}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Create task
+          </Button>
+        </Gated>
+      }
+    >
+      <Flex vertical gap="large" className="company-content">
 
         <Card>
           <Flex gap="middle" wrap>
@@ -368,7 +350,7 @@ function Tasks({
           </Flex>
         </Form>
       </Modal>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

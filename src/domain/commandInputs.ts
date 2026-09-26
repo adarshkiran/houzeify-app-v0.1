@@ -102,7 +102,13 @@ export interface SubmitDailyProgressInput {
   tradeId: EntityId
   workTypeId: EntityId
   workersPresent: number
-  progressAfter: number
+  /**
+   * Project % after today's work. Supervisors report it; workers leave it out
+   * and report `completedQuantity` instead.
+   */
+  progressAfter?: number
+  /** Quantity of the task's work completed today. */
+  completedQuantity?: Quantity
   todaySummary: string
   tomorrowPlan: string
   yesterdaySummary?: string
