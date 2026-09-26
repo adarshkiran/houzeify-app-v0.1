@@ -91,10 +91,9 @@ function IssueDetail({
         </Button>
       }
     >
-      <Flex vertical gap="large" className="company-form-content">
+      <Flex vertical gap="large" className="company-content">
         <Flex align="flex-start" justify="space-between" gap="middle" wrap>
           <Flex vertical gap="small">
-            <Text className="company-eyebrow">Issue</Text>
             <Title level={2} className="company-heading! m-0!">{issue.title}</Title>
             <Space>
               <Tag color={issueStatusColor(issue.status)}>{issueStatusLabel[issue.status]}</Tag>

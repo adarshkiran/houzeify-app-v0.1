@@ -314,6 +314,7 @@ export default function App() {
             <ProjectStructureScreen
               onNavigate={navigateTo}
               projectId={projectId}
+              setup={params.setup === '1'}
             />
           </Suspense>
         </div>
@@ -324,6 +325,7 @@ export default function App() {
             <ProjectTeamScreen
               onNavigate={navigateTo}
               projectId={projectId}
+              setup={params.setup === '1'}
             />
           </Suspense>
         </div>

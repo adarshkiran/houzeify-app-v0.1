@@ -53,6 +53,8 @@ export default function CompanyLayout({
   nav,
   onNavigate,
   header,
+  title,
+  description,
   actions,
   className,
   children,
@@ -64,6 +66,10 @@ export default function CompanyLayout({
    * standard header: where you are (project and section) plus `actions`.
    */
   header?: ReactNode
+  /** Page title in the standard header. Defaults to the active menu item's label. */
+  title?: string
+  /** One line under the page title in the standard header. */
+  description?: string
   /** Right-aligned buttons in the standard header (e.g. a back link). */
   actions?: ReactNode
   className?: string
@@ -102,8 +108,8 @@ export default function CompanyLayout({
   let heading: { title: string; subtitle: string }
   if (nav.menu === "company") {
     heading = {
-      title: COMPANY_NAV.find((item) => item.key === nav.active)?.label ?? "Home",
-      subtitle: "Company workspace",
+      title: title ?? COMPANY_NAV.find((item) => item.key === nav.active)?.label ?? "Home",
+      subtitle: description ?? "Company workspace",
     }
     const projectCount = session?.organizationId
       ? getOrganizationProjects(scoped, session.organizationId).length
@@ -115,9 +121,11 @@ export default function CompanyLayout({
   } else {
     const project = getProject(state, nav.projectId)
     const projectItems = projectNav(nav.projectId)
+    // Page title is the section; the project name leads the line under it.
+    const projectName = project?.name ?? "Project"
     heading = {
-      title: project?.name ?? "Project",
-      subtitle: projectItems.find((item) => item.key === nav.active)?.label ?? "",
+      title: title ?? projectItems.find((item) => item.key === nav.active)?.label ?? projectName,
+      subtitle: description ? `${projectName} · ${description}` : projectName,
     }
     items = [
       { key: BACK_TO_COMPANY.key, icon: BACK_TO_COMPANY.icon, label: BACK_TO_COMPANY.label },

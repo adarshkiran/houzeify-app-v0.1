@@ -29,7 +29,7 @@ import {
 } from "../mock/ConstructionDataProvider"
 import { useOrganizationId } from "../session/SessionProvider"
 
-const { Paragraph, Text, Title } = Typography
+const { Title } = Typography
 
 interface ProjectFormValues {
   name: string
@@ -58,6 +58,7 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
     onNavigate("project-structure", {
       project_id: outcome.value.id,
       project_name: outcome.value.name,
+      setup: "1",
     })
   }
 
@@ -65,69 +66,53 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
     <CompanyLayout
       nav={{ menu: "company", active: "projects" }}
       onNavigate={onNavigate}
+      title="New project"
+      description="Start a new project, or track one already underway"
     >
-      <Flex vertical gap="large" className="company-form-content">
-        <Steps
-          current={0}
-          items={[
-            { title: "Project details" },
-            { title: "Structure" },
-            { title: "Team" },
-          ]}
-        />
+      <Flex vertical gap="large" className="company-content">
+        <Card>
+          <Steps
+            current={0}
+            items={[
+              { title: "Project details" },
+              { title: "Structure" },
+              { title: "Team" },
+            ]}
+          />
+        </Card>
 
-        <Row gutter={[32, 24]} align="top">
-          <Col xs={24} lg={8}>
-            <Flex vertical gap="middle" className="business-onboarding-intro">
-              <Text className="company-eyebrow">Create project</Text>
-              <Title className="company-heading! m-0!">
-                Start a connected construction record
-              </Title>
-              <Paragraph type="secondary">
-                Create a new project or start tracking construction that is already
-                underway. Both use the same project engine.
-              </Paragraph>
-            </Flex>
-          </Col>
-
-          <Col xs={24} lg={16}>
-            <Card>
-              <Form<ProjectFormValues>
-                layout="vertical"
-                requiredMark={false}
-                initialValues={{
-                  kind: "individual-house",
-                  status: "planning",
-                  trackingStartedMidProject: false,
-                }}
-                onFinish={handleFinish}
-              >
-                <Row gutter={16}>
-                  <Col xs={24} sm={16}>
-                    <Form.Item
-                      label="Project name"
-                      name="name"
-                      rules={[{ required: true, message: "Enter a project name" }]}
-                    >
-                      <Input prefix={<ProjectOutlined />} placeholder="Green Valley Villas" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item
-                      label="Project code"
-                      name="code"
-                      rules={[{ required: true, message: "Enter a project code" }]}
-                    >
-                      <Input placeholder="GVV-01" />
-                    </Form.Item>
-                  </Col>
-                </Row>
-
+        <Card title={<Title level={5} className="company-heading! m-0!">Project details</Title>}>
+          <Form<ProjectFormValues>
+            layout="vertical"
+            requiredMark={false}
+            initialValues={{
+              kind: "individual-house",
+              status: "planning",
+              trackingStartedMidProject: false,
+            }}
+            onFinish={handleFinish}
+          >
+            <Row gutter={16}>
+              <Col xs={24} md={16}>
                 <Form.Item
-                  label="Project type"
-                  name="kind"
-                  rules={[{ required: true }]}
+                  label="Project name"
+                  name="name"
+                  rules={[{ required: true, message: "Enter a project name" }]}
                 >
+                  <Input prefix={<ProjectOutlined />} placeholder="Green Valley Villas" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item
+                  label="Project code"
+                  name="code"
+                  rules={[{ required: true, message: "Enter a project code" }]}
+                >
+                  <Input placeholder="GVV-01" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Project type" name="kind" rules={[{ required: true }]}>
                   <Select
                     options={[
                       { value: "individual-house", label: "Individual house" },
@@ -139,7 +124,8 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
                     ]}
                   />
                 </Form.Item>
-
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   label="Project location"
                   name="location"
@@ -147,48 +133,45 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
                 >
                   <Input prefix={<EnvironmentOutlined />} placeholder="Hyderabad, Telangana" />
                 </Form.Item>
-
-                <Form.Item label="Project state" name="status">
-                  <Radio.Group
-                    options={[
-                      { value: "planning", label: "Planning" },
-                      { value: "active", label: "Active construction" },
-                      { value: "on-hold", label: "On hold" },
-                    ]}
-                  />
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Start date" name="startDate">
+                  <Input type="date" prefix={<CalendarOutlined />} />
                 </Form.Item>
-
-                <Row gutter={16}>
-                  <Col xs={24} sm={12}>
-                    <Form.Item label="Start date" name="startDate">
-                      <Input type="date" prefix={<CalendarOutlined />} />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item label="Target completion" name="targetDate">
-                      <Input type="date" prefix={<CalendarOutlined />} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Form.Item name="trackingStartedMidProject" valuePropName="checked">
-                  <Checkbox>
-                    Construction has already started and I am beginning tracking mid-project
-                  </Checkbox>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Target completion" name="targetDate">
+                  <Input type="date" prefix={<CalendarOutlined />} />
                 </Form.Item>
+              </Col>
+            </Row>
 
-                <Flex justify="flex-end">
-                  <Space>
-                    <Button onClick={() => onNavigate("company-projects")}>Cancel</Button>
-                    <Button type="primary" htmlType="submit">
-                      Continue to structure
-                    </Button>
-                  </Space>
-                </Flex>
-              </Form>
-            </Card>
-          </Col>
-        </Row>
+            <Form.Item label="Project state" name="status">
+              <Radio.Group
+                options={[
+                  { value: "planning", label: "Planning" },
+                  { value: "active", label: "Active construction" },
+                  { value: "on-hold", label: "On hold" },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item name="trackingStartedMidProject" valuePropName="checked">
+              <Checkbox>
+                Construction has already started and I am beginning tracking mid-project
+              </Checkbox>
+            </Form.Item>
+
+            <Flex justify="flex-end">
+              <Space>
+                <Button onClick={() => onNavigate("company-projects")}>Cancel</Button>
+                <Button type="primary" htmlType="submit">
+                  Continue to structure
+                </Button>
+              </Space>
+            </Flex>
+          </Form>
+        </Card>
       </Flex>
     </CompanyLayout>
   )

@@ -11,11 +11,11 @@ import type { EntityId, Issue } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { ISSUE_REPORT_PERMISSIONS } from "../domain/permissions"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { getMembershipName, getProject } from "../mock/selectors"
+import { getMembershipName } from "../mock/selectors"
 import { useAccess, useActableUnits } from "../session/useCan"
 import { useScopedData } from "../session/useScopedData"
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 type StatusFilter = Issue["status"] | "active" | "all"
 
@@ -42,7 +42,6 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
   const [reportOpen, setReportOpen] = useState(false)
 
-  const project = getProject(state, projectId)
   const units = scoped.projectUnits.filter((unit) => unit.projectId === projectId)
   const issues = useMemo(
     () =>
@@ -137,24 +136,16 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "issues" }}
       onNavigate={onNavigate}
+      description="Site problems, owners and how they were closed"
+      actions={
+        <Gated allowed={canReport} reason="You can't report issues on this project.">
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setReportOpen(true)}>
+            Report issue
+          </Button>
+        </Gated>
+      }
     >
-      <Flex vertical gap="large" className="company-form-content">
-        <Flex align="flex-start" justify="space-between" gap="middle" wrap>
-          <Flex vertical gap="small">
-            <Text className="company-eyebrow">Project issues</Text>
-            <Title level={2} className="company-heading! m-0!">
-              {project?.name ?? "Project"}
-            </Title>
-            <Paragraph type="secondary" className="m-0!">
-              Problems raised on site, who is on them, and how they were closed out.
-            </Paragraph>
-          </Flex>
-          <Gated allowed={canReport} reason="You can't report issues on this project.">
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setReportOpen(true)}>
-              Report issue
-            </Button>
-          </Gated>
-        </Flex>
+      <Flex vertical gap="large" className="company-content">
 
         <Card>
           <Flex gap="middle" wrap>

@@ -75,6 +75,7 @@ function ReviewQueue({
     <CompanyLayout
       nav={projectId ? { menu: "project", projectId, active: "progress" } : { menu: "company", active: "progress" }}
       onNavigate={onNavigate}
+      description="Approve site updates before the homeowner sees them"
       actions={
         <Button
           disabled={!homeownerViewProjectId}
@@ -89,16 +90,12 @@ function ReviewQueue({
         </Button>
       }
     >
-      <Flex vertical gap="large" className="company-form-content">
-        <Flex vertical gap="small">
-          <Text className="company-eyebrow">Review</Text>
-          <Title level={2} className="company-heading! m-0!">
-            Site updates waiting
-          </Title>
-          <Text type="secondary">
-            Approve an update to publish it for the homeowner. Rejected updates stay off their record. Voice notes are never shared with the homeowner.
-          </Text>
-        </Flex>
+      <Flex vertical gap="large" className="company-content">
+        <Alert
+          type="info"
+          showIcon
+          message="Approved updates are published to the homeowner. Rejected updates stay off their record, and voice notes are never shared with them."
+        />
 
         {pending.length === 0 ? (
           <Card>

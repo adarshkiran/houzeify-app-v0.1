@@ -117,6 +117,10 @@ function SubmitProgress({
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "tasks" }}
       onNavigate={onNavigate}
+      title="Log today’s work"
+      description={[unit?.name, task ? getStageName(state, task.stageId) : undefined]
+        .filter(Boolean)
+        .join(" · ") || undefined}
       actions={
         <Button
           icon={<ArrowLeftOutlined />}
@@ -130,18 +134,7 @@ function SubmitProgress({
         </Button>
       }
     >
-      <Flex vertical gap="large" className="company-form-content">
-        <Flex vertical gap="small">
-          <Text className="company-eyebrow">Daily progress</Text>
-          <Title level={2} className="company-heading! m-0!">
-            Log today’s work
-          </Title>
-          <Text type="secondary">
-            {project.name}
-            {unit ? ` · ${unit.name}` : ""}
-            {task ? ` · ${getStageName(state, task.stageId)}` : ""}
-          </Text>
-        </Flex>
+      <Flex vertical gap="large" className="company-content">
 
         <Form<ProgressFormValues>
           form={form}
@@ -157,111 +150,118 @@ function SubmitProgress({
           }}
           onFinish={handleSubmit}
         >
-          <Row gutter={[16, 0]}>
-            <Col span={24}>
-              <Form.Item
-                label="Task"
-                name="taskId"
-                rules={[
-                  {
-                    required: true,
-                    message: "Choose the task this update belongs to",
-                  },
-                ]}
-              >
-                <Select
-                  disabled={Boolean(taskId)}
-                  options={tasks.map((item) => ({
-                    value: item.id,
-                    label: item.title,
-                  }))}
-                />
-              </Form.Item>
+          <Row gutter={[24, 24]} align="top">
+            <Col xs={24} xl={14}>
+              <Card title={<Title level={5} className="company-heading! m-0!">Today’s work</Title>}>
+                <Row gutter={[16, 0]}>
+                  <Col span={24}>
+                    <Form.Item
+                      label="Task"
+                      name="taskId"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Choose the task this update belongs to",
+                        },
+                      ]}
+                    >
+                      <Select
+                        disabled={Boolean(taskId)}
+                        options={tasks.map((item) => ({
+                          value: item.id,
+                          label: item.title,
+                        }))}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      label="Workers on site"
+                      name="workersPresent"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Enter how many workers were present",
+                        },
+                      ]}
+                    >
+                      <InputNumber min={0} max={500} className="w-full!" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      label="Progress after today (%)"
+                      name="progressAfter"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Enter progress after today’s work",
+                        },
+                      ]}
+                    >
+                      <InputNumber min={0} max={100} className="w-full!" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item
+                      label="What was done today"
+                      name="todaySummary"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Describe the work completed today",
+                        },
+                      ]}
+                    >
+                      <VoiceTextArea rows={3} placeholder="Work completed on site today" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item
+                      label="Plan for tomorrow"
+                      name="tomorrowPlan"
+                      rules={[{ required: true, message: "Describe tomorrow’s plan" }]}
+                    >
+                      <VoiceTextArea rows={3} placeholder="Work planned for the next day" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item label="Blocker, if any" name="blockerSummary">
+                      <Input placeholder="Leave blank if nothing is blocking the work" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Card>
             </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Workers on site"
-                name="workersPresent"
-                rules={[
-                  {
-                    required: true,
-                    message: "Enter how many workers were present",
-                  },
-                ]}
+            <Col xs={24} xl={10}>
+              <Card
+                title={
+                  <Flex align="center" justify="space-between" gap="middle" wrap>
+                    <Flex vertical gap={2}>
+                      <Text strong className="m-0!">
+                        Evidence
+                      </Text>
+                      <Text type="secondary" className="text-[13px]!">
+                        {task
+                          ? getWorkTypeName(state, task.workTypeId)
+                          : "Photo or video from site"}
+                      </Text>
+                    </Flex>
+                    <Flex gap={6} wrap>
+                      {(template?.requiredEvidence ?? ["photo", "video"]).map((type) => (
+                        <Tag key={type} className="m-0!">
+                          {type}
+                        </Tag>
+                      ))}
+                    </Flex>
+                  </Flex>
+                }
+                styles={{ body: { paddingTop: 16 } }}
               >
-                <InputNumber min={0} max={500} className="w-full!" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Progress after today (%)"
-                name="progressAfter"
-                rules={[
-                  {
-                    required: true,
-                    message: "Enter progress after today’s work",
-                  },
-                ]}
-              >
-                <InputNumber min={0} max={100} className="w-full!" />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item
-                label="What was done today"
-                name="todaySummary"
-                rules={[
-                  {
-                    required: true,
-                    message: "Describe the work completed today",
-                  },
-                ]}
-              >
-                <VoiceTextArea rows={3} placeholder="Work completed on site today" />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item
-                label="Plan for tomorrow"
-                name="tomorrowPlan"
-                rules={[{ required: true, message: "Describe tomorrow’s plan" }]}
-              >
-                <VoiceTextArea rows={3} placeholder="Work planned for the next day" />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item label="Blocker, if any" name="blockerSummary">
-                <Input placeholder="Leave blank if nothing is blocking the work" />
-              </Form.Item>
+                <EvidenceCapture value={evidence} onChange={setEvidence} />
+              </Card>
             </Col>
           </Row>
-
-          <Card
-            title={
-              <Flex align="center" justify="space-between" gap="middle" wrap>
-                <Flex vertical gap={2}>
-                  <Text strong className="m-0!">
-                    Evidence
-                  </Text>
-                  <Text type="secondary" className="text-[13px]!">
-                    {task
-                      ? getWorkTypeName(state, task.workTypeId)
-                      : "Photo or video from site"}
-                  </Text>
-                </Flex>
-                <Flex gap={6} wrap>
-                  {(template?.requiredEvidence ?? ["photo", "video"]).map((type) => (
-                    <Tag key={type} className="m-0!">
-                      {type}
-                    </Tag>
-                  ))}
-                </Flex>
-              </Flex>
-            }
-            styles={{ body: { paddingTop: 16 } }}
-          >
-            <EvidenceCapture value={evidence} onChange={setEvidence} />
-          </Card>
 
           <Flex className="company-form-actions" justify="flex-end">
             <Button type="primary" htmlType="submit">

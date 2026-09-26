@@ -136,7 +136,7 @@ function TaskDetail({
         </Button>
       }
     >
-      <Flex vertical gap="large" className="company-form-content">
+      <Flex vertical gap="large" className="company-content">
         <Flex align="flex-start" justify="space-between" gap="middle" wrap>
           <Flex vertical gap="small">
             <Space wrap>

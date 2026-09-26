@@ -39,14 +39,13 @@ import {
   type AddWorkPlanItemInput,
 } from "../mock/ConstructionDataProvider"
 import {
-  getProject,
   getProjectUnits,
   getStageName,
   getTradeName,
   getWorkTypeName,
 } from "../mock/selectors"
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 interface PlanFormValues {
   projectUnitId: EntityId
@@ -74,7 +73,6 @@ function WorkPlan({
   const canManage = creatableUnits.length > 0
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<PlanFormValues>()
-  const project = getProject(state, projectId)
   const units = getProjectUnits(state, projectId) // name lookup for table rows
   const items = state.workPlanItems.filter(
     (item) =>
@@ -151,24 +149,16 @@ function WorkPlan({
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "work-plan" }}
       onNavigate={onNavigate}
+      description="Standard work applied to project locations"
+      actions={
+        <Gated allowed={canManage}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Add planned work
+          </Button>
+        </Gated>
+      }
     >
-      <Flex vertical gap="large" className="company-form-content">
-        <Flex align="flex-start" justify="space-between" gap="middle" wrap>
-          <Flex vertical gap="small">
-            <Text className="company-eyebrow">Project work plan</Text>
-            <Title level={2} className="company-heading! m-0!">
-              {project?.name ?? "Project"}
-            </Title>
-            <Paragraph type="secondary" className="m-0!">
-              Apply standardized construction work to project locations.
-            </Paragraph>
-          </Flex>
-          <Gated allowed={canManage}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-              Add planned work
-            </Button>
-          </Gated>
-        </Flex>
+      <Flex vertical gap="large" className="company-content">
 
         <Card
           title={
