@@ -182,3 +182,63 @@ describe("resubmitDailyProgress", () => {
     }))).toThrow()
   })
 })
+
+function approved() {
+  const submitted = raviSubmitted()
+  const { state } = run(submitted.state, manager, commands.reviewDailyProgress(submitted.result.id, "approve"))
+  return { state, item: find(state, submitted.result.id) }
+}
+
+describe("publishDailyProgress", () => {
+  it("shares only the chosen evidence with the homeowner", () => {
+    const { state, item } = approved()
+    const [first] = item.evidenceIds
+    const published = run(state, manager, commands.publishDailyProgress(item.id, [first])).state
+    const after = find(published, item.id)
+    expect(after.publicationStatus).toBe("published")
+    expect(after.publication).toEqual({
+      publishedByMembershipId: "membership-manager-1",
+      publishedAt: "2026-09-27T09:30:00.000Z",
+      evidenceIds: [first],
+    })
+    expect(published.evidence.filter((e) => e.dailyProgressId === item.id).map((e) => e.customerVisibility))
+      .toEqual(["customer-visible", "review-required", "private"])
+    expect(getPublishedForCustomer(published, "project-sharma").some((p) => p.id === item.id)).toBe(true)
+  })
+
+  it("does not change project progress", () => {
+    const { state, item } = approved()
+    const published = run(state, manager, commands.publishDailyProgress(item.id, [])).state
+    expect(published.projects).toBe(state.projects)
+  })
+
+  it("refuses voice notes", () => {
+    const { state, item } = approved()
+    const audio = state.evidence.find((e) => e.dailyProgressId === item.id && e.type === "audio")!
+    expect(() => run(state, manager, commands.publishDailyProgress(item.id, [audio.id])))
+      .toThrow("Voice notes can't be shared with the homeowner.")
+  })
+
+  it("refuses evidence from another update", () => {
+    const { state, item } = approved()
+    expect(() => run(state, manager, commands.publishDailyProgress(item.id, ["evidence-sharma-1"]))).toThrow()
+  })
+
+  it("only publishes approved updates", () => {
+    const submitted = raviSubmitted()
+    expect(() => run(submitted.state, manager, commands.publishDailyProgress(submitted.result.id, [])))
+      .toThrow("Only approved updates can be published.")
+  })
+
+  it("needs the publish permission", () => {
+    const { state, item } = approved()
+    expect(() => run(state, ravi, commands.publishDailyProgress(item.id, []))).toThrow(PermissionError)
+  })
+
+  it("publishing twice is a no-op", () => {
+    const { state, item } = approved()
+    const once = run(state, manager, commands.publishDailyProgress(item.id, []))
+    const twice = run(once.state, manager, commands.publishDailyProgress(item.id, [item.evidenceIds[0]]))
+    expect(twice.state).toBe(once.state)
+  })
+})

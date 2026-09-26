@@ -29,6 +29,7 @@ import type {
   Project,
   ProjectMembership,
   ProjectUnit,
+  ProgressPublication,
   ProgressReview,
   Quantity,
   ReviewDecision,
@@ -1141,6 +1142,60 @@ export const reviewDailyProgress =
                       updatedAt: timestamp,
                     },
               ),
+      },
+      result: undefined,
+    }
+  }
+
+/**
+ * Shares an approved update with the homeowner. Only the chosen evidence
+ * becomes customer-visible; voice notes and review notes never do.
+ */
+export const publishDailyProgress =
+  (progressId: EntityId, evidenceIds: EntityId[]): Command<void> =>
+  (state, ctx) => {
+    const progress = state.dailyProgress.find((item) => item.id === progressId)
+    if (!progress) throw new PermissionError(Permissions.CUSTOMER_PUBLISH)
+    const publisher = authorizeProject(
+      state,
+      ctx,
+      progress.projectId,
+      [Permissions.CUSTOMER_PUBLISH],
+      progress,
+    )
+    if (progress.publicationStatus === "published") return { state, result: undefined }
+    if (progress.reviewStatus !== "approved") {
+      throw new ConflictError("Only approved updates can be published.")
+    }
+    const chosen = [...new Set(evidenceIds)]
+    for (const id of chosen) {
+      const item = state.evidence.find((evidence) => evidence.id === id)
+      if (!item || !progress.evidenceIds.includes(id)) {
+        throw new IntegrityError(`Evidence ${id} is not on update ${progressId}`)
+      }
+      if (item.type === "audio") {
+        throw new ConflictError("Voice notes can't be shared with the homeowner.")
+      }
+    }
+
+    const publication: ProgressPublication = {
+      publishedByMembershipId: publisher.id,
+      publishedAt: iso(ctx),
+      evidenceIds: chosen,
+    }
+    return {
+      state: {
+        ...state,
+        dailyProgress: state.dailyProgress.map((item) =>
+          item.id === progressId
+            ? { ...item, publicationStatus: "published" as const, publication }
+            : item,
+        ),
+        evidence: state.evidence.map((item) =>
+          chosen.includes(item.id)
+            ? { ...item, customerVisibility: "customer-visible" as const }
+            : item,
+        ),
       },
       result: undefined,
     }

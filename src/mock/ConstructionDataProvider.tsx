@@ -109,6 +109,7 @@ interface ConstructionDataContextValue {
     decision: ReviewDecision,
     note?: string,
   ) => void
+  publishDailyProgress: (progressId: EntityId, evidenceIds: EntityId[]) => void
   reportIssue: (input: Inputs.ReportIssueInput) => Issue
   assignIssue: (issueId: EntityId, membershipId: EntityId | undefined) => void
   transitionIssue: (
@@ -203,6 +204,8 @@ export default function ConstructionDataProvider({
         run(commands.resubmitDailyProgress(id, input)),
       reviewDailyProgress: (id, decision, note) =>
         run(commands.reviewDailyProgress(id, decision, note)),
+      publishDailyProgress: (id, evidenceIds) =>
+        run(commands.publishDailyProgress(id, evidenceIds)),
       reportIssue: (input) => run(commands.reportIssue(input)),
       assignIssue: (id, membershipId) =>
         run(commands.assignIssue(id, membershipId)),
