@@ -5,6 +5,7 @@ import {
   getEvidenceForProgress,
   getMembershipName,
   getProject,
+  getPublishedEvidence,
   getVersionChain,
   getWorkTypeName,
 } from "../../mock/selectors"
@@ -54,7 +55,7 @@ export default function ProgressDetail({ progress }: { progress: DailyProgress }
           ...(typeof progress.progressAfter === "number"
             ? [{ key: "estimate", label: "Submitter's estimate", children: `${progress.progressAfter}%` }]
             : []),
-          { key: "official", label: "Project progress (calculated)", children: `${project?.progress ?? 0}%` },
+          { key: "official", label: "Project progress now (calculated)", children: `${project?.progress ?? 0}%` },
         ]}
       />
 
@@ -77,8 +78,22 @@ export default function ProgressDetail({ progress }: { progress: DailyProgress }
         />
       )}
 
+      {progress.publication && (
+        <Flex vertical gap="small">
+          <Text strong>Shared with the homeowner</Text>
+          <Text type="secondary">
+            Published by {who(progress.publication.publishedByMembershipId)} on{" "}
+            {progress.publication.publishedAt.slice(0, 10)}
+          </Text>
+          <EvidenceGrid
+            items={getPublishedEvidence(state, progress)}
+            empty="No evidence was shared, only the written update."
+          />
+        </Flex>
+      )}
+
       <Flex vertical gap="small">
-        <Text strong>Evidence</Text>
+        <Text strong>{progress.publication ? "All evidence" : "Evidence"}</Text>
         <EvidenceGrid items={evidence} />
       </Flex>
 
