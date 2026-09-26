@@ -2,27 +2,14 @@ export type EntityId = string
 export type ISODate = string
 export type ISODateTime = string
 
-export type QuantityUnit =
-  | "nos"
-  | "m"
-  | "m2"
-  | "m3"
-  | "kg"
-  | "tonne"
-  | "day"
-  | "percentage"
+export type QuantityUnit = "nos" | "m" | "m2" | "m3" | "kg" | "tonne" | "day" | "percentage"
 
 export interface Quantity {
   value: number
   unit: QuantityUnit
 }
 
-export type OrganizationKind =
-  | "developer"
-  | "construction-company"
-  | "builder"
-  | "contractor"
-  | "subcontractor"
+export type OrganizationKind = "developer" | "construction-company" | "builder" | "contractor" | "subcontractor"
 
 export interface Organization {
   id: EntityId
@@ -35,20 +22,9 @@ export interface Organization {
   createdAt: ISODateTime
 }
 
-export type ProjectStatus =
-  | "planning"
-  | "active"
-  | "on-hold"
-  | "completed"
-  | "archived"
+export type ProjectStatus = "planning" | "active" | "on-hold" | "completed" | "archived"
 
-export type ProjectKind =
-  | "individual-house"
-  | "multiple-houses"
-  | "villa-development"
-  | "apartment"
-  | "multi-block"
-  | "commercial"
+export type ProjectKind = "individual-house" | "multiple-houses" | "villa-development" | "apartment" | "multi-block" | "commercial"
 
 export interface Project {
   id: EntityId
@@ -67,17 +43,7 @@ export interface Project {
   updatedAt: ISODateTime
 }
 
-export type ProjectUnitKind =
-  | "phase"
-  | "block"
-  | "tower"
-  | "villa"
-  | "house"
-  | "apartment"
-  | "floor"
-  | "zone"
-  | "room"
-  | "location"
+export type ProjectUnitKind = "phase" | "block" | "tower" | "villa" | "house" | "apartment" | "floor" | "zone" | "room" | "location"
 
 export interface ProjectUnit {
   id: EntityId
@@ -146,15 +112,7 @@ export interface Person {
   email?: string
 }
 
-export type ProjectRole =
-  | "homeowner"
-  | "developer-admin"
-  | "project-manager"
-  | "contractor"
-  | "subcontractor"
-  | "supervisor"
-  | "worker"
-  | "consultant"
+export type ProjectRole = "homeowner" | "developer-admin" | "project-manager" | "contractor" | "subcontractor" | "supervisor" | "worker" | "consultant"
 
 export interface PermissionScope {
   projectUnitIds: EntityId[]
@@ -185,20 +143,20 @@ export interface Worker {
   status: "invited" | "active" | "inactive"
 }
 
-export type TaskStatus =
-  | "draft"
-  | "assigned"
-  | "accepted"
-  | "ready"
-  | "in-progress"
-  | "submitted"
-  | "review"
-  | "approved"
-  | "completed"
-  | "blocked"
-  | "delayed"
-  | "reopened"
-  | "cancelled"
+/** Project-scoped assignment for a worker (workforce foundation). */
+export interface WorkerProjectAssignment {
+  id: EntityId
+  workerId: EntityId
+  projectId: EntityId
+  projectUnitIds: EntityId[]
+  tradeIds: EntityId[]
+  role: "worker" | "lead" | "supervisor-assist"
+  status: "invited" | "active" | "inactive"
+  assignedAt: ISODateTime
+  assignedByMembershipId?: EntityId
+}
+
+export type TaskStatus = "draft" | "assigned" | "accepted" | "ready" | "in-progress" | "submitted" | "review" | "approved" | "completed" | "blocked" | "delayed" | "reopened" | "cancelled"
 
 export interface TaskChecklistItem {
   id: EntityId
@@ -306,6 +264,7 @@ export interface ConstructionDataState {
   workPlanItems: WorkPlanItem[]
   memberships: ProjectMembership[]
   workers: Worker[]
+  workerProjectAssignments: WorkerProjectAssignment[]
   tasks: Task[]
   assignments: TaskAssignment[]
   dailyProgress: DailyProgress[]
