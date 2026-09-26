@@ -29,7 +29,7 @@ export default function EvidenceGrid({
               onClick={() => setOpen(index)}
               aria-label={`Open ${item.caption || item.type}`}
             >
-              <EvidenceThumb evidence={item} />
+              <EvidenceThumb evidence={item} preview />
             </button>
           </Col>
         ))}

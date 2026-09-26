@@ -10,7 +10,18 @@ import type { Evidence } from "../domain/models"
 
 const { Text } = Typography
 
-export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
+/**
+ * One piece of evidence as a thumbnail. With `preview`, nothing inside is
+ * interactive (no player controls), so it can sit inside a button that opens
+ * the evidence viewer, which plays the media.
+ */
+export default function EvidenceThumb({
+  evidence,
+  preview = false,
+}: {
+  evidence: Evidence
+  preview?: boolean
+}) {
   const [failed, setFailed] = useState(evidence.url.startsWith("/mock-evidence"))
   const isVideo = evidence.type === "video"
   const Icon = isVideo
@@ -30,7 +41,7 @@ export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
           borderRadius: "var(--ant-border-radius-lg)",
         }}
       >
-        {failed || evidence.type === "document" ? (
+        {failed || evidence.type === "document" || (preview && evidence.type === "audio") ? (
           <Flex align="center" justify="center" className="h-full text-[#722ED1]">
             <Icon style={{ fontSize: 28 }} />
           </Flex>
@@ -45,6 +56,22 @@ export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
               onError={() => setFailed(true)}
             />
           </Flex>
+        ) : isVideo && preview ? (
+          <div className="relative h-full w-full">
+            <video
+              src={evidence.url}
+              muted
+              playsInline
+              preload="metadata"
+              tabIndex={-1}
+              aria-hidden
+              className="pointer-events-none h-full w-full object-cover"
+              onError={() => setFailed(true)}
+            />
+            <Flex align="center" justify="center" className="absolute inset-0 text-white">
+              <PlayCircleOutlined style={{ fontSize: 32 }} />
+            </Flex>
+          </div>
         ) : isVideo ? (
           <video
             src={evidence.url}
