@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import {
   ArrowLeftOutlined,
   PlusOutlined,
-  ScheduleOutlined,
 } from "@ant-design/icons"
 import {
   Button,
@@ -24,6 +23,7 @@ import {
 import type { TableProps } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
+import WorkTypeCascadeFields from "../components/WorkTypeCascadeFields"
 import type { EntityId, QuantityUnit, WorkPlanItem } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
@@ -42,6 +42,8 @@ const { Paragraph, Text, Title } = Typography
 
 interface PlanFormValues {
   projectUnitId: EntityId
+  stageId: EntityId
+  tradeId: EntityId
   workTypeId: EntityId
   plannedValue: number
   unit: QuantityUnit
@@ -105,15 +107,6 @@ function WorkPlan({
       render: (status: WorkPlanItem["status"]) => <Tag color="processing">{status}</Tag>,
     },
   ]
-
-  const workTypeOptions = useMemo(
-    () =>
-      state.workTypes.map((workType) => ({
-        value: workType.id,
-        label: `${getStageName(state, workType.stageId)} · ${workType.name}`,
-      })),
-    [state],
-  )
 
   const handleAdd = (values: PlanFormValues) => {
     const workType = state.workTypes.find((item) => item.id === values.workTypeId)
@@ -212,18 +205,7 @@ function WorkPlan({
               }))}
             />
           </Form.Item>
-          <Form.Item label="Standard work" name="workTypeId" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={workTypeOptions}
-              suffixIcon={<ScheduleOutlined />}
-              onChange={(value) => {
-                const workType = state.workTypes.find((item) => item.id === value)
-                form.setFieldValue("unit", workType?.defaultUnit)
-              }}
-            />
-          </Form.Item>
+          <WorkTypeCascadeFields state={state} form={form} />
           <Row gutter={16}>
             <Col span={14}>
               <Form.Item label="Planned quantity" name="plannedValue" rules={[{ required: true }]}>

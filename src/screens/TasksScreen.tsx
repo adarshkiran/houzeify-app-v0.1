@@ -24,6 +24,7 @@ import {
 import type { TableProps } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
+import WorkTypeCascadeFields from "../components/WorkTypeCascadeFields"
 import type {
   EntityId,
   QuantityUnit,
@@ -47,6 +48,8 @@ const { Paragraph, Text, Title } = Typography
 
 interface TaskFormValues {
   projectUnitId: EntityId
+  stageId: EntityId
+  tradeId: EntityId
   workTypeId: EntityId
   title: string
   priority: Task["priority"]
@@ -296,19 +299,7 @@ function Tasks({
           <Form.Item label="Project location" name="projectUnitId" rules={[{ required: true }]}>
             <Select options={units.map((unit) => ({ value: unit.id, label: unit.name }))} />
           </Form.Item>
-          <Form.Item label="Standard work" name="workTypeId" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={state.workTypes.map((workType) => ({
-                value: workType.id,
-                label: `${getStageName(state, workType.stageId)} · ${workType.name}`,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item label="Task title" name="title" rules={[{ required: true }]}>
-            <Input placeholder="Complete slab reinforcement — Level 3" />
-          </Form.Item>
+          <WorkTypeCascadeFields state={state} form={form} includeTitle />
           <Form.Item label="Priority" name="priority">
             <Select
               options={["low", "medium", "high", "critical"].map((value) => ({

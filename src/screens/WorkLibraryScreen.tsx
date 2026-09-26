@@ -26,8 +26,13 @@ import HIcon from "../components/HIcon"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { WorkType } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import {
+  WORK_LIBRARY_VERSION,
+  getTradesForStage,
+  getWorkTypesForStageTrade,
+} from "../domain/workLibrary"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { getStageName, getTradeName } from "../mock/selectors"
+import { getStageName, getTradeName, getWorkTypeName } from "../mock/selectors"
 
 const { Content, Header, Sider } = Layout
 const { Paragraph, Text, Title } = Typography
@@ -36,16 +41,33 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
   const { state } = useConstructionData()
   const [search, setSearch] = useState("")
   const [stageId, setStageId] = useState("all")
+  const [tradeId, setTradeId] = useState("all")
+
+  const tradesForFilter = useMemo(
+    () => getTradesForStage(state, stageId === "all" ? undefined : stageId),
+    [state, stageId],
+  )
 
   const workTypes = useMemo(
     () =>
-      state.workTypes.filter((workType) => {
-        const matchesSearch = `${workType.name} ${getTradeName(state, workType.tradeId)}`
+      getWorkTypesForStageTrade(
+        state,
+        stageId === "all" ? undefined : stageId,
+        tradeId === "all" ? undefined : tradeId,
+      ).filter((workType) =>
+        `${workType.name} ${getTradeName(state, workType.tradeId)}`
           .toLowerCase()
-          .includes(search.toLowerCase())
-        return matchesSearch && (stageId === "all" || workType.stageId === stageId)
-      }),
-    [state, search, stageId],
+          .includes(search.toLowerCase()),
+      ),
+    [state, search, stageId, tradeId],
+  )
+
+  const templates = useMemo(
+    () =>
+      state.taskTemplates.filter((template) =>
+        workTypes.some((workType) => workType.id === template.workTypeId),
+      ),
+    [state.taskTemplates, workTypes],
   )
 
   const columns: TableProps<WorkType>["columns"] = [
@@ -76,13 +98,16 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
       title: "Template",
       key: "template",
       responsive: ["md"],
-      render: (_, item) => (
-        <Text type="secondary">
-          {state.taskTemplates.some((template) => template.workTypeId === item.id)
-            ? "Available"
-            : "Not configured"}
-        </Text>
-      ),
+      render: (_, item) => {
+        const template = state.taskTemplates.find(
+          (entry) => entry.workTypeId === item.id,
+        )
+        return (
+          <Text type="secondary">
+            {template ? template.name.replace(" — Standard", "") : "Missing"}
+          </Text>
+        )
+      },
     },
   ]
 
@@ -123,14 +148,16 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
         <Header className="company-header">
           <Flex vertical justify="center" className="h-full">
             <Title level={5} className="company-heading! m-0!">Construction Work Library</Title>
-            <Text type="secondary">Standard stages, trades, work types, and task templates</Text>
+            <Text type="secondary">
+              Stage → Trade → Work type → Template · v{WORK_LIBRARY_VERSION}
+            </Text>
           </Flex>
         </Header>
 
         <Content className="overflow-y-auto">
           <Flex vertical gap="large" className="company-content">
             <Card>
-              <Flex gap="middle" wrap>
+              <Flex gap="small" wrap>
                 <Input
                   allowClear
                   prefix={<SearchOutlined />}
@@ -141,13 +168,28 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
                 />
                 <Select
                   value={stageId}
-                  onChange={setStageId}
+                  onChange={(value) => {
+                    setStageId(value)
+                    setTradeId("all")
+                  }}
                   className="company-project-filter"
                   options={[
                     { value: "all", label: "All stages" },
                     ...state.stages.map((stage) => ({
                       value: stage.id,
                       label: stage.name,
+                    })),
+                  ]}
+                />
+                <Select
+                  value={tradeId}
+                  onChange={setTradeId}
+                  className="company-project-filter"
+                  options={[
+                    { value: "all", label: "All trades" },
+                    ...tradesForFilter.map((trade) => ({
+                      value: trade.id,
+                      label: trade.name,
                     })),
                   ]}
                 />
@@ -184,20 +226,17 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
                   }
                 >
                   <Listy
-                    items={state.taskTemplates}
+                    items={templates}
                     rowKey="id"
                     classNames={{ item: "company-listy-item" }}
                     itemRender={(template) => (
-                      <Flex vertical gap="small">
+                      <Flex vertical gap={4}>
                         <Text strong>{template.name}</Text>
-                        <Paragraph type="secondary" className="m-0!">
+                        <Text type="secondary" className="text-[13px]!">
+                          {getWorkTypeName(state, template.workTypeId)} ·{" "}
                           {template.checklist.length} checks ·{" "}
-                          {template.requiredEvidence.join(", ")} evidence
-                        </Paragraph>
-                        <Space wrap>
-                          <Tag>{template.defaultUnit}</Tag>
-                          <Tag>{template.dependencyWorkTypeIds.length} dependencies</Tag>
-                        </Space>
+                          {template.requiredEvidence.join(", ")}
+                        </Text>
                       </Flex>
                     )}
                   />

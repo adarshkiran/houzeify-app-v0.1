@@ -167,53 +167,65 @@ const workTypes: WorkType[] = workTypeDefinitions.map(
   }),
 )
 
-const taskTemplates = [
+const richTemplates: Record<
+  string,
   {
-    id: "template-footing-concrete",
-    workTypeId: "work-footing-concrete",
-    name: "Footing Concrete — Standard",
+    checklist: string[]
+    requiredEvidence: ("photo" | "video")[]
+    dependencyWorkTypeIds: string[]
+  }
+> = {
+  "work-footing-concrete": {
     checklist: [
       "Reinforcement inspection approved",
       "Shuttering line and level checked",
       "Concrete grade and slump verified",
       "Before, during, and completed evidence captured",
     ],
-    requiredEvidence: ["photo"] as const,
-    defaultUnit: "m3" as const,
+    requiredEvidence: ["photo"],
     dependencyWorkTypeIds: [
       "work-footing-reinforcement",
       "work-footing-shuttering",
     ],
   },
-  {
-    id: "template-slab-casting",
-    workTypeId: "work-slab-casting",
-    name: "Slab Casting — Standard",
+  "work-slab-casting": {
     checklist: [
       "Formwork inspection approved",
       "Reinforcement and services clearance complete",
       "Concrete pour sequence confirmed",
       "Cube samples and pour evidence recorded",
     ],
-    requiredEvidence: ["photo", "video"] as const,
-    defaultUnit: "m3" as const,
+    requiredEvidence: ["photo", "video"],
     dependencyWorkTypeIds: ["work-slab-shuttering", "work-slab-reinforcement"],
   },
-  {
-    id: "template-electrical-conduit",
-    workTypeId: "work-conduit",
-    name: "Electrical Conduit — Standard",
+  "work-conduit": {
     checklist: [
       "Approved drawing available",
       "Conduit routes and box positions marked",
       "Continuity checked before concealment",
       "Completed installation photographed",
     ],
-    requiredEvidence: ["photo"] as const,
-    defaultUnit: "m" as const,
+    requiredEvidence: ["photo"],
     dependencyWorkTypeIds: [],
   },
-]
+}
+
+const taskTemplates = workTypes.map((workType) => {
+  const rich = richTemplates[workType.id]
+  return {
+    id: `template-${slug(workType.name)}`,
+    workTypeId: workType.id,
+    name: `${workType.name} — Standard`,
+    checklist: rich?.checklist ?? [
+      `${workType.name} scope confirmed on site`,
+      "Quality checks completed before submission",
+      "Site evidence captured for review",
+    ],
+    requiredEvidence: rich?.requiredEvidence ?? (["photo"] as const),
+    defaultUnit: workType.defaultUnit,
+    dependencyWorkTypeIds: rich?.dependencyWorkTypeIds ?? [],
+  }
+})
 
 const projects: Project[] = [
   {
