@@ -146,6 +146,98 @@ export function getCustomerVisibleEvidence(evidence: Evidence[]) {
   )
 }
 
+const newestFirst = (left: DailyProgress, right: DailyProgress) =>
+  right.submittedAt.localeCompare(left.submittedAt)
+
+/** Approved updates not yet shared with the homeowner. */
+export function getReadyToPublish(
+  state: ConstructionDataState,
+  projectId?: EntityId,
+) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        (!projectId || progress.projectId === projectId) &&
+        progress.reviewStatus === "approved" &&
+        progress.publicationStatus === "private",
+    )
+    .sort(newestFirst)
+}
+
+/** Every submitted update (all review states), newest first. */
+export function getProgressHistory(
+  state: ConstructionDataState,
+  projectId?: EntityId,
+) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        (!projectId || progress.projectId === projectId) &&
+        progress.reviewStatus !== "draft",
+    )
+    .sort(newestFirst)
+}
+
+/** All versions of an update, oldest first, including `progress` itself. */
+export function getVersionChain(
+  state: ConstructionDataState,
+  progress: DailyProgress,
+) {
+  const byId = new Map(state.dailyProgress.map((item) => [item.id, item]))
+  let first = progress
+  while (first.supersedesId && byId.has(first.supersedesId)) {
+    first = byId.get(first.supersedesId)!
+  }
+  const chain = [first]
+  let current = first
+  while (current.supersededById && byId.has(current.supersededById)) {
+    current = byId.get(current.supersededById)!
+    chain.push(current)
+  }
+  return chain
+}
+
+/** Updates sent back to these memberships (optionally for one task), newest first. */
+export function getChangesRequested(
+  state: ConstructionDataState,
+  membershipIds: ReadonlySet<EntityId>,
+  taskId?: EntityId,
+) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        progress.reviewStatus === "changes-requested" &&
+        membershipIds.has(progress.submittedByMembershipId) &&
+        (!taskId || progress.taskId === taskId),
+    )
+    .sort(newestFirst)
+}
+
+/** Evidence the reviewer chose to share when publishing; nothing else. */
+export function getPublishedEvidence(
+  state: ConstructionDataState,
+  progress: DailyProgress,
+) {
+  const chosen = new Set(progress.publication?.evidenceIds ?? [])
+  return state.evidence.filter(
+    (item) => chosen.has(item.id) && item.customerVisibility === "customer-visible",
+  )
+}
+
+/** Membership ids held by a signed-in person. */
+export function getMyMembershipIds(
+  state: ConstructionDataState,
+  personId: EntityId | undefined,
+) {
+  return new Set(
+    state.memberships
+      .filter(
+        (item) => item.principalType === "person" && item.principalId === personId,
+      )
+      .map((item) => item.id),
+  )
+}
+
 export function getActiveWorkerAssignments(
   state: ConstructionDataState,
   projectId?: EntityId,
