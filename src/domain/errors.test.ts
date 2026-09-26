@@ -25,3 +25,12 @@ describe("describeCommandError", () => {
     expect(describeCommandError("boom")).toBe("Something went wrong. Please try again.")
   })
 })
+
+describe("ConflictError", () => {
+  it("shows its own message, which is written for users", async () => {
+    const { ConflictError } = await import("./errors")
+    const error = new ConflictError("A worker with this phone number already exists.")
+    expect(error).toBeInstanceOf(IntegrityError)
+    expect(describeCommandError(error)).toBe("A worker with this phone number already exists.")
+  })
+})

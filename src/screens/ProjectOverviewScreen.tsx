@@ -43,6 +43,7 @@ import {
   getStageName,
   getTradeName,
 } from "../mock/selectors"
+import { useScopedData } from "../session/useScopedData"
 
 const { Content, Header, Sider } = Layout
 const { Paragraph, Text, Title } = Typography
@@ -64,6 +65,7 @@ function ProjectOverview({
   projectId: EntityId
 }) {
   const { state } = useConstructionData()
+  const scoped = useScopedData() // counts and lists follow the viewer's scope
   const project = getProject(state, projectId)
 
   if (!project) {
@@ -87,12 +89,12 @@ function ProjectOverview({
     )
   }
 
-  const openTasks = getOpenTasks(state, project.id)
-  const openIssues = getOpenIssues(state, project.id)
-  const progressRecords = getRecentProgress(state, project.id)
+  const openTasks = getOpenTasks(scoped, project.id)
+  const openIssues = getOpenIssues(scoped, project.id)
+  const progressRecords = getRecentProgress(scoped, project.id)
   const latestProgress = progressRecords[0]
-  const units = getProjectUnits(state, project.id)
-  const memberships = getProjectMemberships(state, project.id)
+  const units = getProjectUnits(scoped, project.id)
+  const memberships = getProjectMemberships(scoped, project.id)
   const stageName = getStageName(state, project.currentStageId)
 
   return (
@@ -141,6 +143,9 @@ function ProjectOverview({
               }
               if (key === "tasks") {
                 onNavigate("tasks", { project_id: projectId })
+              }
+              if (key === "issues") {
+                onNavigate("issues", { project_id: projectId })
               }
               if (key === "progress") {
                 onNavigate("daily-progress-review", { project_id: projectId })
@@ -367,6 +372,14 @@ function ProjectOverview({
                         Open issues
                       </Title>
                     }
+                    extra={
+                      <Button
+                        type="link"
+                        onClick={() => onNavigate("issues", { project_id: projectId })}
+                      >
+                        View all
+                      </Button>
+                    }
                   >
                     {openIssues.length ? (
                       <Listy
@@ -375,7 +388,18 @@ function ProjectOverview({
                         classNames={{ item: "company-listy-item" }}
                         itemRender={(issue) => (
                           <Flex vertical gap={4} className="company-list-stack">
-                            <Text strong>{issue.title}</Text>
+                            <Button
+                              type="link"
+                              className="p-0! h-auto! justify-start!"
+                              onClick={() =>
+                                onNavigate("issue-detail", {
+                                  project_id: projectId,
+                                  issue_id: issue.id,
+                                })
+                              }
+                            >
+                              {issue.title}
+                            </Button>
                             <Space size={8} wrap>
                               <Tag color={issue.severity === "high" ? "error" : "warning"}>
                                 {issue.severity}

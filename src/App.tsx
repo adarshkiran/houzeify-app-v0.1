@@ -40,6 +40,8 @@ const TaskDetailScreen = lazy(() => import('./screens/TaskDetailScreen'))
 const DailyProgressSubmitScreen = lazy(() => import('./screens/DailyProgressSubmitScreen'))
 const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressReviewScreen'))
 const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
+const IssuesScreen = lazy(() => import('./screens/IssuesScreen'))
+const IssueDetailScreen = lazy(() => import('./screens/IssueDetailScreen'))
 
 function SplashRoute({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
@@ -348,6 +350,24 @@ export default function App() {
             <DailyProgressReviewScreen
               onNavigate={navigateTo}
               projectId={projectId}
+            />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'issues' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <IssuesScreen onNavigate={navigateTo} projectId={projectId} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'issue-detail' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <IssueDetailScreen
+              onNavigate={navigateTo}
+              projectId={projectId}
+              issueId={params.issue_id}
             />
           </Suspense>
         </div>

@@ -27,8 +27,11 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import Gated from "../components/Gated"
-import { Permissions } from "../domain/permissions"
+import { ISSUE_REPORT_PERMISSIONS, Permissions } from "../domain/permissions"
 import { useAccess } from "../session/useCan"
+import { useScopedData } from "../session/useScopedData"
+import ReportIssueModal from "../components/ReportIssueModal"
+import { issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
 import { useCommand } from "../session/useCommand"
 import {
   getAllowedTaskTransitions,
@@ -65,6 +68,8 @@ function TaskDetail({
   const run = useCommand()
   const can = useAccess()
   const [assigneeId, setAssigneeId] = useState<EntityId>()
+  const [reportOpen, setReportOpen] = useState(false)
+  const scoped = useScopedData()
   // A task outside the viewer's scope is treated as not available.
   const found = state.tasks.find((item) => item.id === taskId)
   const task =
@@ -97,6 +102,8 @@ function TaskDetail({
   const canSubmitProgress = can(Permissions.PROGRESS_SUBMIT, projectId, task)
   // Workers who can submit progress may also start/pause their own work.
   const canMoveTask = canManageTasks || canSubmitProgress
+  const canReportIssue = can(ISSUE_REPORT_PERMISSIONS, projectId, task)
+  const taskIssues = scoped.issues.filter((issue) => issue.taskId === task.id)
   const transitions = getAllowedTaskTransitions(task.status)
   const assignments = state.assignments.filter(
     (assignment) => assignment.taskId === task.id,
@@ -138,6 +145,9 @@ function TaskDetail({
             </Text>
           </Flex>
           <Space wrap>
+            <Gated allowed={canReportIssue} reason="You can't report issues on this task.">
+              <Button onClick={() => setReportOpen(true)}>Report issue</Button>
+            </Gated>
             <Button
               type="primary"
               onClick={() =>
@@ -322,6 +332,38 @@ function TaskDetail({
               <Card
                 title={
                   <Title level={5} className="company-heading! m-0!">
+                    Issues on this task
+                  </Title>
+                }
+              >
+                {taskIssues.length ? (
+                  <Flex vertical gap="small">
+                    {taskIssues.map((issue) => (
+                      <Flex key={issue.id} justify="space-between" align="center" gap="small">
+                        <Button
+                          type="link"
+                          className="p-0!"
+                          onClick={() =>
+                            onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })
+                          }
+                        >
+                          {issue.title}
+                        </Button>
+                        <Space size={4}>
+                          <Tag color={issueSeverityColor(issue.severity)}>{issue.severity}</Tag>
+                          <Tag color={issueStatusColor(issue.status)}>{issueStatusLabel[issue.status]}</Tag>
+                        </Space>
+                      </Flex>
+                    ))}
+                  </Flex>
+                ) : (
+                  <Text type="secondary">No issues reported on this task.</Text>
+                )}
+              </Card>
+
+              <Card
+                title={
+                  <Title level={5} className="company-heading! m-0!">
                     Evidence requirements
                   </Title>
                 }
@@ -338,6 +380,15 @@ function TaskDetail({
           </Col>
         </Row>
       </Flex>
+      <ReportIssueModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        projectId={projectId}
+        taskId={task.id}
+        onReported={(issue) =>
+          onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })
+        }
+      />
     </Flex>
   )
 }

@@ -48,6 +48,7 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import type { DailyProgress, Issue, Task } from "../domain/models"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useOrganizationId } from "../session/SessionProvider"
+import { useScopedData } from "../session/useScopedData"
 import {
   type DashboardProject,
   getOrganizationDashboard,
@@ -227,8 +228,9 @@ function CompanyDashboard({
   onNavigate: (screen: string, data?: Record<string, string>) => void
 }) {
   const { state } = useConstructionData()
+  const scoped = useScopedData() // aggregates follow the viewer's scope
   const organizationId = useOrganizationId()
-  const dashboard = getOrganizationDashboard(state, organizationId)
+  const dashboard = getOrganizationDashboard(scoped, organizationId)
   const navItems = buildMenuItems(
     dashboard.projects.length,
     dashboard.openIssues.length,
@@ -506,7 +508,19 @@ function CompanyDashboard({
                       rowKey="id"
                       classNames={{ item: "company-listy-item" }}
                       itemRender={(issue) => (
-                        <Flex align="flex-start" gap="middle">
+                        <Flex
+                          align="flex-start"
+                          gap="middle"
+                          role="button"
+                          tabIndex={0}
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            onNavigate("issue-detail", {
+                              project_id: issue.projectId,
+                              issue_id: issue.id,
+                            })
+                          }
+                        >
                           <Avatar
                             shape="square"
                             className="company-issue-icon"

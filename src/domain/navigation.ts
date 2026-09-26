@@ -106,6 +106,14 @@ export const routes = {
     access: project(Permissions.PROGRESS_REVIEW),
     optionalProject: true,
   },
+  issues: {
+    access: project(Permissions.PROJECT_READ),
+    requires: ["project_id"],
+  },
+  "issue-detail": {
+    access: project(Permissions.PROJECT_READ),
+    requires: ["project_id", "issue_id"],
+  },
   "customer-daily-update": {
     access: customerProject(Permissions.PROJECT_READ),
     requires: ["project_id"],
@@ -126,7 +134,7 @@ export interface RouteLocation {
 }
 
 /** Params that describe *where* we are; they never carry over between screens. */
-const SCOPED_PARAMS = new Set(["project_id", "task_id"])
+const SCOPED_PARAMS = new Set(["project_id", "task_id", "issue_id"])
 
 /** Params never written to the URL. */
 const PRIVATE_PARAMS = new Set(["phone"])

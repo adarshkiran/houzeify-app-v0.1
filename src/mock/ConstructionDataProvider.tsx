@@ -15,6 +15,7 @@ import type {
   DailyProgress,
   EntityId,
   Evidence,
+  Issue,
   Project,
   ProjectMembership,
   ProjectUnit,
@@ -57,6 +58,8 @@ export type {
   CreateProjectInput,
   CreateTaskInput,
   InviteProjectMemberInput,
+  IssueEvidenceInput,
+  ReportIssueInput,
   SubmitDailyProgressInput,
 } from "../domain/commandInputs"
 
@@ -97,6 +100,17 @@ interface ConstructionDataContextValue {
     progressId: EntityId,
     decision: "approve" | "reject",
   ) => void
+  reportIssue: (input: Inputs.ReportIssueInput) => Issue
+  assignIssue: (issueId: EntityId, membershipId: EntityId | undefined) => void
+  transitionIssue: (
+    issueId: EntityId,
+    next: Issue["status"],
+    resolutionNote?: string,
+  ) => void
+  addIssueEvidence: (
+    issueId: EntityId,
+    items: Inputs.IssueEvidenceInput[],
+  ) => Evidence[]
 }
 
 export { getAllowedTaskTransitions, canTransitionTask }
@@ -175,6 +189,13 @@ export default function ConstructionDataProvider({
       submitDailyProgress: (input) => run(commands.submitDailyProgress(input)),
       reviewDailyProgress: (id, decision) =>
         run(commands.reviewDailyProgress(id, decision)),
+      reportIssue: (input) => run(commands.reportIssue(input)),
+      assignIssue: (id, membershipId) =>
+        run(commands.assignIssue(id, membershipId)),
+      transitionIssue: (id, next, note) =>
+        run(commands.transitionIssue(id, next, note)),
+      addIssueEvidence: (id, items) =>
+        run(commands.addIssueEvidence(id, items)),
     }),
     [state, run],
   )

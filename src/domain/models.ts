@@ -249,7 +249,12 @@ export interface Issue {
   id: EntityId
   projectId: EntityId
   projectUnitId?: EntityId
+  /** With projectUnitId and tradeId, what membership scope is checked against. */
+  stageId?: EntityId
+  tradeId?: EntityId
   taskId?: EntityId
+  /** The daily progress record this was raised from, if any. */
+  dailyProgressId?: EntityId
   title: string
   description: string
   severity: "low" | "medium" | "high" | "critical"
@@ -258,7 +263,10 @@ export interface Issue {
   evidenceIds: EntityId[]
   createdByMembershipId: EntityId
   createdAt: ISODateTime
+  updatedAt?: ISODateTime
   resolvedAt?: ISODateTime
+  resolutionNote?: string
+  closedAt?: ISODateTime
 }
 
 export interface ConstructionDataState {
