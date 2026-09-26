@@ -1,0 +1,161 @@
+import type {
+  DailyProgress,
+  EntityId,
+  Evidence,
+  EvidenceType,
+  Organization,
+  ProjectKind,
+  ProjectRole,
+  ProjectStatus,
+  ProjectUnitKind,
+  Quantity,
+  QuantityUnit,
+  Task,
+  Worker,
+  WorkerProjectAssignment,
+} from "./models"
+
+/** Inputs for every construction-data command (see constructionCommands.ts). */
+
+export interface BusinessProfileInput {
+  name: string
+  kind: Organization["kind"]
+  city: string
+  phone: string
+  teamSize: string
+}
+
+export interface CreateProjectInput {
+  organizationId: EntityId
+  name: string
+  code: string
+  kind: ProjectKind
+  status: ProjectStatus
+  location: string
+  startDate?: string
+  targetDate?: string
+  trackingStartedMidProject: boolean
+}
+
+export interface AddProjectUnitInput {
+  projectId: EntityId
+  parentUnitId?: EntityId
+  kind: ProjectUnitKind
+  code: string
+  name: string
+}
+
+export interface InviteProjectMemberInput {
+  projectId: EntityId
+  name: string
+  phone?: string
+  email?: string
+  role: ProjectRole
+  projectUnitIds?: EntityId[]
+}
+
+export interface AddWorkPlanItemInput {
+  projectId: EntityId
+  projectUnitId: EntityId
+  stageId: EntityId
+  tradeId: EntityId
+  workTypeId: EntityId
+  templateId?: EntityId
+  plannedQuantity: Quantity
+  plannedStart?: string
+  dueDate?: string
+}
+
+export interface CreateTaskInput {
+  projectId: EntityId
+  projectUnitId: EntityId
+  stageId: EntityId
+  tradeId: EntityId
+  workTypeId: EntityId
+  templateId?: EntityId
+  title: string
+  priority: Task["priority"]
+  plannedQuantity?: Quantity
+  plannedStart?: string
+  dueDate?: string
+}
+
+export interface AddEvidenceInput {
+  projectId: EntityId
+  projectUnitId?: EntityId
+  taskId?: EntityId
+  dailyProgressId?: EntityId
+  type: EvidenceType
+  url: string
+  thumbnailUrl?: string
+  caption?: string
+  capturedByMembershipId?: EntityId
+  capturedByWorkerId?: EntityId
+  customerVisibility?: Evidence["customerVisibility"]
+}
+
+export interface SubmitDailyProgressInput {
+  projectId: EntityId
+  projectUnitId: EntityId
+  taskId?: EntityId
+  stageId: EntityId
+  tradeId: EntityId
+  workTypeId: EntityId
+  workersPresent: number
+  progressAfter: number
+  todaySummary: string
+  tomorrowPlan: string
+  yesterdaySummary?: string
+  blockerSummary?: string
+  submittedByMembershipId?: EntityId
+  evidence: Array<{
+    type: EvidenceType
+    url: string
+    thumbnailUrl?: string
+    caption?: string
+    capturedByWorkerId?: EntityId
+  }>
+}
+
+export interface AssignWorkerToProjectInput {
+  workerId: EntityId
+  projectId: EntityId
+  projectUnitIds?: EntityId[]
+  tradeIds?: EntityId[]
+  role?: WorkerProjectAssignment["role"]
+  assignedByMembershipId?: EntityId
+}
+
+export interface AddWorkerInput {
+  organizationId: EntityId
+  name: string
+  phone?: string
+  tradeIds: EntityId[]
+  preferredLanguage?: string
+  onboardingMethod?: Worker["onboardingMethod"]
+  projectId?: EntityId
+  projectUnitIds?: EntityId[]
+  role?: WorkerProjectAssignment["role"]
+  assignedByMembershipId?: EntityId
+}
+
+export interface AddLibraryStageInput {
+  name: string
+  code?: string
+}
+
+export interface AddLibraryTradeInput {
+  name: string
+  code?: string
+}
+
+export interface AddLibraryWorkTypeInput {
+  name: string
+  stageId?: EntityId
+  tradeId?: EntityId
+  newStageName?: string
+  newTradeName?: string
+  defaultUnit: QuantityUnit
+  checklist?: string[]
+  requiredEvidence?: EvidenceType[]
+}
