@@ -52,11 +52,17 @@ function SplashRoute({ onComplete }: { onComplete: () => void }) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<AppScreen>('splash')
+  const [screen, setScreen] = useState<AppScreen>(() => {
+    if (typeof window === "undefined") return "splash"
+    const hash = window.location.hash.replace(/^#/, "")
+    return isAppScreen(hash) ? hash : "splash"
+  })
   const [phone, setPhone] = useState('98765 43210')
   const [projectData, setProjectData] = useState<Record<string, string>>({
     property_type: 'House',
     location: 'Hyderabad, Telangana',
+    project_id: 'project-sharma',
+    task_id: 'task-4',
   })
 
   const navigateTo = (s: string, data?: Record<string, string>) => {
@@ -64,6 +70,9 @@ export default function App() {
     if (data?.phone) setPhone(data.phone)
     if (data) setProjectData(prev => ({ ...prev, ...data }))
     setScreen(s)
+    if (typeof window !== "undefined") {
+      window.location.hash = s
+    }
   }
 
   const slide = {
