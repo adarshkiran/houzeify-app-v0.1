@@ -1,11 +1,11 @@
 import { ArrowLeftOutlined, CameraOutlined } from "@ant-design/icons"
 import { Alert, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Space, Tag, Timeline, Typography, Upload } from "antd"
 import { useState } from "react"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import EvidenceThumb from "../components/EvidenceThumb"
 import Gated from "../components/Gated"
 import { issueActionLabel, issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
-import LogoHorizontal from "../components/LogoHorizontal"
 import { getAllowedIssueTransitions } from "../domain/issueTransitions"
 import type { EntityId, Issue } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -82,14 +82,15 @@ function IssueDetail({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "issues" }}
+      onNavigate={onNavigate}
+      actions={
         <Button icon={<ArrowLeftOutlined />} onClick={() => onNavigate("issues", { project_id: projectId })}>
           Issue register
         </Button>
-      </Flex>
-
+      }
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Flex align="flex-start" justify="space-between" gap="middle" wrap>
           <Flex vertical gap="small">
@@ -241,7 +242,7 @@ function IssueDetail({
         <Paragraph type="secondary">What was done to fix it? This is kept on the issue.</Paragraph>
         <Input.TextArea rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Lintel replaced and re-inspected" />
       </Modal>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

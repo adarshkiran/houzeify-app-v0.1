@@ -1,11 +1,11 @@
-import { ArrowLeftOutlined, ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
+import { ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
 import { Button, Card, Flex, Input, Select, Table, Tag, Typography } from "antd"
 import type { TableProps } from "antd"
 import { useMemo, useState } from "react"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import Gated from "../components/Gated"
 import { issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
-import LogoHorizontal from "../components/LogoHorizontal"
 import ReportIssueModal from "../components/ReportIssueModal"
 import type { EntityId, Issue } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -134,17 +134,10 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
   ]
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => onNavigate("project-overview", { project_id: projectId })}
-        >
-          Project overview
-        </Button>
-      </Flex>
-
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "issues" }}
+      onNavigate={onNavigate}
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Flex align="flex-start" justify="space-between" gap="middle" wrap>
           <Flex vertical gap="small">
@@ -221,7 +214,7 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
           onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })
         }
       />
-    </Flex>
+    </CompanyLayout>
   )
 }
 

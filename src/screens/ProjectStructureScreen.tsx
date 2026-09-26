@@ -5,7 +5,6 @@ import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
   ApartmentOutlined,
-  ArrowLeftOutlined,
   HomeOutlined,
   PlusOutlined,
 } from "@ant-design/icons"
@@ -28,8 +27,8 @@ import {
   Typography,
 } from "antd"
 import type { TreeDataNode } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, ProjectUnitKind } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
@@ -141,19 +140,10 @@ function ProjectStructure({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() =>
-            onNavigate("project-overview", { project_id: projectId })
-          }
-        >
-          Project overview
-        </Button>
-      </Flex>
-
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "structure" }}
+      onNavigate={onNavigate}
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Steps
           current={1}
@@ -317,7 +307,7 @@ function ProjectStructure({
           </Flex>
         </Form>
       </Modal>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

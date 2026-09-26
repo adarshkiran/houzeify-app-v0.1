@@ -15,8 +15,8 @@ import {
   Typography,
 } from "antd"
 import EvidenceCapture, { type DraftEvidence } from "../components/EvidenceCapture"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import VoiceTextArea from "../components/VoiceTextArea"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -114,9 +114,10 @@ function SubmitProgress({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "tasks" }}
+      onNavigate={onNavigate}
+      actions={
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() =>
@@ -127,8 +128,8 @@ function SubmitProgress({
         >
           {taskId ? "Task" : "Project"}
         </Button>
-      </Flex>
-
+      }
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Flex vertical gap="small">
           <Text className="company-eyebrow">Daily progress</Text>
@@ -269,7 +270,7 @@ function SubmitProgress({
           </Flex>
         </Form>
       </Flex>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

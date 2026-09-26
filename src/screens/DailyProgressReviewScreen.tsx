@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react"
-import { ArrowLeftOutlined } from "@ant-design/icons"
+import { useState } from "react"
 import {
   Alert,
   Button,
@@ -12,9 +11,9 @@ import {
   Tag,
   Typography,
 } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import EvidenceThumb from "../components/EvidenceThumb"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
@@ -73,34 +72,23 @@ function ReviewQueue({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Flex gap="small">
-          <Button
-            disabled={!homeownerViewProjectId}
-            onClick={() =>
-              homeownerViewProjectId &&
-              onNavigate("customer-daily-update", {
-                project_id: homeownerViewProjectId,
-              })
-            }
-          >
-            Homeowner view
-          </Button>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() =>
-              projectId
-                ? onNavigate("project-overview", { project_id: projectId })
-                : onNavigate("company-dashboard")
-            }
-          >
-            {projectId ? "Project" : "Company home"}
-          </Button>
-        </Flex>
-      </Flex>
-
+    <CompanyLayout
+      nav={projectId ? { menu: "project", projectId, active: "progress" } : { menu: "company", active: "progress" }}
+      onNavigate={onNavigate}
+      actions={
+        <Button
+          disabled={!homeownerViewProjectId}
+          onClick={() =>
+            homeownerViewProjectId &&
+            onNavigate("customer-daily-update", {
+              project_id: homeownerViewProjectId,
+            })
+          }
+        >
+          Homeowner view
+        </Button>
+      }
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Flex vertical gap="small">
           <Text className="company-eyebrow">Review</Text>
@@ -233,7 +221,7 @@ function ReviewQueue({
           </Row>
         )}
       </Flex>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

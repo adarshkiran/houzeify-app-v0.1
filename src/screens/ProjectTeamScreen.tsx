@@ -6,7 +6,6 @@ import { visibleMemberships } from "../domain/readScope"
 import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
-  ArrowLeftOutlined,
   CheckCircleOutlined,
   MailOutlined,
   PlusOutlined,
@@ -31,8 +30,8 @@ import {
   Typography,
 } from "antd"
 import type { TableProps } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type {
   EntityId,
   ProjectMembership,
@@ -153,19 +152,10 @@ function ProjectTeam({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() =>
-            onNavigate("project-structure", { project_id: projectId })
-          }
-        >
-          Project structure
-        </Button>
-      </Flex>
-
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "team" }}
+      onNavigate={onNavigate}
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Steps
           current={2}
@@ -320,7 +310,7 @@ function ProjectTeam({
           </Flex>
         </Form>
       </Modal>
-    </Flex>
+    </CompanyLayout>
   )
 }
 

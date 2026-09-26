@@ -22,8 +22,8 @@ import {
   Timeline,
   Typography,
 } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { isSiteTaskStatus } from "../domain/taskTransitions"
@@ -124,17 +124,18 @@ function TaskDetail({
   }
 
   return (
-    <Flex vertical className="company-form-page min-h-full">
-      <Flex align="center" justify="space-between" className="business-onboarding-header">
-        <LogoHorizontal height={24} />
+    <CompanyLayout
+      nav={{ menu: "project", projectId, active: "tasks" }}
+      onNavigate={onNavigate}
+      actions={
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => onNavigate("tasks", { project_id: projectId })}
         >
           Task register
         </Button>
-      </Flex>
-
+      }
+    >
       <Flex vertical gap="large" className="company-form-content">
         <Flex align="flex-start" justify="space-between" gap="middle" wrap>
           <Flex vertical gap="small">
@@ -392,7 +393,7 @@ function TaskDetail({
           onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })
         }
       />
-    </Flex>
+    </CompanyLayout>
   )
 }
 

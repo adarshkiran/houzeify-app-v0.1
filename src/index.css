@@ -603,3 +603,28 @@ html, body, #root {
     padding: 28px 16px;
   }
 }
+
+/* Shared company navigation (CompanyLayout) */
+.company-mobile-nav-body .company-settings-menu {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ant-color-border);
+}
+
+.company-nav-soon {
+  font-size: 10px;
+  line-height: 16px;
+  padding-inline: 6px;
+  color: var(--ant-color-text-tertiary);
+}
+
+.company-dashboard .ant-menu-item-group-title {
+  padding: 8px 24px 4px;
+}
+
+.company-nav-project {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

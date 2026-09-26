@@ -1,11 +1,7 @@
 import { useMemo, useState } from "react"
 import {
-  HomeOutlined,
   PlusOutlined,
-  ProjectOutlined,
   SearchOutlined,
-  SnippetsOutlined,
-  TeamOutlined,
 } from "@ant-design/icons"
 import {
   Button,
@@ -14,9 +10,7 @@ import {
   Flex,
   Form,
   Input,
-  Layout,
   Listy,
-  Menu,
   Modal,
   Row,
   Select,
@@ -26,8 +20,8 @@ import {
   Typography,
 } from "antd"
 import type { TableProps } from "antd"
+import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import HIcon from "../components/HIcon"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { QuantityUnit, WorkType } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -42,7 +36,6 @@ import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getStageName, getTradeName, getWorkTypeName } from "../mock/selectors"
 
-const { Content, Header, Sider } = Layout
 const { Paragraph, Text, Title } = Typography
 
 const NEW_STAGE = "__new_stage__"
@@ -177,172 +170,137 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
   ]
 
   return (
-    <Layout className="company-dashboard h-full">
-      <Sider
-        breakpoint="lg"
-        collapsedWidth={72}
-        width={240}
-        theme="light"
-        trigger={null}
-        className="hidden md:block company-sider"
-      >
-        <Flex vertical className="h-full">
-          <Flex align="center" className="company-logo">
-            <LogoHorizontal height={24} className="company-logo-full" />
-            <span className="company-logo-mark"><HIcon size={28} /></span>
+    <CompanyLayout
+      nav={{ menu: "company", active: "library" }}
+      onNavigate={onNavigate}
+      header={
+        <Flex align="center" justify="space-between" className="h-full gap-3">
+          <Flex vertical justify="center">
+            <Title level={5} className="company-heading! m-0!">
+              Construction Work Library
+            </Title>
+            <Text type="secondary">
+              Stage → Trade → Work type → Template · v{WORK_LIBRARY_VERSION}
+            </Text>
           </Flex>
-          <Menu
-            mode="inline"
-            selectedKeys={["library"]}
-            inlineIndent={18}
-            className="company-main-menu flex-1 border-0!"
-            items={[
-              { key: "home", icon: <HomeOutlined />, label: "Company Home" },
-              { key: "projects", icon: <ProjectOutlined />, label: "Projects" },
-              { key: "library", icon: <SnippetsOutlined />, label: "Work Library" },
-              { key: "workforce", icon: <TeamOutlined />, label: "Workforce" },
-            ]}
-            onClick={({ key }) => {
-              if (key === "home") onNavigate("company-dashboard")
-              if (key === "projects") onNavigate("company-projects")
-              if (key === "workforce") onNavigate("workforce")
-            }}
-          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>
+            Add work type
+          </Button>
         </Flex>
-      </Sider>
-
-      <Layout>
-        <Header className="company-header">
-          <Flex align="center" justify="space-between" className="h-full gap-3">
-            <Flex vertical justify="center">
-              <Title level={5} className="company-heading! m-0!">
-                Construction Work Library
-              </Title>
-              <Text type="secondary">
-                Stage → Trade → Work type → Template · v{WORK_LIBRARY_VERSION}
-              </Text>
-            </Flex>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>
-              Add work type
-            </Button>
+      }
+    >
+      <Flex vertical gap="middle" className="company-content">
+        <Card size="small">
+          <Flex gap="small" wrap>
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="Search work types or trades"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="company-project-search"
+            />
+            <Select
+              value={stageId}
+              onChange={(value) => {
+                setStageId(value)
+                setTradeId("all")
+              }}
+              className="company-project-filter"
+              options={[
+                { value: "all", label: "All stages" },
+                ...state.stages.map((stage) => ({
+                  value: stage.id,
+                  label: stage.name,
+                })),
+              ]}
+            />
+            <Select
+              value={tradeId}
+              onChange={setTradeId}
+              className="company-project-filter"
+              options={[
+                { value: "all", label: "All trades" },
+                ...tradesForFilter.map((trade) => ({
+                  value: trade.id,
+                  label: trade.name,
+                })),
+              ]}
+            />
           </Flex>
-        </Header>
+        </Card>
 
-        <Content className="overflow-y-auto">
-          <Flex vertical gap="middle" className="company-content">
-            <Card size="small">
-              <Flex gap="small" wrap>
-                <Input
-                  allowClear
-                  prefix={<SearchOutlined />}
-                  placeholder="Search work types or trades"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  className="company-project-search"
-                />
-                <Select
-                  value={stageId}
-                  onChange={(value) => {
-                    setStageId(value)
-                    setTradeId("all")
-                  }}
-                  className="company-project-filter"
-                  options={[
-                    { value: "all", label: "All stages" },
-                    ...state.stages.map((stage) => ({
-                      value: stage.id,
-                      label: stage.name,
-                    })),
-                  ]}
-                />
-                <Select
-                  value={tradeId}
-                  onChange={setTradeId}
-                  className="company-project-filter"
-                  options={[
-                    { value: "all", label: "All trades" },
-                    ...tradesForFilter.map((trade) => ({
-                      value: trade.id,
-                      label: trade.name,
-                    })),
-                  ]}
-                />
-              </Flex>
-            </Card>
-
-            <Row gutter={[16, 16]} align="stretch">
-              <Col xs={24} xl={16}>
-                <Card
-                  size="small"
-                  className="company-equal-height-card"
-                  title={
-                    <Title level={5} className="company-heading! m-0!">
-                      Standard work types
-                    </Title>
-                  }
-                  extra={
-                    <Space size="small">
-                      <Text type="secondary">{workTypes.length} records</Text>
-                      <Button
-                        size="small"
-                        type="link"
-                        icon={<PlusOutlined />}
-                        onClick={openModal}
-                      >
-                        Add
-                      </Button>
-                    </Space>
-                  }
-                  classNames={{ body: "company-table-card-body-inset" }}
-                >
-                  <Table
-                    rowKey="id"
+        <Row gutter={[16, 16]} align="stretch">
+          <Col xs={24} xl={16}>
+            <Card
+              size="small"
+              className="company-equal-height-card"
+              title={
+                <Title level={5} className="company-heading! m-0!">
+                  Standard work types
+                </Title>
+              }
+              extra={
+                <Space size="small">
+                  <Text type="secondary">{workTypes.length} records</Text>
+                  <Button
                     size="small"
-                    columns={columns}
-                    dataSource={workTypes}
-                    pagination={{ pageSize: 12, showSizeChanger: false }}
-                    scroll={{ x: 720 }}
-                  />
-                </Card>
-              </Col>
+                    type="link"
+                    icon={<PlusOutlined />}
+                    onClick={openModal}
+                  >
+                    Add
+                  </Button>
+                </Space>
+              }
+              classNames={{ body: "company-table-card-body-inset" }}
+            >
+              <Table
+                rowKey="id"
+                size="small"
+                columns={columns}
+                dataSource={workTypes}
+                pagination={{ pageSize: 12, showSizeChanger: false }}
+                scroll={{ x: 720 }}
+              />
+            </Card>
+          </Col>
 
-              <Col xs={24} xl={8} className="company-split-side">
-                <Card
-                  size="small"
-                  className="company-equal-height-card company-split-side-card"
-                  title={
-                    <Title level={5} className="company-heading! m-0!">
-                      Task templates
-                    </Title>
-                  }
-                  extra={
-                    <Text type="secondary">{templates.length} templates</Text>
-                  }
-                  classNames={{
-                    body: "company-scroll-card-body-fill",
-                  }}
-                >
-                  <Listy
-                    items={templates}
-                    rowKey="id"
-                    classNames={{ item: "company-listy-item" }}
-                    itemRender={(template) => (
-                      <Flex vertical gap={2} className="company-list-stack">
-                        <Text strong>{template.name}</Text>
-                        <Text type="secondary" className="text-[13px]!">
-                          {getWorkTypeName(state, template.workTypeId)} ·{" "}
-                          {template.checklist.length} checks ·{" "}
-                          {template.requiredEvidence.join(", ")}
-                        </Text>
-                      </Flex>
-                    )}
-                  />
-                </Card>
-              </Col>
-            </Row>
-          </Flex>
-        </Content>
-      </Layout>
+          <Col xs={24} xl={8} className="company-split-side">
+            <Card
+              size="small"
+              className="company-equal-height-card company-split-side-card"
+              title={
+                <Title level={5} className="company-heading! m-0!">
+                  Task templates
+                </Title>
+              }
+              extra={
+                <Text type="secondary">{templates.length} templates</Text>
+              }
+              classNames={{
+                body: "company-scroll-card-body-fill",
+              }}
+            >
+              <Listy
+                items={templates}
+                rowKey="id"
+                classNames={{ item: "company-listy-item" }}
+                itemRender={(template) => (
+                  <Flex vertical gap={2} className="company-list-stack">
+                    <Text strong>{template.name}</Text>
+                    <Text type="secondary" className="text-[13px]!">
+                      {getWorkTypeName(state, template.workTypeId)} ·{" "}
+                      {template.checklist.length} checks ·{" "}
+                      {template.requiredEvidence.join(", ")}
+                    </Text>
+                  </Flex>
+                )}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Flex>
 
       <Modal
         title="Add work type"
@@ -445,7 +403,7 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
           </Flex>
         </Form>
       </Modal>
-    </Layout>
+    </CompanyLayout>
   )
 }
 
