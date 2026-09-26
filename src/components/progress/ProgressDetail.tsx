@@ -88,7 +88,7 @@ export default function ProgressDetail({ progress }: { progress: DailyProgress }
           <Timeline
             items={earlier.map((item) => ({
               key: item.id,
-              children: (
+              content: (
                 <Flex vertical gap={2}>
                   <Text>
                     Version {item.version} · {item.date} · {reviewStatusLabel[item.reviewStatus].text}

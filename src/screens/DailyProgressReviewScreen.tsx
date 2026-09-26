@@ -139,7 +139,10 @@ function HistoryTab({ items }: { items: DailyProgress[] }) {
             title: "Homeowner",
             render: (_, record) =>
               record.publication ? (
-                <Tag color="success">Published · {record.publication.evidenceIds.length} items</Tag>
+                <Tag color="success">
+                  Published · {record.publication.evidenceIds.length}{" "}
+                  {record.publication.evidenceIds.length === 1 ? "item" : "items"}
+                </Tag>
               ) : (
                 <Text type="secondary">Not published</Text>
               ),

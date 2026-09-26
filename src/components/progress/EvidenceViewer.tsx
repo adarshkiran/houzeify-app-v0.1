@@ -1,4 +1,11 @@
-import { FileOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons"
+import { useState } from "react"
+import {
+  CameraOutlined,
+  FileOutlined,
+  LeftOutlined,
+  PlayCircleOutlined,
+  RightOutlined,
+} from "@ant-design/icons"
 import { Button, Descriptions, Flex, Modal, Tag, Typography } from "antd"
 import type { Evidence } from "../../domain/models"
 import { useConstructionData } from "../../mock/ConstructionDataProvider"
@@ -10,11 +17,37 @@ const { Text } = Typography
 export type EvidenceAudience = "company" | "homeowner"
 
 function Media({ item }: { item: Evidence }) {
+  const [failed, setFailed] = useState(item.url.startsWith("/mock-evidence"))
+
+  if ((item.type === "photo" || item.type === "video") && failed) {
+    const Icon = item.type === "video" ? PlayCircleOutlined : CameraOutlined
+    return (
+      <Flex vertical align="center" justify="center" gap="small" className="evidence-viewer-media">
+        <Icon style={{ fontSize: 40 }} />
+        <Text type="secondary">Preview not available</Text>
+      </Flex>
+    )
+  }
   if (item.type === "photo") {
-    return <img src={item.url} alt={item.caption || "Site photo"} className="evidence-viewer-media" />
+    return (
+      <img
+        src={item.url}
+        alt={item.caption || "Site photo"}
+        className="evidence-viewer-media"
+        onError={() => setFailed(true)}
+      />
+    )
   }
   if (item.type === "video") {
-    return <video src={item.url} controls playsInline className="evidence-viewer-media" />
+    return (
+      <video
+        src={item.url}
+        controls
+        playsInline
+        className="evidence-viewer-media"
+        onError={() => setFailed(true)}
+      />
+    )
   }
   if (item.type === "audio") {
     return (
@@ -107,7 +140,7 @@ export default function EvidenceViewer({
     >
       <Flex gap="large" wrap className="evidence-viewer">
         <Flex vertical gap="small" className="evidence-viewer-stage">
-          <Media item={item} />
+          <Media key={item.id} item={item} />
           {items.length > 1 && (
             <Flex align="center" justify="space-between">
               <Button icon={<LeftOutlined />} disabled={at === 0} onClick={() => onChange(at - 1)} aria-label="Previous" />
