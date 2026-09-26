@@ -24,6 +24,9 @@ export type AppScreen =
   | "work-plan"
   | "tasks"
   | "task-detail"
+  | "daily-progress-submit"
+  | "daily-progress-review"
+  | "customer-daily-update"
 
 export type NavigationData = Record<string, string>
 
@@ -55,6 +58,9 @@ const appScreens = new Set<AppScreen>([
   "work-plan",
   "tasks",
   "task-detail",
+  "daily-progress-submit",
+  "daily-progress-review",
+  "customer-daily-update",
 ])
 
 export function isAppScreen(screen: string): screen is AppScreen {

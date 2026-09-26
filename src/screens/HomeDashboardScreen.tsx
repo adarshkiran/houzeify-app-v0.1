@@ -167,11 +167,20 @@ function NavItem({
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-function Sidebar({ activeNav, onNav, onNavigate }: { activeNav: string; onNav: (id: string) => void; onNavigate: (s: string) => void }) {
+function Sidebar({
+  activeNav,
+  onNav,
+  onNavigate,
+}: {
+  activeNav: string
+  onNav: (id: string) => void
+  onNavigate: (screen: string, data?: Record<string, string>) => void
+}) {
   const navMain = [
     { id: 'home', icon: <IcoHome />, label: 'Home', dest: '' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
+    { id: 'site-update', icon: <IcoPlan />, label: 'Site update', dest: 'customer-daily-update' },
     { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
     { id: 'boq', icon: <IcoBOQ />, label: 'BOQ', dest: '' },
     { id: 'plan', icon: <IcoPlan />, label: 'Plan Analysis', dest: '' },
@@ -209,7 +218,13 @@ function Sidebar({ activeNav, onNav, onNavigate }: { activeNav: string; onNav: (
                 icon={item.icon}
                 label={item.label}
                 active={activeNav === item.id}
-                onClick={() => { item.dest ? onNavigate(item.dest) : onNav(item.id) }}
+                onClick={() => {
+                  if (item.id === 'site-update') {
+                    onNavigate('customer-daily-update', { project_id: 'project-sharma' })
+                    return
+                  }
+                  item.dest ? onNavigate(item.dest) : onNav(item.id)
+                }}
               />
             ))}
           </div>
@@ -494,7 +509,7 @@ function HozieAICard({
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
-function ProjectCard() {
+function ProjectCard({ onNavigate }: { onNavigate: (screen: string, data?: Record<string, string>) => void }) {
   return (
     <div className="bg-white rounded-[16px] border border-[#E3DDD7] p-5 flex flex-col gap-4" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <div className="flex items-start justify-between gap-3">
@@ -540,8 +555,9 @@ function ProjectCard() {
       <button
         className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0 mt-1"
         style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+        onClick={() => onNavigate('customer-daily-update', { project_id: 'project-sharma' })}
       >
-        Continue project →
+        See site update
       </button>
     </div>
   )
@@ -576,13 +592,19 @@ function EmptyProjectsState({ onNavigate }: { onNavigate: (s: string) => void })
 
 // ─── Project Section ──────────────────────────────────────────────────────────
 
-function ProjectSection({ hasProject, onNavigate }: { hasProject: boolean; onNavigate: (s: string) => void }) {
+function ProjectSection({
+  hasProject,
+  onNavigate,
+}: {
+  hasProject: boolean
+  onNavigate: (screen: string, data?: Record<string, string>) => void
+}) {
   return (
     <div className="flex flex-col gap-3">
       <span className="text-[10px] tracking-[0.10em] text-[#722ED1] uppercase" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
         Your Projects
       </span>
-      {hasProject ? <ProjectCard /> : <EmptyProjectsState onNavigate={onNavigate} />}
+      {hasProject ? <ProjectCard onNavigate={onNavigate} /> : <EmptyProjectsState onNavigate={onNavigate} />}
     </div>
   )
 }

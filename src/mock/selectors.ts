@@ -2,6 +2,7 @@ import type {
   ConstructionDataState,
   DailyProgress,
   EntityId,
+  Evidence,
   Issue,
   Project,
   Task,
@@ -63,6 +64,37 @@ export function getRecentProgress(state: ConstructionDataState, projectId?: Enti
   return state.dailyProgress
     .filter((progress) => !projectId || progress.projectId === projectId)
     .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+}
+
+export function getPendingReview(state: ConstructionDataState, projectId?: EntityId) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        (!projectId || progress.projectId === projectId) &&
+        (progress.reviewStatus === "submitted" || progress.reviewStatus === "draft"),
+    )
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+}
+
+export function getPublishedForCustomer(state: ConstructionDataState, projectId?: EntityId) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        (!projectId || progress.projectId === projectId) &&
+        progress.reviewStatus === "approved" &&
+        progress.publicationStatus === "published",
+    )
+    .sort((left, right) => right.date.localeCompare(left.date) || right.submittedAt.localeCompare(left.submittedAt))
+}
+
+export function getEvidenceForProgress(state: ConstructionDataState, progress: DailyProgress) {
+  return state.evidence.filter(
+    (item) => progress.evidenceIds.includes(item.id) || item.dailyProgressId === progress.id,
+  )
+}
+
+export function getCustomerVisibleEvidence(evidence: Evidence[]) {
+  return evidence.filter((item) => item.customerVisibility === "customer-visible")
 }
 
 export function getProjectUnits(state: ConstructionDataState, projectId: EntityId) {

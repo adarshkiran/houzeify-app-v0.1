@@ -27,6 +27,9 @@ const WorkLibraryScreen = lazy(() => import('./screens/WorkLibraryScreen'))
 const WorkPlanScreen = lazy(() => import('./screens/WorkPlanScreen'))
 const TasksScreen = lazy(() => import('./screens/TasksScreen'))
 const TaskDetailScreen = lazy(() => import('./screens/TaskDetailScreen'))
+const DailyProgressSubmitScreen = lazy(() => import('./screens/DailyProgressSubmitScreen'))
+const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressReviewScreen'))
+const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
 
 function SplashRoute({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
@@ -247,6 +250,37 @@ export default function App() {
               onNavigate={navigateTo}
               projectId={projectData.project_id ?? 'project-sharma'}
               taskId={projectData.task_id ?? 'task-1'}
+            />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'daily-progress-submit' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <DailyProgressSubmitScreen
+              onNavigate={navigateTo}
+              projectId={projectData.project_id ?? 'project-sharma'}
+              taskId={projectData.task_id}
+            />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'daily-progress-review' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <DailyProgressReviewScreen
+              onNavigate={navigateTo}
+              projectId={projectData.project_id || undefined}
+            />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'customer-daily-update' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <CustomerDailyUpdateScreen
+              onNavigate={navigateTo}
+              projectId={projectData.project_id ?? 'project-sharma'}
             />
           </Suspense>
         </div>

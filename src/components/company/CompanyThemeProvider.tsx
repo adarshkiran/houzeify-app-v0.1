@@ -16,6 +16,9 @@ const houzeifyCompanyTheme = {
     colorBorder: "#E7E5E4",
     colorBorderSecondary: "#F3F4F6",
     fontFamily: '"Inter", sans-serif',
+    borderRadius: 6,
+    borderRadiusLG: 8,
+    borderRadiusSM: 4,
   },
   components: {
     Layout: {
@@ -46,6 +49,7 @@ const houzeifyCompanyTheme = {
       headerPadding: 20,
       bodyPadding: 20,
       extraColor: "#722ED1",
+      borderRadiusLG: 8,
     },
     Statistic: {
       titleFontSize: 12,

@@ -121,6 +121,17 @@ function TaskDetail({
             </Text>
           </Flex>
           <Space wrap>
+            <Button
+              type="primary"
+              onClick={() =>
+                onNavigate("daily-progress-submit", {
+                  project_id: projectId,
+                  task_id: task.id,
+                })
+              }
+            >
+              Log today’s progress
+            </Button>
             {transitions.slice(0, 3).map((nextStatus) => (
               <Button
                 key={nextStatus}
