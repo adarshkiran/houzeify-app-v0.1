@@ -167,6 +167,14 @@ describe("resubmitDailyProgress", () => {
     }))).toThrow(PermissionError)
   })
 
+  it("an outsider with no access to the project gets a PermissionError, not a status/evidence leak", () => {
+    const { state, previous } = sentBack()
+    const homeowner: Session = { accountType: "homeowner", personId: "person-demo-homeowner" }
+    expect(() => run(state, homeowner, commands.resubmitDailyProgress(previous.id, {
+      workersPresent: 1, todaySummary: "x", tomorrowPlan: "y", keepEvidenceIds: [], evidence: [],
+    }))).toThrow(PermissionError)
+  })
+
   it("can't keep evidence from another update", () => {
     const { state, previous } = sentBack()
     expect(() => run(state, ravi, commands.resubmitDailyProgress(previous.id, {

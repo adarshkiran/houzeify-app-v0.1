@@ -986,6 +986,15 @@ export const resubmitDailyProgress =
   (state, ctx) => {
     const previous = state.dailyProgress.find((item) => item.id === previousId)
     if (!previous) throw new PermissionError(Permissions.PROGRESS_SUBMIT)
+    // Authorize against the stored record's project before anything else, so
+    // an outsider gets a PermissionError instead of a status/evidence check
+    // leaking whether this record exists and what state it's in.
+    const submitter = authorizeProject(
+      state, ctx, previous.projectId, [Permissions.PROGRESS_SUBMIT], previous,
+    )
+    if (submitter.id !== previous.submittedByMembershipId) {
+      throw new PermissionError(Permissions.PROGRESS_SUBMIT, previous.projectId)
+    }
     if (previous.reviewStatus !== "changes-requested") {
       throw new ConflictError("Only an update sent back for changes can be resubmitted.")
     }
@@ -1006,9 +1015,6 @@ export const resubmitDailyProgress =
       workTypeId: previous.workTypeId,
     })(state, ctx)
     const created = submitted.result
-    if (created.submittedByMembershipId !== previous.submittedByMembershipId) {
-      throw new PermissionError(Permissions.PROGRESS_SUBMIT, previous.projectId)
-    }
 
     const next: DailyProgress = {
       ...created,
