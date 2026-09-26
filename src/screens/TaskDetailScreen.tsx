@@ -14,7 +14,6 @@ import {
   Col,
   Descriptions,
   Flex,
-  Progress,
   Row,
   Select,
   Space,
@@ -24,6 +23,7 @@ import {
 } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import { reviewStatusLabel } from "../components/progress/progressLabels"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { isSiteTaskStatus } from "../domain/taskTransitions"
@@ -31,6 +31,7 @@ import Gated from "../components/Gated"
 import { ISSUE_REPORT_PERMISSIONS, Permissions } from "../domain/permissions"
 import { useAccess } from "../session/useCan"
 import { useScopedData } from "../session/useScopedData"
+import { useSession } from "../session/SessionProvider"
 import ReportIssueModal from "../components/ReportIssueModal"
 import { issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
 import { useCommand } from "../session/useCommand"
@@ -39,6 +40,7 @@ import {
   useConstructionData,
 } from "../mock/ConstructionDataProvider"
 import {
+  getMyMembershipIds,
   getProject,
   getProjectUnits,
   getStageName,
@@ -68,6 +70,8 @@ function TaskDetail({
   const { state, assignTask, transitionTask } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
+  const { session } = useSession()
+  const mine = getMyMembershipIds(state, session?.personId)
   const [assigneeId, setAssigneeId] = useState<EntityId>()
   const [reportOpen, setReportOpen] = useState(false)
   const scoped = useScopedData()
@@ -261,19 +265,35 @@ function TaskDetail({
               >
                 {progressRecords.length ? (
                   <Timeline
-                    items={progressRecords.map((record) => ({
-                      title: record.date,
-                      content: (
-                        <Flex vertical gap="small">
-                          <Text>{record.todaySummary}</Text>
-                          <Progress
-                            percent={record.progressAfter}
-                            size="small"
-                            status="active"
-                          />
-                        </Flex>
-                      ),
-                    }))}
+                    items={progressRecords
+                      .slice()
+                      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+                      .map((record) => ({
+                        key: record.id,
+                        title: `${record.date} · v${record.version}`,
+                        content: (
+                          <Flex vertical gap="small">
+                            <Flex gap="small" wrap>
+                              <Tag color={reviewStatusLabel[record.reviewStatus].color} className="m-0!">
+                                {reviewStatusLabel[record.reviewStatus].text}
+                              </Tag>
+                              {record.publicationStatus === "published" && <Tag color="success" className="m-0!">Published</Tag>}
+                            </Flex>
+                            <Text>{record.todaySummary}</Text>
+                            {record.review?.note && <Text type="secondary">“{record.review.note}”</Text>}
+                            {record.reviewStatus === "changes-requested" && mine.has(record.submittedByMembershipId) && (
+                              <Button
+                                size="small"
+                                type="primary"
+                                className="self-start"
+                                onClick={() => onNavigate("daily-progress-submit", { project_id: projectId, task_id: task.id })}
+                              >
+                                Resubmit
+                              </Button>
+                            )}
+                          </Flex>
+                        ),
+                      }))}
                   />
                 ) : (
                   <Paragraph type="secondary" className="m-0!">
