@@ -1,4 +1,4 @@
-import { IntegrityError } from "./errors"
+import { ConflictError, IntegrityError } from "./errors"
 import type {
   AddEvidenceInput,
   AddLibraryStageInput,
@@ -12,6 +12,8 @@ import type {
   CreateProjectInput,
   CreateTaskInput,
   InviteProjectMemberInput,
+  IssueEvidenceInput,
+  ReportIssueInput,
   SubmitDailyProgressInput,
 } from "./commandInputs"
 import type {
@@ -21,6 +23,7 @@ import type {
   EntityId,
   Evidence,
   EvidenceType,
+  Issue,
   Person,
   Project,
   ProjectMembership,
@@ -36,11 +39,14 @@ import type {
   WorkerProjectAssignment,
 } from "./models"
 import {
+  ISSUE_REPORT_PERMISSIONS,
   Permissions,
   permissionsForRole,
   type Permission,
 } from "./permissions"
+import { samePhone } from "./phone"
 import type { Command, CommandContext } from "./ports"
+import { canTransitionIssue } from "./issueTransitions"
 import { calculateProjectProgress } from "./progress"
 import { defaultRootUnitForKind } from "./projectSetup"
 import {
@@ -330,6 +336,16 @@ export const inviteProjectMember =
   (input: InviteProjectMemberInput): Command<ProjectMembership> =>
   (state, ctx) => {
     authorizeProject(state, ctx, input.projectId, [Permissions.PROJECT_MANAGE])
+    if (input.phone) {
+      const teamPersonIds = new Set(
+        state.memberships
+          .filter((m) => m.projectId === input.projectId && m.principalType === "person")
+          .map((m) => m.principalId),
+      )
+      if (state.people.some((p) => teamPersonIds.has(p.id) && samePhone(p.phone, input.phone))) {
+        throw new ConflictError("Someone with this phone number is already on the project team.")
+      }
+    }
     const person: Person = {
       id: ctx.ids.next("person"),
       name: input.name,
@@ -579,6 +595,14 @@ export const addWorker =
       input.organizationId,
       Permissions.WORKFORCE_MANAGE,
     )
+    if (
+      input.phone &&
+      state.workers.some(
+        (w) => w.organizationId === input.organizationId && samePhone(w.phone, input.phone),
+      )
+    ) {
+      throw new ConflictError("A worker with this phone number already exists in your organization.")
+    }
     const projectMemberships = input.projectId
       ? assignmentTargets(input.projectUnitIds, input.tradeIds).map((target) =>
           authorizeProject(
@@ -970,5 +994,221 @@ export const addLibraryWorkType =
         taskTemplates: [...state.taskTemplates, template],
       },
       result: { workType, template },
+    }
+  }
+
+// ─── Issues ───────────────────────────────────────────────────────────────────
+
+const issueTarget = (issue: Issue): ScopeTarget => ({
+  projectUnitId: issue.projectUnitId,
+  stageId: issue.stageId,
+  tradeId: issue.tradeId,
+})
+
+function issueOrThrow(state: ConstructionDataState, issueId: EntityId): Issue {
+  const issue = state.issues.find((item) => item.id === issueId)
+  if (!issue) throw new PermissionError(Permissions.ISSUE_MANAGE)
+  return issue
+}
+
+function withIssue(
+  state: ConstructionDataState,
+  issueId: EntityId,
+  change: (issue: Issue) => Issue,
+): ConstructionDataState {
+  return {
+    ...state,
+    issues: state.issues.map((item) => (item.id === issueId ? change(item) : item)),
+  }
+}
+
+/**
+ * Reporting needs progress-submit OR issue-manage on the issue's location. The
+ * location comes from the linked task, else the linked progress record, else
+ * the input; an issue with no location is a whole-project issue, which
+ * scoped members cannot raise.
+ */
+export const reportIssue =
+  (input: ReportIssueInput): Command<Issue> =>
+  (state, ctx) => {
+    const task = input.taskId
+      ? state.tasks.find((item) => item.id === input.taskId)
+      : undefined
+    const progress = input.dailyProgressId
+      ? state.dailyProgress.find((item) => item.id === input.dailyProgressId)
+      : undefined
+    const target: ScopeTarget = {
+      projectUnitId: input.projectUnitId ?? task?.projectUnitId ?? progress?.projectUnitId,
+      stageId: task?.stageId ?? progress?.stageId,
+      tradeId: task?.tradeId ?? progress?.tradeId,
+    }
+    const reporter = authorizeProject(
+      state,
+      ctx,
+      input.projectId,
+      ISSUE_REPORT_PERMISSIONS,
+      target,
+    )
+
+    const title = input.title.trim()
+    if (!title) throw new Error("Give the issue a title.")
+    assertTaskInProject(state, input.projectId, input.taskId)
+    if (input.dailyProgressId && progress?.projectId !== input.projectId) {
+      throw new IntegrityError(
+        `Progress record ${input.dailyProgressId} does not belong to project ${input.projectId}`,
+      )
+    }
+    assertUnitInProject(state, input.projectId, target.projectUnitId)
+    if (task && input.projectUnitId && input.projectUnitId !== task.projectUnitId) {
+      throw new IntegrityError(`Task ${task.id} is not at unit ${input.projectUnitId}`)
+    }
+
+    const id = ctx.ids.next("issue")
+    // Issue photos stay private and are not tied to the daily-progress record,
+    // so approving that record cannot publish them to the customer.
+    const evidence = (input.evidence ?? []).map((item) =>
+      buildEvidence(
+        {
+          projectId: input.projectId,
+          projectUnitId: target.projectUnitId,
+          taskId: input.taskId,
+          type: item.type,
+          url: item.url,
+          thumbnailUrl: item.thumbnailUrl,
+          caption: item.caption,
+          capturedByMembershipId: reporter.id,
+          customerVisibility: "private",
+        },
+        ctx,
+      ),
+    )
+    const issue: Issue = {
+      id,
+      projectId: input.projectId,
+      projectUnitId: target.projectUnitId,
+      stageId: target.stageId,
+      tradeId: target.tradeId,
+      taskId: input.taskId,
+      dailyProgressId: input.dailyProgressId,
+      title,
+      description: input.description.trim(),
+      severity: input.severity,
+      status: "open",
+      evidenceIds: evidence.map((item) => item.id),
+      createdByMembershipId: reporter.id,
+      createdAt: iso(ctx),
+    }
+    return {
+      state: {
+        ...state,
+        issues: [...state.issues, issue],
+        evidence: [...state.evidence, ...evidence],
+      },
+      result: issue,
+    }
+  }
+
+/** Assign (or, with no membership, unassign) an issue. Needs ISSUE_MANAGE in scope. */
+export const assignIssue =
+  (issueId: EntityId, membershipId: EntityId | undefined): Command<void> =>
+  (state, ctx) => {
+    const issue = issueOrThrow(state, issueId)
+    authorizeProject(state, ctx, issue.projectId, [Permissions.ISSUE_MANAGE], issueTarget(issue))
+    if (issue.status === "closed") {
+      throw new ConflictError("Reopen this issue before assigning it.")
+    }
+    if (membershipId) {
+      const assignee = state.memberships.find((item) => item.id === membershipId)
+      if (!assignee || assignee.projectId !== issue.projectId || assignee.status !== "active") {
+        throw new IntegrityError(`Membership ${membershipId} cannot take issues on this project`)
+      }
+    }
+    const timestamp = iso(ctx)
+    return {
+      state: withIssue(state, issueId, (item) => ({
+        ...item,
+        assignedMembershipId: membershipId,
+        updatedAt: timestamp,
+      })),
+      result: undefined,
+    }
+  }
+
+/** Move an issue through its lifecycle (start, resolve, close, reopen). Needs ISSUE_MANAGE in scope. */
+export const transitionIssue =
+  (
+    issueId: EntityId,
+    next: Issue["status"],
+    resolutionNote?: string,
+  ): Command<void> =>
+  (state, ctx) => {
+    const issue = issueOrThrow(state, issueId)
+    authorizeProject(state, ctx, issue.projectId, [Permissions.ISSUE_MANAGE], issueTarget(issue))
+    if (!canTransitionIssue(issue.status, next)) {
+      throw new ConflictError(`An issue can't move from ${issue.status} to ${next}.`)
+    }
+    const timestamp = iso(ctx)
+    return {
+      state: withIssue(state, issueId, (item) => {
+        const updated: Issue = { ...item, status: next, updatedAt: timestamp }
+        if (next === "resolved") {
+          updated.resolvedAt = timestamp
+          updated.resolutionNote = resolutionNote?.trim() || undefined
+        } else if (next === "closed") {
+          updated.closedAt = timestamp
+        } else if (next === "open") {
+          // Reopening clears what settling the issue recorded.
+          delete updated.resolvedAt
+          delete updated.closedAt
+          delete updated.resolutionNote
+        }
+        return updated
+      }),
+      result: undefined,
+    }
+  }
+
+/** Attach more photos/video to an existing issue. Anyone who can report may add. */
+export const addIssueEvidence =
+  (issueId: EntityId, items: IssueEvidenceInput[]): Command<Evidence[]> =>
+  (state, ctx) => {
+    const issue = issueOrThrow(state, issueId)
+    const author = authorizeProject(
+      state,
+      ctx,
+      issue.projectId,
+      ISSUE_REPORT_PERMISSIONS,
+      issueTarget(issue),
+    )
+    if (issue.status === "closed") {
+      throw new ConflictError("Reopen this issue before adding evidence.")
+    }
+    const evidence = items.map((item) =>
+      buildEvidence(
+        {
+          projectId: issue.projectId,
+          projectUnitId: issue.projectUnitId,
+          taskId: issue.taskId,
+          type: item.type,
+          url: item.url,
+          thumbnailUrl: item.thumbnailUrl,
+          caption: item.caption,
+          capturedByMembershipId: author.id,
+          customerVisibility: "private",
+        },
+        ctx,
+      ),
+    )
+    const timestamp = iso(ctx)
+    return {
+      state: {
+        ...withIssue(state, issueId, (item) => ({
+          ...item,
+          evidenceIds: [...item.evidenceIds, ...evidence.map((e) => e.id)],
+          updatedAt: timestamp,
+        })),
+        evidence: [...state.evidence, ...evidence],
+      },
+      result: evidence,
     }
   }

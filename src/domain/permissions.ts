@@ -11,9 +11,21 @@ export const Permissions = {
   CUSTOMER_PUBLISH: "customer.publish",
   WORKFORCE_MANAGE: "workforce.manage",
   EVIDENCE_CAPTURE: "evidence.capture",
+  ISSUE_MANAGE: "issue.manage",
 } as const
 
 export type Permission = typeof Permissions[keyof typeof Permissions]
+
+/**
+ * Reporting an issue needs progress-submit OR issue-manage: anyone who can log
+ * site work can raise a problem; read-only participants cannot. (Managing —
+ * assigning, changing status, resolving, closing, reopening — needs
+ * ISSUE_MANAGE alone.)
+ */
+export const ISSUE_REPORT_PERMISSIONS: Permission[] = [
+  Permissions.PROGRESS_SUBMIT,
+  Permissions.ISSUE_MANAGE,
+]
 
 export const ALL_PERMISSIONS: Permission[] = Object.values(Permissions)
 
@@ -28,6 +40,7 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.CUSTOMER_PUBLISH,
     Permissions.WORKFORCE_MANAGE,
     Permissions.EVIDENCE_CAPTURE,
+    Permissions.ISSUE_MANAGE,
   ],
   supervisor: [
     Permissions.PROJECT_READ,
@@ -36,6 +49,7 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.PROGRESS_REVIEW,
     Permissions.WORKFORCE_MANAGE,
     Permissions.EVIDENCE_CAPTURE,
+    Permissions.ISSUE_MANAGE,
   ],
   contractor: [
     Permissions.PROJECT_READ,

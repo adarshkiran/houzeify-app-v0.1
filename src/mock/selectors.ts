@@ -255,3 +255,15 @@ export function getOrganizationDashboard(
     recentProgress,
   }
 }
+
+/** A membership's display name (person or organization), or undefined if unknown. */
+export function getMembershipName(
+  state: ConstructionDataState,
+  membershipId?: EntityId,
+) {
+  const membership = state.memberships.find((item) => item.id === membershipId)
+  if (!membership) return undefined
+  return membership.principalType === "organization"
+    ? state.organizations.find((item) => item.id === membership.principalId)?.name
+    : state.people.find((item) => item.id === membership.principalId)?.name
+}

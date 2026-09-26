@@ -2,6 +2,7 @@ import type {
   DailyProgress,
   EntityId,
   Evidence,
+  Issue,
   EvidenceType,
   Organization,
   ProjectKind,
@@ -154,4 +155,24 @@ export interface AddLibraryWorkTypeInput {
   defaultUnit: QuantityUnit
   checklist?: string[]
   requiredEvidence?: EvidenceType[]
+}
+
+/** A photo/video/document to attach to an issue. */
+export interface IssueEvidenceInput {
+  type: EvidenceType
+  url: string
+  thumbnailUrl?: string
+  caption?: string
+}
+
+export interface ReportIssueInput {
+  projectId: EntityId
+  /** Where it is. Omitted when raised from a task or progress record. */
+  projectUnitId?: EntityId
+  taskId?: EntityId
+  dailyProgressId?: EntityId
+  title: string
+  description: string
+  severity: Issue["severity"]
+  evidence?: IssueEvidenceInput[]
 }

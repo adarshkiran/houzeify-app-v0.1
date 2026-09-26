@@ -1,6 +1,8 @@
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
 import { useCan } from "../session/useCan"
+import { useSession } from "../session/SessionProvider"
+import { visibleMemberships } from "../domain/readScope"
 import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
@@ -62,13 +64,18 @@ function ProjectTeam({
 }) {
   const { state, inviteProjectMember } = useConstructionData()
   const run = useCommand()
+  const { session } = useSession()
   const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<InviteFormValues>()
   const project = getProject(state, projectId)
   const units = getProjectUnits(state, projectId)
-  const memberships = state.memberships.filter(
-    (membership) => membership.projectId === projectId,
+  // A scoped viewer sees project-wide roles and members who overlap their scope.
+  const memberships = visibleMemberships(
+    session,
+    state.memberships,
+    state.projectUnits,
+    projectId,
   )
 
   const getPrincipalName = (membership: ProjectMembership) => {

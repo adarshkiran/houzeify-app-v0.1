@@ -139,6 +139,22 @@ describe("resolveRoute", () => {
     ).toMatchObject({ ok: false, reason: "missing-param:task_id" })
   })
 
+  it("requires issue_id for issue detail, and keeps issues company-side", () => {
+    expect(
+      resolveRoute({ screen: "issue-detail", params: { project_id: "p1" } }, ctx(manager)),
+    ).toMatchObject({ ok: false, reason: "missing-param:issue_id" })
+    expect(
+      resolveRoute({ screen: "issue-detail", params: { project_id: "p1", issue_id: "i1" } }, ctx(manager)),
+    ).toEqual({ ok: true })
+    expect(
+      resolveRoute({ screen: "issues", params: { project_id: "p1" } }, ctx(homeowner)),
+    ).toMatchObject({ ok: false, reason: "wrong-account-type" })
+  })
+
+  it("does not carry an issue id to the next screen", () => {
+    expect(nextParams({ project_id: "p1", issue_id: "i1" }, { project_id: "p1" })).toEqual({ project_id: "p1" })
+  })
+
   it("rejects unknown projects", () => {
     expect(
       resolveRoute({ screen: "tasks", params: { project_id: "zzz" } }, ctx(manager)),
@@ -161,6 +177,7 @@ describe("resolveRoute", () => {
       "project-team",
       "work-plan",
       "tasks",
+      "issues",
       "daily-progress-submit",
       "daily-progress-review",
       "customer-daily-update",

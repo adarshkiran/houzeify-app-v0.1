@@ -28,6 +28,7 @@ import type { Project, ProjectStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useOrganizationId } from "../session/SessionProvider"
+import { useScopedData } from "../session/useScopedData"
 import {
   getOpenIssues,
   getOpenTasks,
@@ -48,6 +49,7 @@ function statusColor(status: ProjectStatus) {
 
 function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
   const { state } = useConstructionData()
+  const scoped = useScopedData() // counts follow the viewer's scope
   const organizationId = useOrganizationId()
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<ProjectStatus | "all">("all")
@@ -105,10 +107,15 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
       responsive: ["lg"],
       render: (_, project) => (
         <Space>
-          <Text type="secondary">{getOpenTasks(state, project.id).length} tasks</Text>
-          <Text type={getOpenIssues(state, project.id).length ? "danger" : "secondary"}>
-            {getOpenIssues(state, project.id).length} issues
-          </Text>
+          <Text type="secondary">{getOpenTasks(scoped, project.id).length} tasks</Text>
+          <Button
+            type="link"
+            className="p-0!"
+            danger={getOpenIssues(scoped, project.id).length > 0}
+            onClick={() => onNavigate("issues", { project_id: project.id })}
+          >
+            {getOpenIssues(scoped, project.id).length} issues
+          </Button>
         </Space>
       ),
     },
