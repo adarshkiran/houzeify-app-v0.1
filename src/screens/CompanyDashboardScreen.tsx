@@ -231,6 +231,9 @@ function CompanyDashboard({
     if (key === "home") onNavigate("company-dashboard")
     if (key === "projects") onNavigate("company-projects")
     if (key === "library") onNavigate("work-library")
+    if (key === "progress") {
+      onNavigate("daily-progress-review", { project_id: "project-sharma" })
+    }
   }
 
   return (

@@ -8,7 +8,10 @@ import {
 } from "react"
 import type {
   ConstructionDataState,
+  DailyProgress,
   EntityId,
+  Evidence,
+  EvidenceType,
   Organization,
   Person,
   Project,
@@ -88,6 +91,42 @@ export interface CreateTaskInput {
   dueDate?: string
 }
 
+export interface AddEvidenceInput {
+  projectId: EntityId
+  projectUnitId?: EntityId
+  taskId?: EntityId
+  dailyProgressId?: EntityId
+  type: EvidenceType
+  url: string
+  thumbnailUrl?: string
+  caption?: string
+  capturedByMembershipId?: EntityId
+  capturedByWorkerId?: EntityId
+  customerVisibility?: Evidence["customerVisibility"]
+}
+
+export interface SubmitDailyProgressInput {
+  projectId: EntityId
+  projectUnitId: EntityId
+  taskId?: EntityId
+  stageId: EntityId
+  tradeId: EntityId
+  workTypeId: EntityId
+  date: string
+  workersPresent: number
+  plannedQuantity?: Quantity
+  completedQuantity?: Quantity
+  progressBefore?: number
+  progressAfter?: number
+  yesterdaySummary?: string
+  todaySummary: string
+  tomorrowPlan: string
+  blockerSummary?: string
+  evidenceIds?: EntityId[]
+  evidence?: Omit<AddEvidenceInput, "projectId" | "projectUnitId" | "taskId" | "dailyProgressId">[]
+  submittedByMembershipId?: EntityId
+}
+
 interface ConstructionDataContextValue {
   state: ConstructionDataState
   updateOrganizationProfile: (organizationId: EntityId, input: BusinessProfileInput) => void
@@ -102,6 +141,9 @@ interface ConstructionDataContextValue {
     assigneeId: EntityId,
   ) => TaskAssignment
   transitionTask: (taskId: EntityId, nextStatus: TaskStatus) => void
+  addEvidence: (input: AddEvidenceInput) => Evidence
+  submitDailyProgress: (input: SubmitDailyProgressInput) => DailyProgress
+  reviewDailyProgress: (id: EntityId, decision: "approve" | "reject") => void
 }
 
 const taskTransitions: Record<TaskStatus, TaskStatus[]> = {
@@ -302,6 +344,209 @@ export default function ConstructionDataProvider({ children }: { children: React
     }))
   }, [])
 
+  const addEvidence = useCallback((input: AddEvidenceInput) => {
+    const evidence: Evidence = {
+      id: `evidence-${crypto.randomUUID()}`,
+      projectId: input.projectId,
+      projectUnitId: input.projectUnitId,
+      taskId: input.taskId,
+      dailyProgressId: input.dailyProgressId,
+      type: input.type,
+      url: input.url,
+      thumbnailUrl: input.thumbnailUrl,
+      caption: input.caption,
+      capturedByMembershipId: input.capturedByMembershipId,
+      capturedByWorkerId: input.capturedByWorkerId,
+      capturedAt: new Date().toISOString(),
+      customerVisibility: input.customerVisibility ?? "review-required",
+    }
+
+    setState((current) => {
+      const nextEvidence = [...current.evidence, evidence]
+      if (!input.dailyProgressId) {
+        return { ...current, evidence: nextEvidence }
+      }
+
+      return {
+        ...current,
+        evidence: nextEvidence,
+        dailyProgress: current.dailyProgress.map((progress) =>
+          progress.id === input.dailyProgressId
+            ? {
+                ...progress,
+                evidenceIds: progress.evidenceIds.includes(evidence.id)
+                  ? progress.evidenceIds
+                  : [...progress.evidenceIds, evidence.id],
+              }
+            : progress,
+        ),
+      }
+    })
+
+    return evidence
+  }, [])
+
+  const submitDailyProgress = useCallback((input: SubmitDailyProgressInput) => {
+    const timestamp = new Date().toISOString()
+    const progressId = `progress-${crypto.randomUUID()}`
+    const submitter =
+      input.submittedByMembershipId ??
+      state.memberships.find(
+        (membership) =>
+          membership.projectId === input.projectId &&
+          (membership.role === "supervisor" ||
+            membership.role === "contractor" ||
+            membership.role === "project-manager"),
+      )?.id ??
+      ""
+
+    const attachedEvidence: Evidence[] = (input.evidence ?? []).map((item) => ({
+      id: `evidence-${crypto.randomUUID()}`,
+      projectId: input.projectId,
+      projectUnitId: input.projectUnitId,
+      taskId: input.taskId,
+      dailyProgressId: progressId,
+      type: item.type,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl,
+      caption: item.caption,
+      capturedByMembershipId: item.capturedByMembershipId ?? submitter,
+      capturedByWorkerId: item.capturedByWorkerId,
+      capturedAt: timestamp,
+      customerVisibility: item.customerVisibility ?? "review-required",
+    }))
+
+    const evidenceIds = [
+      ...(input.evidenceIds ?? []),
+      ...attachedEvidence.map((item) => item.id),
+    ]
+
+    const progress: DailyProgress = {
+      id: progressId,
+      projectId: input.projectId,
+      projectUnitId: input.projectUnitId,
+      taskId: input.taskId,
+      stageId: input.stageId,
+      tradeId: input.tradeId,
+      workTypeId: input.workTypeId,
+      date: input.date,
+      workersPresent: input.workersPresent,
+      plannedQuantity: input.plannedQuantity,
+      completedQuantity: input.completedQuantity,
+      progressBefore: input.progressBefore,
+      progressAfter: input.progressAfter,
+      yesterdaySummary: input.yesterdaySummary,
+      todaySummary: input.todaySummary,
+      tomorrowPlan: input.tomorrowPlan,
+      blockerSummary: input.blockerSummary,
+      evidenceIds,
+      submittedByMembershipId: submitter,
+      submittedAt: timestamp,
+      reviewStatus: "submitted",
+      publicationStatus: "private",
+    }
+
+    setState((current) => ({
+      ...current,
+      dailyProgress: [progress, ...current.dailyProgress],
+      evidence: [...current.evidence, ...attachedEvidence],
+      tasks: input.taskId
+        ? current.tasks.map((task) => {
+            if (task.id !== input.taskId) return task
+            const nextStatus =
+              task.status === "in-progress" || task.status === "ready"
+                ? "submitted"
+                : task.status === "submitted"
+                  ? "review"
+                  : task.status
+            if (nextStatus === task.status) {
+              return {
+                ...task,
+                completedQuantity: input.completedQuantity ?? task.completedQuantity,
+                updatedAt: timestamp,
+              }
+            }
+            return {
+              ...task,
+              status: nextStatus,
+              completedQuantity: input.completedQuantity ?? task.completedQuantity,
+              updatedAt: timestamp,
+            }
+          })
+        : current.tasks,
+    }))
+
+    return progress
+  }, [state.memberships])
+
+  const reviewDailyProgress = useCallback(
+    (id: EntityId, decision: "approve" | "reject") => {
+      setState((current) => {
+        const target = current.dailyProgress.find((progress) => progress.id === id)
+        if (!target) return current
+
+        const approved = decision === "approve"
+        const nextProgress = current.dailyProgress.map((progress) =>
+          progress.id === id
+            ? {
+                ...progress,
+                reviewStatus: approved ? ("approved" as const) : ("rejected" as const),
+                publicationStatus: approved
+                  ? ("published" as const)
+                  : ("private" as const),
+              }
+            : progress,
+        )
+
+        const evidenceIds = new Set(target.evidenceIds)
+        const updatedEvidence = approved
+          ? current.evidence.map((item) =>
+              evidenceIds.has(item.id) || item.dailyProgressId === id
+                ? { ...item, customerVisibility: "customer-visible" as const }
+                : item,
+            )
+          : current.evidence
+
+        const nextProjects =
+          approved && typeof target.progressAfter === "number"
+            ? current.projects.map((project) =>
+                project.id === target.projectId
+                  ? {
+                      ...project,
+                      progress: target.progressAfter!,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : project,
+              )
+            : current.projects
+
+        const nextTasks =
+          approved && target.taskId
+            ? current.tasks.map((task) => {
+                if (task.id !== target.taskId) return task
+                if (task.status === "submitted" || task.status === "review") {
+                  return {
+                    ...task,
+                    status: "approved" as const,
+                    updatedAt: new Date().toISOString(),
+                  }
+                }
+                return task
+              })
+            : current.tasks
+
+        return {
+          ...current,
+          dailyProgress: nextProgress,
+          evidence: updatedEvidence,
+          projects: nextProjects,
+          tasks: nextTasks,
+        }
+      })
+    },
+    [],
+  )
+
   const value = useMemo(
     () => ({
       state,
@@ -313,6 +558,9 @@ export default function ConstructionDataProvider({ children }: { children: React
       createTask,
       assignTask,
       transitionTask,
+      addEvidence,
+      submitDailyProgress,
+      reviewDailyProgress,
     }),
     [
       state,
@@ -324,6 +572,9 @@ export default function ConstructionDataProvider({ children }: { children: React
       createTask,
       assignTask,
       transitionTask,
+      addEvidence,
+      submitDailyProgress,
+      reviewDailyProgress,
     ],
   )
 

@@ -494,32 +494,32 @@ function HozieAICard({
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
-function ProjectCard() {
+function ProjectCard({ onNavigate }: { onNavigate: (s: string, data?: Record<string, string>) => void }) {
   return (
     <div className="bg-white rounded-[16px] border border-[#E3DDD7] p-5 flex flex-col gap-4" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-[15px] font-semibold text-[#242326] m-0" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-            3 BHK G+1 House
+            Sharma Residence
           </h3>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[12px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>Hyderabad</span>
             <span className="text-[#E3DDD7]">·</span>
-            <span className="text-[12px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>2,400 sq ft</span>
+            <span className="text-[12px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>Foundation</span>
           </div>
         </div>
-        <span className="shrink-0 text-[11px] font-medium text-[#722ED1] bg-[#F3EAFF] px-2.5 py-1 rounded-full" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
-          Planning
+        <span className="shrink-0 text-[11px] font-medium text-[#0F6E56] bg-[#E8F5F0] px-2.5 py-1 rounded-full" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
+          Active
         </span>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-[#9A949D] tracking-[0.04em]" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
-            ESTIMATED COST
+            LATEST SITE UPDATE
           </span>
           <span className="text-[13px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-            ₹29.8L – ₹35.2L
+            Published
           </span>
         </div>
       </div>
@@ -527,21 +527,22 @@ function ProjectCard() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-[#9A949D]" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>PROGRESS</span>
-          <span className="text-[11px] text-[#722ED1] font-medium" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>18%</span>
+          <span className="text-[11px] text-[#0F6E56] font-medium" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>34%</span>
         </div>
         <div className="h-1.5 bg-[#F4F0EC] rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#722ED1] rounded-full"
-            style={{ width: '18%', transition: 'width 0.8s ease-out' }}
+            className="h-full bg-[#0F6E56] rounded-full"
+            style={{ width: '34%', transition: 'width 0.8s ease-out' }}
           />
         </div>
       </div>
 
       <button
+        onClick={() => onNavigate('customer-daily-update', { project_id: 'project-sharma' })}
         className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0 mt-1"
         style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
       >
-        Continue project →
+        View daily site update →
       </button>
     </div>
   )
@@ -576,13 +577,13 @@ function EmptyProjectsState({ onNavigate }: { onNavigate: (s: string) => void })
 
 // ─── Project Section ──────────────────────────────────────────────────────────
 
-function ProjectSection({ hasProject, onNavigate }: { hasProject: boolean; onNavigate: (s: string) => void }) {
+function ProjectSection({ hasProject, onNavigate }: { hasProject: boolean; onNavigate: (s: string, data?: Record<string, string>) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <span className="text-[10px] tracking-[0.10em] text-[#722ED1] uppercase" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
         Your Projects
       </span>
-      {hasProject ? <ProjectCard /> : <EmptyProjectsState onNavigate={onNavigate} />}
+      {hasProject ? <ProjectCard onNavigate={onNavigate} /> : <EmptyProjectsState onNavigate={onNavigate} />}
     </div>
   )
 }

@@ -142,6 +142,9 @@ function ProjectOverview({
               if (key === "tasks") {
                 onNavigate("tasks", { project_id: projectId })
               }
+              if (key === "progress") {
+                onNavigate("daily-progress-review", { project_id: projectId })
+              }
             }}
           />
         </Flex>
@@ -245,11 +248,30 @@ function ProjectOverview({
                 </Title>
               }
               extra={
-                latestProgress && (
-                  <Tag color={latestProgress.reviewStatus === "approved" ? "success" : "warning"}>
-                    {latestProgress.reviewStatus}
-                  </Tag>
-                )
+                <Space wrap>
+                  <Button
+                    size="small"
+                    type="primary"
+                    onClick={() =>
+                      onNavigate("daily-progress-submit", { project_id: projectId })
+                    }
+                  >
+                    Log today&apos;s progress
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() =>
+                      onNavigate("daily-progress-review", { project_id: projectId })
+                    }
+                  >
+                    Review queue
+                  </Button>
+                  {latestProgress && (
+                    <Tag color={latestProgress.reviewStatus === "approved" ? "success" : "warning"}>
+                      {latestProgress.reviewStatus}
+                    </Tag>
+                  )}
+                </Space>
               }
             >
               <Row gutter={[20, 20]}>

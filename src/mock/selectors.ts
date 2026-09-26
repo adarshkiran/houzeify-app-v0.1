@@ -65,6 +65,51 @@ export function getRecentProgress(state: ConstructionDataState, projectId?: Enti
     .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }
 
+export function getPendingReviewProgress(
+  state: ConstructionDataState,
+  projectId?: EntityId,
+) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        (!projectId || progress.projectId === projectId) &&
+        (progress.reviewStatus === "submitted" || progress.reviewStatus === "draft"),
+    )
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+}
+
+export function getPublishedProgressForCustomer(
+  state: ConstructionDataState,
+  projectId?: EntityId,
+) {
+  return state.dailyProgress
+    .filter(
+      (progress) =>
+        (!projectId || progress.projectId === projectId) &&
+        progress.reviewStatus === "approved" &&
+        progress.publicationStatus === "published",
+    )
+    .sort((left, right) => right.date.localeCompare(left.date) || right.submittedAt.localeCompare(left.submittedAt))
+}
+
+export function getEvidenceForProgress(
+  state: ConstructionDataState,
+  progressId: EntityId,
+  options?: { customerVisibleOnly?: boolean },
+) {
+  const progress = state.dailyProgress.find((item) => item.id === progressId)
+  const ids = new Set(progress?.evidenceIds ?? [])
+
+  return state.evidence.filter((item) => {
+    const linked = ids.has(item.id) || item.dailyProgressId === progressId
+    if (!linked) return false
+    if (options?.customerVisibleOnly) {
+      return item.customerVisibility === "customer-visible"
+    }
+    return true
+  })
+}
+
 export function getProjectUnits(state: ConstructionDataState, projectId: EntityId) {
   return state.projectUnits
     .filter((unit) => unit.projectId === projectId)
