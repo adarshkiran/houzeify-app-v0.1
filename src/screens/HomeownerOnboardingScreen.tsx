@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import LogoHorizontal from '../components/LogoHorizontal'
+import { DEMO_IDENTITIES, useSession } from '../session/SessionProvider'
 
 // ─── Ambient background ───────────────────────────────────────────────────────
 
@@ -189,6 +190,7 @@ export default function HomeownerOnboardingScreen({
 }: {
   onNavigate: (screen: string, data?: Record<string, string>) => void
 }) {
+  const { signIn } = useSession()
   const [selectedType, setSelectedType] = useState<string | null>(null)
   const [location, setLocation] = useState('')
   const [locationFocused, setLocationFocused] = useState(false)
@@ -197,6 +199,7 @@ export default function HomeownerOnboardingScreen({
 
   const handleContinue = () => {
     if (!canContinue || !selectedType) return
+    signIn(DEMO_IDENTITIES.homeowner)
     onNavigate('dashboard-home', {
       property_type: selectedType,
       location: location.trim(),

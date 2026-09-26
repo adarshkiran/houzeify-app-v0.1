@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import SplashScreen from './screens/SplashScreen'
 import WelcomeScreen from './screens/WelcomeScreen'
 import LoginScreen from './screens/LoginScreen'
@@ -13,8 +13,17 @@ import CreateProjectScreen from './screens/CreateProjectScreen'
 import EstimateLoadingScreen from './screens/EstimateLoadingScreen'
 import EstimateDashboardScreen from './screens/EstimateDashboardScreen'
 import CostBreakdownScreen from './screens/CostBreakdownScreen'
-import type { AppScreen } from './domain/navigation'
-import { isAppScreen } from './domain/navigation'
+import {
+  buildHash,
+  homeScreenFor,
+  isAppScreen,
+  nextParams,
+  parseHash,
+  resolveRoute,
+  type RouteLocation,
+} from './domain/navigation'
+import { useConstructionData } from './mock/ConstructionDataProvider'
+import { useSession } from './session/SessionProvider'
 
 const CompanyDashboardScreen = lazy(() => import('./screens/CompanyDashboardScreen'))
 const BusinessOnboardingScreen = lazy(() => import('./screens/BusinessOnboardingScreen'))
@@ -52,56 +61,75 @@ function SplashRoute({ onComplete }: { onComplete: () => void }) {
   )
 }
 
-const LAST_SCREEN_KEY = 'houzeify:last-screen'
-
-function readInitialScreen(): AppScreen {
-  if (typeof window === 'undefined') return 'splash'
-  const hash = window.location.hash.replace(/^#/, '')
-  if (isAppScreen(hash)) return hash
-  const saved = window.localStorage.getItem(LAST_SCREEN_KEY)
-  if (saved && isAppScreen(saved) && saved !== 'splash') return saved
-  return 'splash'
+const DEFAULT_PARAMS: Record<string, string> = {
+  property_type: 'House',
+  location: 'Hyderabad, Telangana',
 }
 
-function rememberScreen(screen: AppScreen) {
-  if (typeof window === 'undefined') return
-  window.location.hash = screen
-  if (screen !== 'splash') {
-    window.localStorage.setItem(LAST_SCREEN_KEY, screen)
-  }
+function readLocation(): RouteLocation {
+  return parseHash(window.location.hash) ?? { screen: 'splash', params: {} }
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<AppScreen>(readInitialScreen)
+  const { session, signOut } = useSession()
+  const { state } = useConstructionData()
+  const [location, setLocation] = useState<RouteLocation>(readLocation)
   const [phone, setPhone] = useState('98765 43210')
-  const [projectData, setProjectData] = useState<Record<string, string>>({
-    property_type: 'House',
-    location: 'Hyderabad, Telangana',
-    project_id: 'project-sharma',
-    task_id: 'task-4',
-  })
 
-  const navigateTo = (s: string, data?: Record<string, string>) => {
-    if (!isAppScreen(s)) return
-    if (data?.phone) setPhone(data.phone)
-    if (data) setProjectData(prev => ({ ...prev, ...data }))
-    setScreen(s)
-    rememberScreen(s)
-  }
+  const knownProjectIds = useMemo(
+    () => new Set(state.projects.map(project => project.id)),
+    [state.projects],
+  )
 
+  // The URL hash is the single source of truth; state mirrors it.
   useEffect(() => {
-    const onHashChange = () => {
-      const hash = window.location.hash.replace(/^#/, '')
-      if (isAppScreen(hash)) {
-        setScreen(hash)
-        if (hash !== 'splash') {
-          window.localStorage.setItem(LAST_SCREEN_KEY, hash)
-        }
-      }
-    }
+    const onHashChange = () => setLocation(readLocation())
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+
+  const goTo = (next: RouteLocation, replace = false) => {
+    const hash = buildHash(next)
+    if (replace) {
+      window.history.replaceState(null, '', hash)
+      setLocation(next)
+    } else if (window.location.hash === hash) {
+      setLocation(next)
+    } else {
+      window.location.hash = hash
+    }
+  }
+
+  const navigateTo = (s: string, data?: Record<string, string>) => {
+    if (!isAppScreen(s)) {
+      console.warn(`[navigation] ignoring unknown screen "${s}"`)
+      return
+    }
+    if (data?.phone) setPhone(data.phone)
+    // Going back to the entry screens ends the session.
+    if (s === 'welcome' || s === 'login') signOut()
+    goTo({ screen: s, params: nextParams(location.params, data) })
+  }
+
+  const decision = resolveRoute(location, {
+    session,
+    memberships: state.memberships,
+    knownProjectIds,
+  })
+
+  // Empty hash (or an unknown one) lands on the splash, which then routes on.
+  const redirect = decision.ok ? null : decision.redirect
+  useEffect(() => {
+    if (redirect) goTo(redirect, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redirect?.screen, JSON.stringify(redirect?.params)])
+
+  const { screen, params } = location
+  const projectId = params.project_id
+  const projectName = params.project_name ?? '3 BHK G+1 House'
+  const projectLocation = params.location ?? 'Hyderabad'
+
+  if (!decision.ok) return null
 
   const slide = {
     position: 'absolute' as const,
@@ -112,7 +140,9 @@ export default function App() {
   return (
     <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
       {screen === 'splash' && (
-        <SplashRoute onComplete={() => navigateTo('welcome')} />
+        <SplashRoute
+          onComplete={() => goTo({ screen: homeScreenFor(session), params: {} }, true)}
+        />
       )}
       {screen === 'welcome' && (
         <div style={slide}>
@@ -170,8 +200,8 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <CreateProjectScreen
             onNavigate={navigateTo}
-            initialPropertyType={projectData.property_type}
-            initialLocation={projectData.location}
+            initialPropertyType={params.property_type ?? DEFAULT_PARAMS.property_type}
+            initialLocation={params.location ?? DEFAULT_PARAMS.location}
           />
         </div>
       )}
@@ -179,8 +209,8 @@ export default function App() {
         <div style={{ ...slide }}>
           <EstimateLoadingScreen
             onNavigate={navigateTo}
-            projectName={projectData.project_name ?? '3 BHK G+1 House'}
-            location={projectData.location ?? 'Hyderabad'}
+            projectName={projectName}
+            location={projectLocation}
           />
         </div>
       )}
@@ -188,8 +218,8 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <EstimateDashboardScreen
             onNavigate={navigateTo}
-            projectName={projectData.project_name ?? '3 BHK G+1 House'}
-            location={projectData.location ?? 'Hyderabad'}
+            projectName={projectName}
+            location={projectLocation}
           />
         </div>
       )}
@@ -197,8 +227,8 @@ export default function App() {
         <div style={{ ...slide }}>
           <CostBreakdownScreen
             onNavigate={navigateTo}
-            projectName={projectData.project_name ?? '3 BHK G+1 House'}
-            location={projectData.location ?? 'Hyderabad'}
+            projectName={projectName}
+            location={projectLocation}
           />
         </div>
       )}
@@ -214,7 +244,7 @@ export default function App() {
           <Suspense fallback={null}>
             <ProjectOverviewScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
+              projectId={projectId}
             />
           </Suspense>
         </div>
@@ -238,7 +268,7 @@ export default function App() {
           <Suspense fallback={null}>
             <ProjectStructureScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
+              projectId={projectId}
             />
           </Suspense>
         </div>
@@ -248,7 +278,7 @@ export default function App() {
           <Suspense fallback={null}>
             <ProjectTeamScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
+              projectId={projectId}
             />
           </Suspense>
         </div>
@@ -272,7 +302,7 @@ export default function App() {
           <Suspense fallback={null}>
             <WorkPlanScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
+              projectId={projectId}
             />
           </Suspense>
         </div>
@@ -282,7 +312,7 @@ export default function App() {
           <Suspense fallback={null}>
             <TasksScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
+              projectId={projectId}
             />
           </Suspense>
         </div>
@@ -292,8 +322,8 @@ export default function App() {
           <Suspense fallback={null}>
             <TaskDetailScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
-              taskId={projectData.task_id ?? 'task-1'}
+              projectId={projectId}
+              taskId={params.task_id}
             />
           </Suspense>
         </div>
@@ -303,8 +333,8 @@ export default function App() {
           <Suspense fallback={null}>
             <DailyProgressSubmitScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
-              taskId={projectData.task_id}
+              projectId={projectId}
+              taskId={params.task_id}
             />
           </Suspense>
         </div>
@@ -314,7 +344,7 @@ export default function App() {
           <Suspense fallback={null}>
             <DailyProgressReviewScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id || undefined}
+              projectId={projectId}
             />
           </Suspense>
         </div>
@@ -324,7 +354,7 @@ export default function App() {
           <Suspense fallback={null}>
             <CustomerDailyUpdateScreen
               onNavigate={navigateTo}
-              projectId={projectData.project_id ?? 'project-sharma'}
+              projectId={projectId}
             />
           </Suspense>
         </div>
