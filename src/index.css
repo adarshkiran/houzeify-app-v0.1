@@ -1,0 +1,483 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+html, body, #root {
+  height: 100%;
+}
+
+@font-face {
+  font-family: 'Google Sans Flex:Bold';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/GoogleSansFlex-VariableFont_GRAD_ROND_opsz_slnt_wdth_wght_1') format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans Flex:Medium';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/GoogleSansFlex-VariableFont_GRAD_ROND_opsz_slnt_wdth_wght_1') format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans Flex:SemiBold';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/GoogleSansFlex-VariableFont_GRAD_ROND_opsz_slnt_wdth_wght_1') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist:Medium';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/Geist_wght__1') format('woff2');
+}
+
+@font-face {
+  font-family: 'Sometype Mono:SemiBold';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/SometypeMono_wght__1') format('woff2');
+}
+
+@font-face {
+  font-family: 'Open Sans:Regular';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/OpenSans_wdth_wght__2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist Mono:SemiBold';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/GeistMono_wght__1') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist Mono:Regular';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('https://static.figma.com/font/GeistMono_wght__1') format('woff2');
+}
+
+/* Welcome screen background — matches splash mesh gradient */
+[data-name="welcome-screen"] {
+  background-color: #FBF9F7;
+  background-image:
+    radial-gradient(ellipse 70% 55% at 0% 0%,    rgba(114, 46, 209, 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 50% at 100% 100%, rgba(114, 46, 209, 0.09) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 45% at 100% 0%,  rgba(180, 130, 255, 0.05) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 55% at 0% 100%,  rgba(180, 130, 255, 0.04) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 50% at 50% 50%,  rgba(243, 234, 255, 0.40) 0%, transparent 65%);
+}
+
+/* Entrance animations for welcome screen */
+@keyframes welcomeFadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes welcomeFadeDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hozieCardReveal {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Splash screen entrance animations */
+@keyframes splashFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprintReveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes progressAnimate {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+@keyframes pingRipple {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+
+@keyframes loginCardFloat {
+  from { transform: translateY(0px); }
+  to   { transform: translateY(-8px); }
+}
+
+@keyframes successIconReveal {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes successBadgePop {
+  0%   { opacity: 0; transform: scale(0.4); }
+  70%  { transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes hozieStatusPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+@keyframes aiIconGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(114,46,209,0); }
+  50%       { box-shadow: 0 0 22px 6px rgba(114,46,209,0.20); }
+}
+
+@keyframes estimateRingExpand {
+  0%   { transform: scale(0.92); opacity: 0.30; }
+  100% { transform: scale(1.60); opacity: 0; }
+}
+
+@keyframes estimatePulse {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.97); }
+}
+
+@keyframes estimateReveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes estimateButtonPop {
+  0%   { opacity: 0; transform: scale(0.92); }
+  70%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Blueprint image overlay hidden — replaced with CSS grid below */
+[data-name="blueprint-overlay"] {
+  display: none;
+}
+
+/* Soft mesh gradient background */
+[data-name="houzeify-splash-page"] {
+  background-color: #fcfbf9;
+  background-image:
+    radial-gradient(ellipse 70% 55% at 0% 0%,   rgba(114, 46, 209, 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 50% at 100% 100%, rgba(114, 46, 209, 0.09) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 45% at 100% 0%,  rgba(180, 130, 255, 0.05) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 55% at 0% 100%,  rgba(180, 130, 255, 0.04) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 50% at 50% 50%,  rgba(243, 234, 255, 0.55) 0%, transparent 65%);
+}
+
+[data-name="splash-card"] {
+  animation: splashFadeIn 0.5s ease-out 0.3s both;
+}
+
+[data-name="progress-fill"] {
+  animation: progressAnimate 1.6s cubic-bezier(0.4, 0, 0.2, 1) 1.1s both;
+}
+
+/* Dot: circular ping ripple via pseudo-element */
+[data-name="Ellipse"] {
+  overflow: visible;
+}
+
+[data-name="Ellipse"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #722ed1;
+  animation: pingRipple 1.8s ease-out 1.2s infinite;
+}
+
+/* Ant Design is scoped to the construction-management dashboard. */
+.company-dashboard {
+  font-family: 'Inter', sans-serif;
+}
+
+.company-dashboard .company-heading,
+.business-onboarding .company-heading,
+.company-form-page .company-heading,
+.company-dashboard .ant-statistic-content {
+  font-family: 'Geist', sans-serif;
+  font-weight: 600;
+}
+
+.company-dashboard .company-eyebrow,
+.business-onboarding .company-eyebrow,
+.company-form-page .company-eyebrow {
+  font-family: 'Sometype Mono:SemiBold', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.company-dashboard .company-sider {
+  border-right: 1px solid var(--ant-color-border);
+}
+
+.company-dashboard .company-logo {
+  justify-content: flex-start;
+  height: 64px;
+  padding-inline: 24px;
+  border-bottom: 1px solid var(--ant-color-border);
+}
+
+.company-dashboard .company-logo-mark {
+  display: none;
+}
+
+.company-dashboard .company-settings-menu {
+  padding-block: 8px;
+  border-top: 1px solid var(--ant-color-border);
+  border-inline-end: 0;
+}
+
+.company-dashboard .company-main-menu {
+  padding-block: 8px;
+}
+
+.company-dashboard .company-header {
+  line-height: normal;
+  border-bottom: 1px solid var(--ant-color-border);
+}
+
+.company-mobile-nav-body {
+  padding: 8px 0 !important;
+}
+
+.company-mobile-nav-body .ant-menu {
+  border-inline-end: 0 !important;
+}
+
+.company-dashboard .company-content {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding: 24px 32px;
+}
+
+.company-dashboard .company-kpi-card .ant-card-body {
+  height: 100%;
+}
+
+.company-dashboard .company-kpi-card .ant-statistic-content {
+  line-height: 1.1;
+}
+
+.company-dashboard .company-section-card {
+  overflow: hidden;
+}
+
+.company-dashboard .company-list-card-body {
+  padding: 8px 12px 12px;
+}
+
+.company-dashboard .company-kpi-icon,
+.company-dashboard .company-user-avatar {
+  color: var(--ant-color-primary);
+  background: var(--ant-color-primary-bg);
+}
+
+.company-dashboard .company-project-avatar {
+  color: var(--ant-color-primary);
+  background: var(--ant-color-primary-bg);
+}
+
+.company-dashboard .company-project-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: auto;
+  min-height: 84px;
+  padding: 12px;
+  text-align: left;
+  white-space: normal;
+}
+
+.company-dashboard .company-project-row:hover {
+  background: var(--ant-color-fill-tertiary);
+}
+
+.company-dashboard .company-task-link {
+  height: auto;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.company-dashboard .company-project-row .ant-progress {
+  flex: 1;
+  margin: 0;
+}
+
+.company-dashboard .company-project-stats {
+  flex-shrink: 0;
+}
+
+.company-dashboard .company-issue-icon {
+  color: var(--ant-color-error);
+  background: var(--ant-color-error-bg);
+}
+
+.company-dashboard .company-listy-item {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  border-radius: var(--ant-border-radius);
+  transition: background-color 0.2s ease;
+}
+
+.company-dashboard .company-listy-item:hover {
+  background: var(--ant-color-fill-tertiary);
+}
+
+.company-dashboard .company-listy-item:last-child {
+  border-bottom: 0;
+}
+
+.company-dashboard .company-hozie-card {
+  background: var(--ant-color-primary-bg);
+}
+
+.company-dashboard .company-hozie-icon {
+  background: var(--ant-color-bg-container);
+}
+
+.company-dashboard .company-add-action {
+  margin-top: 12px;
+}
+
+.company-dashboard .ant-tag {
+  margin-inline-end: 0;
+  text-transform: capitalize;
+}
+
+.business-onboarding {
+  font-family: 'Inter', sans-serif;
+  background:
+    radial-gradient(circle at 12% 12%, rgb(114 46 209 / 8%), transparent 34%),
+    var(--ant-color-bg-layout);
+}
+
+.company-form-page {
+  font-family: 'Inter', sans-serif;
+  background: var(--ant-color-bg-layout);
+}
+
+.company-form-content {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding: 40px 32px;
+}
+
+.company-form-actions {
+  margin-top: 24px;
+}
+
+.company-table-card-body {
+  padding: 0 !important;
+}
+
+.company-project-search {
+  width: min(100%, 360px);
+}
+
+.company-project-filter {
+  min-width: 180px;
+}
+
+.company-structure-tree .ant-tree-node-content-wrapper {
+  min-height: 40px;
+  padding-block: 8px;
+}
+
+.business-onboarding-header {
+  min-height: 64px;
+  padding-inline: 32px;
+  background: var(--ant-color-bg-container);
+  border-bottom: 1px solid var(--ant-color-border);
+}
+
+.business-onboarding-content {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding: 48px 32px;
+}
+
+.business-onboarding-intro {
+  padding-block: 24px;
+}
+
+.business-onboarding-note,
+.project-narrative-today {
+  background: var(--ant-color-primary-bg);
+}
+
+.project-overview-hero {
+  background:
+    linear-gradient(135deg, var(--ant-color-primary-bg) 0%, var(--ant-color-bg-container) 52%);
+}
+
+.project-narrative-card {
+  height: 100%;
+  box-shadow: none !important;
+}
+
+.project-overview-empty {
+  min-height: 100%;
+  padding: 24px;
+  background: var(--ant-color-bg-layout);
+}
+
+.project-overview-empty-icon {
+  font-size: 32px;
+  color: var(--ant-color-primary);
+}
+
+@media (max-width: 1023px) {
+  .company-dashboard .company-logo {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .company-dashboard .company-logo-full {
+    display: none;
+  }
+
+  .company-dashboard .company-logo-mark {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 639px) {
+  .company-dashboard .company-header {
+    padding-inline: 16px;
+  }
+
+  .company-dashboard .company-content {
+    padding: 20px 16px;
+  }
+
+  .company-dashboard .company-project-stats {
+    display: none;
+  }
+
+  .business-onboarding-header {
+    padding-inline: 16px;
+  }
+
+  .business-onboarding-content {
+    padding: 28px 16px;
+  }
+
+  .company-form-content {
+    padding: 28px 16px;
+  }
+}

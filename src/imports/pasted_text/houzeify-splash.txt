@@ -1,0 +1,947 @@
+Create a high-end production-ready web application splash / initialization screen for HOUZEIFY.
+
+HOUZEIFY is an AI-powered Construction Advisor that helps homeowners plan residential construction, understand construction costs, analyze floor plans, generate estimates and BOQs, and eventually connect with construction professionals.
+
+This is:
+
+SCREEN 001 — SPLASH / INITIALIZING
+
+The screen appears immediately when the HOUZEIFY web application loads.
+
+IMPORTANT:
+
+Use the EXACT HOUZEIFY logo assets supplied by the user.
+
+Use the uploaded standalone HOUZEIFY H logo symbol for this screen.
+
+DO NOT redraw, recreate, reinterpret, modify or generate a new HOUZEIFY logo.
+
+Preserve the exact geometry, proportions, shape and purple treatment of the supplied logo.
+
+The H symbol is the official HOUZEIFY product mark.
+
+==================================================
+1. FRAME
+==================================================
+
+Primary frame:
+
+1440 × 900 px
+
+Desktop web application.
+
+Create responsive behavior for:
+
+1280 × 800
+1024 × 768
+768 × 1024
+390 × 844
+
+The 1440 × 900 version is the master design.
+
+Use Auto Layout.
+
+Use responsive constraints.
+
+Use a centered maximum content width.
+
+Do not design this as a mobile screen stretched to desktop.
+
+It must feel intentionally designed for a premium desktop SaaS application.
+
+==================================================
+2. BRAND
+==================================================
+
+Brand:
+
+HOUZEIFY
+
+Product:
+
+HOUZEIFY AI
+
+AI assistant:
+
+HOZIE
+
+Product category:
+
+AI CONSTRUCTION ADVISOR
+
+Primary brand message:
+
+Build Smart. Build Confidently.
+
+Secondary product message:
+
+Plan. Estimate. Understand. Build.
+
+==================================================
+3. DESIGN PHILOSOPHY
+==================================================
+
+The visual language should combine:
+
+ARCHITECTURE
++
+AI
++
+CONSTRUCTION
++
+PREMIUM SAAS
++
+HUMAN PRODUCT DESIGN
+
+The screen should feel:
+
+calm
+precise
+intelligent
+premium
+technical
+architectural
+modern
+trustworthy
+
+Do NOT make it look like:
+
+a real-estate portal
+a construction company website
+a generic AI chatbot
+a generic loading screen
+a gaming interface
+a crypto interface
+a futuristic cyberpunk interface
+
+Avoid:
+
+neon colors
+heavy glassmorphism
+excessive shadows
+generic robots
+construction workers
+hard hats
+stock photography
+3D cartoon houses
+excessive decorative gradients
+
+==================================================
+4. BACKGROUND
+==================================================
+
+Background:
+
+#FBF9F7
+
+Use the HOUZEIFY Light Ivory color.
+
+The background should be almost white but slightly warm.
+
+Create a very subtle architectural blueprint system across the entire canvas.
+
+Blueprint elements should include:
+
+floor-plan outlines
+architectural walls
+dimension lines
+measurement markers
+grid intersections
+construction lines
+circles
+right-angle symbols
+small coordinate points
+technical drafting marks
+
+Color:
+
+#4C12A1
+
+Opacity:
+
+3% to 6%
+
+The blueprint should NEVER compete with the logo.
+
+It should feel like technical information existing quietly in the background.
+
+Use different blueprint elements in the four corners.
+
+Top-left:
+
+partial floor plan.
+
+Top-right:
+
+architectural measurement / circular drafting element.
+
+Bottom-left:
+
+small technical grid.
+
+Bottom-right:
+
+partial floor plan with dimensions.
+
+Do not place a large house illustration in the center.
+
+The center must remain clean.
+
+==================================================
+5. BACKGROUND ARCHITECTURAL DETAILS
+==================================================
+
+Add very subtle technical annotations.
+
+Examples:
+
+2400
+1200
+3800
+G+1
+3BHK
+5600
+01
+02
+03
+
+Use:
+
+Sometype Mono
+
+10–12px
+
+Color:
+
+#4C12A1
+
+Opacity:
+
+5%
+
+These are visual details only.
+
+They should not look like readable UI content.
+
+==================================================
+6. CENTRAL BRAND AREA
+==================================================
+
+Create one centered vertical content group.
+
+Position:
+
+center horizontally.
+
+Center approximately around:
+
+X = 720
+
+Y = 420
+
+Do not make the content vertically centered exactly.
+
+Place the primary branding slightly above the mathematical center to create more breathing room for the loading area.
+
+==================================================
+7. LOGO
+==================================================
+
+Use the EXACT supplied HOUZEIFY standalone H icon.
+
+DO NOT recreate it.
+
+DO NOT approximate it.
+
+DO NOT use another H symbol.
+
+DO NOT change its geometry.
+
+Use the supplied:
+
+HOUZEIFY Logo Symbol
+
+Recommended size:
+
+96 × 96 px
+
+Desktop.
+
+The logo should have:
+
+Purple rounded-square background
+White architectural H symbol
+
+Maintain the exact supplied proportions.
+
+Place the icon above the wordmark.
+
+Gap:
+
+24px
+
+==================================================
+8. WORDMARK
+==================================================
+
+Below the supplied H icon:
+
+HOUZEIFY
+
+Use the official supplied wordmark asset if available.
+
+If the supplied horizontal wordmark asset is available in the Figma file, use the exact asset.
+
+DO NOT recreate the wordmark using a different font.
+
+If a wordmark asset is not available, use the supplied HOUZEIFY brand typography only as a temporary fallback.
+
+Recommended visual size:
+
+approximately 190–220px wide.
+
+Center aligned.
+
+==================================================
+9. TAGLINE
+==================================================
+
+Below the logo lockup:
+
+Build Smart. Build Confidently.
+
+Typography:
+
+Google Sans Flex
+
+20px
+
+Weight:
+
+500–600
+
+Color:
+
+#242326
+
+Center aligned.
+
+Highlight:
+
+Build Confidently.
+
+Color:
+
+#4C12A1
+
+Do not use a gradient on the tagline.
+
+Gap:
+
+18px.
+
+==================================================
+10. PRODUCT LABEL
+==================================================
+
+Below tagline:
+
+AI CONSTRUCTION ADVISOR
+
+Typography:
+
+Sometype Mono
+
+12px
+
+Weight:
+
+500
+
+Letter spacing:
+
+0.12em
+
+Color:
+
+#4C12A1
+
+Uppercase.
+
+Center aligned.
+
+Place a very small purple horizontal architectural line above the label.
+
+Line width:
+
+32px
+
+Height:
+
+1px
+
+Gap:
+
+20px.
+
+This creates a refined technical identity.
+
+==================================================
+11. AI INITIALIZATION STATUS
+==================================================
+
+Below the product label create the system initialization status.
+
+Layout:
+
+horizontal.
+
+Centered.
+
+Purple status indicator:
+
+8 × 8 px
+
+Circle.
+
+Add a very subtle purple glow.
+
+Text:
+
+INITIALIZING AI
+
+Typography:
+
+Sometype Mono
+
+11px
+
+Letter spacing:
+
+0.08em
+
+Color:
+
+#68636D
+
+The status should feel like a real application system state.
+
+Do not use:
+
+"Loading..."
+
+Do not use:
+
+"Please wait..."
+
+Use:
+
+INITIALIZING AI
+
+==================================================
+12. AI STATUS MICROCOPY
+==================================================
+
+Below the status indicator, create a small dynamic-style system message:
+
+Preparing your construction workspace
+
+Typography:
+
+Open Sans
+
+12px
+
+Color:
+
+#9A949D
+
+Center aligned.
+
+This is secondary information.
+
+==================================================
+13. PROGRESS INDICATOR
+==================================================
+
+Create a premium horizontal loading indicator.
+
+Do NOT use a circular spinner.
+
+The loading indicator should resemble an architectural construction line.
+
+Width:
+
+180px
+
+Height:
+
+3px
+
+Track:
+
+#E3DDD7
+
+Progress:
+
+#4C12A1
+
+Progress width:
+
+approximately 35%
+
+Rounded ends.
+
+Add a small purple circular node at the end of the progress line.
+
+The visual concept:
+
+architectural line being drawn.
+
+This represents:
+
+PLAN → SYSTEM → BUILD
+
+==================================================
+14. BOTTOM PRODUCT SIGNATURE
+==================================================
+
+Near the bottom center of the page:
+
+PLAN / ESTIMATE / UNDERSTAND / BUILD
+
+Typography:
+
+Sometype Mono
+
+10px
+
+Letter spacing:
+
+0.08em
+
+Color:
+
+#9A949D
+
+Center aligned.
+
+Use purple for the "/" separators.
+
+Example:
+
+PLAN / ESTIMATE / UNDERSTAND / BUILD
+
+Do not make this look like navigation.
+
+It is a brand signature.
+
+==================================================
+15. VERY SUBTLE AI AMBIENT EFFECT
+==================================================
+
+Add a very subtle radial purple glow behind the central logo.
+
+The glow should be:
+
+extremely soft
+large
+low opacity
+
+Color:
+
+#F3EAFF
+
+Opacity:
+
+20–30%
+
+The glow should fade naturally into the ivory background.
+
+Do not create a strong neon glow.
+
+The logo remains sharp.
+
+==================================================
+16. LAYOUT SPACING
+==================================================
+
+Use approximately:
+
+Top breathing space:
+
+150px+
+
+Logo:
+
+96px
+
+Logo-to-wordmark:
+
+20–24px
+
+Wordmark-to-tagline:
+
+18px
+
+Tagline-to-product-label:
+
+20px
+
+Product-label-to-status:
+
+36px
+
+Status-to-microcopy:
+
+10px
+
+Microcopy-to-progress:
+
+28px
+
+Progress-to-footer:
+
+32px
+
+Keep generous negative space.
+
+This is a premium SaaS splash screen.
+
+Do not fill the page.
+
+==================================================
+17. HEADER
+==================================================
+
+Do NOT add a conventional navigation header.
+
+This is an application initialization screen.
+
+However, place a tiny HOUZEIFY icon in the top-left corner only if needed for responsive context.
+
+Recommended:
+
+No header.
+
+The entire page should feel like the application is initializing.
+
+==================================================
+18. FOOTER
+==================================================
+
+Do not create a traditional footer.
+
+Only show the product signature:
+
+PLAN / ESTIMATE / UNDERSTAND / BUILD
+
+at the bottom center.
+
+==================================================
+19. ANIMATION / PROTOTYPE
+==================================================
+
+Prepare the screen for Figma prototype animation.
+
+Sequence:
+
+0ms
+
+Background appears.
+
+150ms
+
+Blueprint system fades in.
+
+300ms
+
+HOUZEIFY H icon fades and scales from 96% to 100%.
+
+500ms
+
+Wordmark fades in.
+
+650ms
+
+Tagline fades in.
+
+800ms
+
+AI CONSTRUCTION ADVISOR appears.
+
+950ms
+
+INITIALIZING AI appears.
+
+1100ms
+
+Progress line starts drawing.
+
+1500ms
+
+Progress reaches approximately 100%.
+
+Then automatically navigate to:
+
+SCREEN 002 — WELCOME
+
+Use:
+
+Smart Animate
+
+Ease Out
+
+Duration:
+
+250–350ms
+
+Do not create exaggerated animation.
+
+==================================================
+20. RESPONSIVE BEHAVIOR
+==================================================
+
+For 1280px:
+
+Maintain central composition.
+
+Reduce logo to:
+
+88px.
+
+For 1024px:
+
+Logo:
+
+80px.
+
+For 768px:
+
+Logo:
+
+72px.
+
+Reduce blueprint visibility.
+
+For 390px:
+
+Use:
+
+64px logo.
+
+Wordmark below icon.
+
+Tagline:
+
+16px.
+
+Product label:
+
+10px.
+
+Status:
+
+10px.
+
+Progress:
+
+140px.
+
+Hide most background blueprint elements.
+
+Keep only:
+
+top-left
+bottom-right
+
+This keeps the mobile version clean.
+
+==================================================
+21. ACCESSIBILITY
+==================================================
+
+Do not rely only on purple color to communicate status.
+
+Status should include:
+
+dot + text.
+
+Maintain sufficient contrast for:
+
+HOUZEIFY
+Build Smart. Build Confidently.
+INITIALIZING AI
+
+Use semantic grouping in the Figma layer structure.
+
+==================================================
+22. FIGMA LAYER STRUCTURE
+==================================================
+
+Organize layers exactly as:
+
+SCREEN 001 / SPLASH
+
+01 — Background
+    Background / Ivory
+    Blueprint / Top Left
+    Blueprint / Top Right
+    Blueprint / Bottom Left
+    Blueprint / Bottom Right
+    Ambient / AI Glow
+
+02 — Brand
+    Logo / H Symbol
+    Logo / Wordmark
+
+03 — Messaging
+    Tagline
+    Product Label
+    Product Label / Line
+
+04 — AI Status
+    Status / Indicator
+    Status / Text
+    Status / Microcopy
+
+05 — Progress
+    Progress / Track
+    Progress / Fill
+    Progress / Node
+
+06 — Footer Signature
+    Plan
+    Separator
+    Estimate
+    Separator
+    Understand
+    Separator
+    Build
+
+Use Auto Layout for the central content stack.
+
+==================================================
+23. COMPONENTS
+==================================================
+
+Create reusable components:
+
+Brand / Logo Symbol
+
+Brand / Wordmark
+
+AI / Status Indicator
+
+AI / Status Label
+
+Progress / Construction Line
+
+Blueprint / Decorative Grid
+
+Blueprint / Dimension
+
+==================================================
+24. VARIABLES
+==================================================
+
+Use HOUZEIFY design tokens.
+
+color/brand/primary
+#4C12A1
+
+color/background/primary
+#FBF9F7
+
+color/background/secondary
+#F4F0EC
+
+color/text/primary
+#242326
+
+color/text/secondary
+#68636D
+
+color/text/muted
+#9A949D
+
+color/border/default
+#E3DDD7
+
+color/ai/soft
+#F3EAFF
+
+color/white
+#FFFFFF
+
+==================================================
+25. DESIGN QUALITY BAR
+==================================================
+
+The finished result should look like the opening screen of a premium AI SaaS company.
+
+Reference qualities:
+
+Linear
+Stripe
+Notion
+Perplexity
+Modern AI products
+
+But HOUZEIFY must retain its own:
+
+architectural
+construction
+technical
+purple
+ivory
+
+visual identity.
+
+The screen should communicate in less than 2 seconds:
+
+HOUZEIFY
++
+AI
++
+CONSTRUCTION
++
+PREMIUM TECHNOLOGY
+
+The viewer should immediately understand:
+
+"This is an intelligent construction platform."
+
+==================================================
+26. FINAL DESIGN RULE
+==================================================
+
+LESS IS MORE.
+
+Do not add extra cards.
+
+Do not add buttons.
+
+Do not add navigation.
+
+Do not add photographs.
+
+Do not add a house illustration.
+
+Do not add generic AI graphics.
+
+Do not add unnecessary text.
+
+Use:
+
+THE REAL HOUZEIFY LOGO
++
+ARCHITECTURAL BLUEPRINT LANGUAGE
++
+PREMIUM TYPOGRAPHY
++
+SUBTLE AI SYSTEM DETAILS
++
+GENERATIVE SPACE
+
+The final screen should feel confident, calm and sophisticated.

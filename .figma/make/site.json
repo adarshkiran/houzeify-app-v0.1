@@ -1,0 +1,10 @@
+{
+  "description": "Streamline property management with an intuitive platform that enables users to efficiently organize, track, and manage real estate listings.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
