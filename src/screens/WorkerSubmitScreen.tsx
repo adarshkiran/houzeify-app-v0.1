@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Flex,
   Form,
   Input,
@@ -27,7 +28,13 @@ import {
   workerNextAction,
 } from "../domain/workerTasks"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { getProject, getProjectUnits, getWorkTypeName } from "../mock/selectors"
+import {
+  getChangesRequested,
+  getEvidenceForProgress,
+  getProject,
+  getProjectUnits,
+  getWorkTypeName,
+} from "../mock/selectors"
 import { useCommand } from "../session/useCommand"
 import { useSession } from "../session/SessionProvider"
 import { useSignedInWorker } from "../session/useWorker"
@@ -53,12 +60,14 @@ function SubmitWork({
   projectId: EntityId
   taskId: EntityId
 }) {
-  const { state, submitDailyProgress } = useConstructionData()
+  const { state, submitDailyProgress, resubmitDailyProgress } =
+    useConstructionData()
   const { session } = useSession()
   const worker = useSignedInWorker()
   const run = useCommand()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
   const [evidenceError, setEvidenceError] = useState<string>()
+  const [keptIds, setKeptIds] = useState<string[] | null>(null)
   const [form] = Form.useForm<WorkerProgressValues>()
 
   const found = state.tasks.find(
@@ -124,9 +133,15 @@ function SubmitWork({
     .filter(
       (item) =>
         item.taskId === task.id &&
-        myMembershipIds.has(item.submittedByMembershipId),
+        myMembershipIds.has(item.submittedByMembershipId) &&
+        item.reviewStatus !== "changes-requested" &&
+        item.reviewStatus !== "superseded",
     )
     .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))[0]
+
+  const sentBack = getChangesRequested(state, myMembershipIds, task.id)[0]
+  const sentBackEvidence = sentBack ? getEvidenceForProgress(state, sentBack) : []
+  const kept = keptIds ?? sentBack?.evidenceIds ?? []
 
   const updateEvidence = (next: DraftEvidence[]) => {
     setEvidence(next)
@@ -134,38 +149,47 @@ function SubmitWork({
   }
 
   const handleSubmit = (values: WorkerProgressValues) => {
-    const missing = missingRequiredEvidence(required, evidence)
+    const keptDrafts = sentBackEvidence
+      .filter((item) => kept.includes(item.id))
+      .map(({ type, url, caption }) => ({ type, url, caption: caption ?? "" }))
+    const missing = missingRequiredEvidence(required, [...keptDrafts, ...evidence])
     if (missing.length) {
       setEvidenceError(
         `Add at least one ${missing.join(" and one ")} before sending.`,
       )
       return
     }
+    const fields = {
+      workersPresent: values.workersPresent,
+      completedQuantity: { value: values.completedQuantity, unit: unitOfMeasure },
+      todaySummary: values.todaySummary.trim(),
+      tomorrowPlan: values.tomorrowPlan.trim(),
+      yesterdaySummary: previous?.todaySummary,
+      blockerSummary: values.blockerSummary?.trim() || undefined,
+      evidence: evidence.map(({ type, url, caption }) => ({
+        type,
+        url,
+        caption,
+      })),
+    }
     const outcome = run(
       () =>
-        submitDailyProgress({
-          projectId: task.projectId,
-          projectUnitId: task.projectUnitId,
-          taskId: task.id,
-          stageId: task.stageId,
-          tradeId: task.tradeId,
-          workTypeId: task.workTypeId,
-          workersPresent: values.workersPresent,
-          completedQuantity: {
-            value: values.completedQuantity,
-            unit: unitOfMeasure,
-          },
-          todaySummary: values.todaySummary.trim(),
-          tomorrowPlan: values.tomorrowPlan.trim(),
-          yesterdaySummary: previous?.todaySummary,
-          blockerSummary: values.blockerSummary?.trim() || undefined,
-          evidence: evidence.map(({ type, url, caption }) => ({
-            type,
-            url,
-            caption,
-          })),
-        }),
-      { success: "Sent to your supervisor for review" },
+        sentBack
+          ? resubmitDailyProgress(sentBack.id, { ...fields, keepEvidenceIds: kept })
+          : submitDailyProgress({
+              ...fields,
+              projectId: task.projectId,
+              projectUnitId: task.projectUnitId,
+              taskId: task.id,
+              stageId: task.stageId,
+              tradeId: task.tradeId,
+              workTypeId: task.workTypeId,
+            }),
+      {
+        success: sentBack
+          ? "Sent again to your supervisor"
+          : "Sent to your supervisor for review",
+      },
     )
     if (outcome.ok) backToTask()
   }
@@ -183,11 +207,31 @@ function SubmitWork({
         </Text>
       </Flex>
 
+      {sentBack && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Your supervisor asked for changes"
+          description={sentBack.review?.note}
+        />
+      )}
+
       <Form<WorkerProgressValues>
+        key={sentBack?.id ?? "new"}
         form={form}
         layout="vertical"
         requiredMark={false}
-        initialValues={{ workersPresent: 1 }}
+        initialValues={
+          sentBack
+            ? {
+                workersPresent: sentBack.workersPresent,
+                completedQuantity: sentBack.completedQuantity?.value,
+                todaySummary: sentBack.todaySummary,
+                tomorrowPlan: sentBack.tomorrowPlan,
+                blockerSummary: sentBack.blockerSummary,
+              }
+            : { workersPresent: 1 }
+        }
         onFinish={handleSubmit}
       >
         <Card size="small">
@@ -278,6 +322,21 @@ function SubmitWork({
           }
         >
           <Flex vertical gap="small">
+            {sentBackEvidence.length > 0 && (
+              <Flex vertical gap={6}>
+                <Text type="secondary" className="text-[12px]!">
+                  From your last update — untick to leave out
+                </Text>
+                <Checkbox.Group
+                  value={kept}
+                  onChange={(values) => setKeptIds(values as string[])}
+                  options={sentBackEvidence.map((item) => ({
+                    value: item.id,
+                    label: item.caption || item.type,
+                  }))}
+                />
+              </Flex>
+            )}
             <EvidenceCapture
               value={evidence}
               onChange={updateEvidence}
@@ -314,7 +373,7 @@ function SubmitWork({
           htmlType="submit"
           className="mt-4!"
         >
-          Send to supervisor
+          {sentBack ? "Send again" : "Send to supervisor"}
         </Button>
       </Form>
     </>

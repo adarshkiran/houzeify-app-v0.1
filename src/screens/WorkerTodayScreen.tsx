@@ -15,7 +15,14 @@ import type { Task } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { workerDay, workerNextAction } from "../domain/workerTasks"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { getProject, getProjectUnits, getWorkTypeName } from "../mock/selectors"
+import {
+  getChangesRequested,
+  getMyMembershipIds,
+  getProject,
+  getProjectUnits,
+  getWorkTypeName,
+} from "../mock/selectors"
+import { useSession } from "../session/SessionProvider"
 import { useCommand } from "../session/useCommand"
 import { useSignedInWorker } from "../session/useWorker"
 
@@ -116,6 +123,7 @@ function Section({
 
 function Today({ onNavigate }: { onNavigate: Navigate }) {
   const { state, acceptTaskAssignment, startTask } = useConstructionData()
+  const { session } = useSession()
   const worker = useSignedInWorker()
   const run = useCommand()
 
@@ -132,6 +140,8 @@ function Today({ onNavigate }: { onNavigate: Navigate }) {
   }
 
   const day = workerDay(state, worker.id)
+  const mine = getMyMembershipIds(state, session?.personId)
+  const sentBack = getChangesRequested(state, mine)
   const open = (task: Task) =>
     onNavigate("worker-task", { project_id: task.projectId, task_id: task.id })
   const nothingToDo = day.toAccept.length + day.today.length === 0
@@ -197,6 +207,38 @@ function Today({ onNavigate }: { onNavigate: Navigate }) {
                 : "")}
         </Text>
       </Flex>
+
+      {sentBack.length > 0 && (
+        <Section title="Changes requested" count={sentBack.length}>
+          {sentBack.map((item) => {
+            const task = state.tasks.find((t) => t.id === item.taskId)
+            if (!task) return null
+            return (
+              <Alert
+                key={item.id}
+                type="warning"
+                showIcon
+                message={task.title}
+                description={item.review?.note}
+                action={
+                  <Button
+                    size="small"
+                    type="primary"
+                    onClick={() =>
+                      onNavigate("worker-submit", {
+                        project_id: task.projectId,
+                        task_id: task.id,
+                      })
+                    }
+                  >
+                    Fix and resend
+                  </Button>
+                }
+              />
+            )
+          })}
+        </Section>
+      )}
 
       {day.toAccept.length > 0 && (
         <Section title="New tasks" count={day.toAccept.length}>
