@@ -18,8 +18,6 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
-import { projectIdsWithPermission } from "../domain/session"
-import { useSession } from "../session/SessionProvider"
 import Gated from "../components/Gated"
 import { useAccess } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
@@ -43,13 +41,10 @@ function ReviewQueue({
   const { state, reviewDailyProgress } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
-  const { session } = useSession()
-  const reviewable = useMemo(
-    () =>
-      projectIdsWithPermission(session, state.memberships, Permissions.PROGRESS_REVIEW),
-    [session, state.memberships],
+  // Item-level: a scoped reviewer only sees items inside their scope.
+  const pending = getPendingReview(state, projectId).filter((item) =>
+    can(Permissions.PROGRESS_REVIEW, item.projectId, item),
   )
-  const pending = getPendingReview(state, projectId, reviewable)
   const [selectedId, setSelectedId] = useState<EntityId | undefined>(pending[0]?.id)
   const selected = pending.find((item) => item.id === selectedId) ?? pending[0]
   const project = selected ? getProject(state, selected.projectId) : undefined
@@ -58,7 +53,7 @@ function ReviewQueue({
   const homeownerViewProjectId = projectId ?? selected?.projectId
 
   const canReview = selected
-    ? can(Permissions.PROGRESS_REVIEW, selected.projectId)
+    ? can(Permissions.PROGRESS_REVIEW, selected.projectId, selected)
     : false
 
   const decide = (decision: "approve" | "reject") => {

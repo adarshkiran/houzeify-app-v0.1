@@ -1,6 +1,6 @@
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
-import { useCan } from "../session/useCan"
+import { useAccess, useActableUnits } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
@@ -53,9 +53,15 @@ interface UnitFormValues {
 }
 
 function buildTreeData(units: ReturnType<typeof getProjectUnits>): TreeDataNode[] {
+  // A unit whose parent is hidden (outside the viewer's scope) becomes a root.
+  const visibleIds = new Set(units.map((unit) => unit.id))
   const makeChildren = (parentUnitId?: EntityId): TreeDataNode[] =>
     units
-      .filter((unit) => unit.parentUnitId === parentUnitId)
+      .filter((unit) =>
+        parentUnitId === undefined
+          ? !unit.parentUnitId || !visibleIds.has(unit.parentUnitId)
+          : unit.parentUnitId === parentUnitId,
+      )
       .map((unit) => ({
         key: unit.id,
         icon: unit.kind === "house" || unit.kind === "villa"
@@ -83,11 +89,17 @@ function ProjectStructure({
 }) {
   const { state, addProjectUnit, addProjectUnits } = useConstructionData()
   const run = useCommand()
-  const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
+  const can = useAccess()
+  const manageableUnits = useActableUnits(Permissions.PROJECT_MANAGE, projectId)
+  // A top-level location is a whole-project change; scoped members add beneath their units.
+  const canAddTopLevel = can(Permissions.PROJECT_MANAGE, projectId)
+  const canManage = canAddTopLevel || manageableUnits.length > 0
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<UnitFormValues>()
   const project = getProject(state, projectId)
-  const units = getProjectUnits(state, projectId)
+  const units = getProjectUnits(state, projectId).filter((unit) =>
+    can(Permissions.PROJECT_READ, projectId, { projectUnitId: unit.id }),
+  )
   const treeData = useMemo(() => buildTreeData(units), [units])
   const allowBulk = Boolean(project && isMultiUnitProjectKind(project.kind))
 
@@ -241,11 +253,15 @@ function ProjectStructure({
           initialValues={{ kind: allowBulk ? "villa" : "block", count: 1 }}
           onFinish={handleAddUnit}
         >
-          <Form.Item label="Parent location" name="parentUnitId">
+          <Form.Item
+            label="Parent location"
+            name="parentUnitId"
+            rules={[{ required: !canAddTopLevel, message: "Choose a parent location" }]}
+          >
             <Select
-              allowClear
-              placeholder="Top-level location"
-              options={units.map((unit) => ({
+              allowClear={canAddTopLevel}
+              placeholder={canAddTopLevel ? "Top-level location" : "Choose a location"}
+              options={manageableUnits.map((unit) => ({
                 value: unit.id,
                 label: `${unit.name} · ${unit.kind}`,
               }))}

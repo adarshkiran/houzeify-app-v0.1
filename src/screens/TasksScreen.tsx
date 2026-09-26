@@ -1,6 +1,7 @@
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
-import { useCan } from "../session/useCan"
+import { useAccess, useActableUnits } from "../session/useCan"
+import { useScopedLibrary } from "../session/useScopedLibrary"
 import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
@@ -99,15 +100,24 @@ function Tasks({
 }) {
   const { state, createTask } = useConstructionData()
   const run = useCommand()
-  const canManage = useCan(Permissions.TASK_MANAGE, projectId)
+  const can = useAccess()
+  const creatableUnits = useActableUnits(Permissions.TASK_MANAGE, projectId)
+  const creatableLibrary = useScopedLibrary(Permissions.TASK_MANAGE, projectId)
+  const canManage = creatableUnits.length > 0
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<TaskStatus | "all">("all")
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<TaskFormValues>()
   const project = getProject(state, projectId)
-  const units = getProjectUnits(state, projectId)
-  const tasks = state.tasks.filter((task) => task.projectId === projectId)
+  // Reading follows scope too: a scoped member sees only their own tasks/locations.
+  const units = getProjectUnits(state, projectId).filter((unit) =>
+    can(Permissions.PROJECT_READ, projectId, { projectUnitId: unit.id }),
+  )
+  const tasks = state.tasks.filter(
+    (task) =>
+      task.projectId === projectId && can(Permissions.PROJECT_READ, projectId, task),
+  )
 
   const filteredTasks = useMemo(
     () =>
@@ -310,9 +320,9 @@ function Tasks({
           onFinish={handleCreate}
         >
           <Form.Item label="Project location" name="projectUnitId" rules={[{ required: true }]}>
-            <Select options={units.map((unit) => ({ value: unit.id, label: unit.name }))} />
+            <Select options={creatableUnits.map((unit) => ({ value: unit.id, label: unit.name }))} />
           </Form.Item>
-          <WorkTypeCascadeFields state={state} form={form} includeTitle />
+          <WorkTypeCascadeFields state={creatableLibrary} form={form} includeTitle />
           <Form.Item label="Priority" name="priority">
             <Select
               options={["low", "medium", "high", "critical"].map((value) => ({

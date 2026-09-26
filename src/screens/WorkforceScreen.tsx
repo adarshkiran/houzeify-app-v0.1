@@ -94,8 +94,31 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
 
   const projects = getOrganizationProjects(state, organizationId)
   // Only projects where the person may manage workforce can be chosen in dialogs.
-  const manageableProjects = projects.filter((project) =>
-    can(Permissions.WORKFORCE_MANAGE, project.id),
+  const WF = Permissions.WORKFORCE_MANAGE
+  /** Units of a project the person may assign workers to (their scope). */
+  const workforceUnits = (projectId?: EntityId) =>
+    projectId
+      ? getProjectUnits(state, projectId).filter((unit) =>
+          can(WF, projectId, { projectUnitId: unit.id }),
+        )
+      : []
+  /** "Entire project" is a whole-project change: unscoped members only. */
+  const canAssignWholeProject = (projectId?: EntityId) =>
+    !!projectId && can(WF, projectId)
+  /** Trades the person may assign, within their scope. */
+  const tradesFor = (projectId?: EntityId) =>
+    !projectId
+      ? state.trades
+      : state.trades.filter((trade) =>
+          canAssignWholeProject(projectId)
+            ? can(WF, projectId, { tradeId: trade.id })
+            : workforceUnits(projectId).some((unit) =>
+                can(WF, projectId, { projectUnitId: unit.id, tradeId: trade.id }),
+              ),
+        )
+  const manageableProjects = projects.filter(
+    (project) =>
+      canAssignWholeProject(project.id) || workforceUnits(project.id).length > 0,
   )
   const workers = getOrganizationWorkers(state, organizationId)
 
@@ -269,10 +292,8 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     },
   ]
 
-  const addUnits = addProjectId ? getProjectUnits(state, addProjectId) : []
-  const assignUnits = assignProjectId
-    ? getProjectUnits(state, assignProjectId)
-    : []
+  const addUnits = workforceUnits(addProjectId)
+  const assignUnits = workforceUnits(assignProjectId)
 
   return (
     <Layout className="company-dashboard h-full">
@@ -447,7 +468,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               showSearch
               optionFilterProp="label"
               placeholder="e.g. Reinforcement"
-              options={state.trades.map((trade) => ({
+              options={tradesFor(addProjectId).map((trade) => ({
                 value: trade.id,
                 label: trade.name,
               }))}
@@ -477,11 +498,22 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
           </Form.Item>
           {addProjectId ? (
             <>
-              <Form.Item label="Location scope" name="projectUnitIds">
+              <Form.Item
+                label="Location scope"
+                name="projectUnitIds"
+                rules={[
+                  {
+                    required: !canAssignWholeProject(addProjectId),
+                    message: "Choose at least one location",
+                  },
+                ]}
+              >
                 <Select
                   mode="multiple"
                   allowClear
-                  placeholder="Entire project"
+                  placeholder={
+                    canAssignWholeProject(addProjectId) ? "Entire project" : "Choose locations"
+                  }
                   options={addUnits.map((unit) => ({
                     value: unit.id,
                     label: `${unit.name} · ${unit.kind}`,
@@ -572,18 +604,29 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               mode="multiple"
               showSearch
               optionFilterProp="label"
-              options={state.trades.map((trade) => ({
+              options={tradesFor(assignProjectId).map((trade) => ({
                 value: trade.id,
                 label: trade.name,
               }))}
             />
           </Form.Item>
           {assignProjectId ? (
-            <Form.Item label="Location scope" name="projectUnitIds">
+            <Form.Item
+              label="Location scope"
+              name="projectUnitIds"
+              rules={[
+                {
+                  required: !canAssignWholeProject(assignProjectId),
+                  message: "Choose at least one location",
+                },
+              ]}
+            >
               <Select
                 mode="multiple"
                 allowClear
-                placeholder="Entire project"
+                placeholder={
+                  canAssignWholeProject(assignProjectId) ? "Entire project" : "Choose locations"
+                }
                 options={assignUnits.map((unit) => ({
                   value: unit.id,
                   label: `${unit.name} · ${unit.kind}`,
