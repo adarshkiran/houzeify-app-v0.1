@@ -21,6 +21,7 @@ export type AppScreen =
   | "project-structure"
   | "project-team"
   | "work-library"
+  | "workforce"
   | "work-plan"
   | "tasks"
   | "task-detail"
@@ -55,6 +56,7 @@ const appScreens = new Set<AppScreen>([
   "project-structure",
   "project-team",
   "work-library",
+  "workforce",
   "work-plan",
   "tasks",
   "task-detail",

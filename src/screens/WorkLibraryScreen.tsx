@@ -5,6 +5,7 @@ import {
   ProjectOutlined,
   SearchOutlined,
   SnippetsOutlined,
+  TeamOutlined,
 } from "@ant-design/icons"
 import {
   Button,
@@ -191,10 +192,12 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
               { key: "home", icon: <HomeOutlined />, label: "Company Home" },
               { key: "projects", icon: <ProjectOutlined />, label: "Projects" },
               { key: "library", icon: <SnippetsOutlined />, label: "Work Library" },
+              { key: "workforce", icon: <TeamOutlined />, label: "Workforce" },
             ]}
             onClick={({ key }) => {
               if (key === "home") onNavigate("company-dashboard")
               if (key === "projects") onNavigate("company-projects")
+              if (key === "workforce") onNavigate("workforce")
             }}
           />
         </Flex>

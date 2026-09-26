@@ -24,6 +24,7 @@ const CompanyCreateProjectScreen = lazy(() => import('./screens/CompanyCreatePro
 const ProjectStructureScreen = lazy(() => import('./screens/ProjectStructureScreen'))
 const ProjectTeamScreen = lazy(() => import('./screens/ProjectTeamScreen'))
 const WorkLibraryScreen = lazy(() => import('./screens/WorkLibraryScreen'))
+const WorkforceScreen = lazy(() => import('./screens/WorkforceScreen'))
 const WorkPlanScreen = lazy(() => import('./screens/WorkPlanScreen'))
 const TasksScreen = lazy(() => import('./screens/TasksScreen'))
 const TaskDetailScreen = lazy(() => import('./screens/TaskDetailScreen'))
@@ -256,6 +257,13 @@ export default function App() {
         <div style={{ ...slide }}>
           <Suspense fallback={null}>
             <WorkLibraryScreen onNavigate={navigateTo} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'workforce' && (
+        <div style={{ ...slide }}>
+          <Suspense fallback={null}>
+            <WorkforceScreen onNavigate={navigateTo} />
           </Suspense>
         </div>
       )}

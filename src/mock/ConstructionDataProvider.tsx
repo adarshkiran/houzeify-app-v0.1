@@ -31,6 +31,7 @@ import type {
   Trade,
   WorkPlanItem,
   WorkType,
+  Worker,
   WorkerProjectAssignment,
 } from "../domain/models"
 import { calculateProjectProgress } from "../domain/progress"
@@ -155,6 +156,19 @@ export interface AssignWorkerToProjectInput {
   assignedByMembershipId?: EntityId
 }
 
+export interface AddWorkerInput {
+  organizationId: EntityId
+  name: string
+  phone?: string
+  tradeIds: EntityId[]
+  preferredLanguage?: string
+  onboardingMethod?: Worker["onboardingMethod"]
+  projectId?: EntityId
+  projectUnitIds?: EntityId[]
+  role?: WorkerProjectAssignment["role"]
+  assignedByMembershipId?: EntityId
+}
+
 export interface AddLibraryStageInput {
   name: string
   code?: string
@@ -196,6 +210,10 @@ interface ConstructionDataContextValue {
   assignWorkerToProject: (
     input: AssignWorkerToProjectInput,
   ) => WorkerProjectAssignment
+  addWorker: (input: AddWorkerInput) => {
+    worker: Worker
+    assignment?: WorkerProjectAssignment
+  }
   addLibraryStage: (input: AddLibraryStageInput) => ConstructionStage
   addLibraryTrade: (input: AddLibraryTradeInput) => Trade
   addLibraryWorkType: (input: AddLibraryWorkTypeInput) => {
@@ -504,17 +522,63 @@ export default function ConstructionDataProvider({
         assignedAt: new Date().toISOString(),
         assignedByMembershipId: input.assignedByMembershipId,
       }
-      setState((current) => ({
-        ...current,
-        workerProjectAssignments: [
-          ...current.workerProjectAssignments,
-          assignment,
-        ],
-      }))
+      setState((current) => {
+        const alreadyAssigned = current.workerProjectAssignments.some(
+          (item) =>
+            item.workerId === input.workerId &&
+            item.projectId === input.projectId &&
+            item.status === "active",
+        )
+        if (alreadyAssigned) return current
+        return {
+          ...current,
+          workerProjectAssignments: [
+            ...current.workerProjectAssignments,
+            assignment,
+          ],
+        }
+      })
       return assignment
     },
     [],
   )
+
+  const addWorker = useCallback((input: AddWorkerInput) => {
+    const worker: Worker = {
+      id: `worker-${crypto.randomUUID().slice(0, 8)}`,
+      organizationId: input.organizationId,
+      name: input.name.trim(),
+      phone: input.phone?.trim() || undefined,
+      tradeIds: input.tradeIds,
+      preferredLanguage: input.preferredLanguage ?? "en",
+      onboardingMethod: input.onboardingMethod ?? "manual",
+      status: "active",
+    }
+    let assignment: WorkerProjectAssignment | undefined
+    if (input.projectId) {
+      assignment = {
+        id: `wpa-${crypto.randomUUID()}`,
+        workerId: worker.id,
+        projectId: input.projectId,
+        projectUnitIds: input.projectUnitIds ?? [],
+        tradeIds: input.tradeIds,
+        role: input.role ?? "worker",
+        status: "active",
+        assignedAt: new Date().toISOString(),
+        assignedByMembershipId: input.assignedByMembershipId,
+      }
+    }
+
+    setState((current) => ({
+      ...current,
+      workers: [...current.workers, worker],
+      workerProjectAssignments: assignment
+        ? [...current.workerProjectAssignments, assignment]
+        : current.workerProjectAssignments,
+    }))
+
+    return { worker, assignment }
+  }, [])
 
   const addEvidence = useCallback((input: AddEvidenceInput) => {
     const evidence = buildEvidence(input)
@@ -841,6 +905,7 @@ export default function ConstructionDataProvider({
       createTask,
       assignTask,
       assignWorkerToProject,
+      addWorker,
       addLibraryStage,
       addLibraryTrade,
       addLibraryWorkType,
@@ -860,6 +925,7 @@ export default function ConstructionDataProvider({
       createTask,
       assignTask,
       assignWorkerToProject,
+      addWorker,
       addLibraryStage,
       addLibraryTrade,
       addLibraryWorkType,
