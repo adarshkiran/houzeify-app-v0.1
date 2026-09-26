@@ -8,9 +8,15 @@ import type {
   ProjectUnit,
   Task,
 } from "./models"
-import { permissionsForRole } from "./permissions"
+import { Permissions, permissionsForRole } from "./permissions"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
-import { PermissionError, scopeCovers, type Session } from "./session"
+import {
+  actableUnits,
+  canAct,
+  PermissionError,
+  scopeCovers,
+  type Session,
+} from "./session"
 
 const clock: Clock = { now: () => new Date("2026-09-27T09:30:00.000Z") }
 function ids(): IdGenerator {
@@ -249,5 +255,46 @@ describe("several memberships on one project", () => {
     const inactive = { ...b, status: "inactive" as const }
     const s2 = world([a, inactive])
     expect(() => commands.createTask(taskInput("block-b"))(s2, ctxFor(sup))).toThrow(PermissionError)
+  })
+})
+
+describe("UI helpers reuse the same scope semantics", () => {
+  const state = world([scoped({ projectUnitIds: ["block-a"] })])
+  const all = state.projectUnits.filter((u) => u.projectId === P)
+
+  it("canAct mirrors what the commands allow", () => {
+    const can = (unitId?: string) =>
+      canAct(sup, state.memberships, state.projectUnits, P, [Permissions.TASK_MANAGE], { projectUnitId: unitId })
+    expect(can("floor-a1")).toBe(true)
+    expect(can("block-b")).toBe(false)
+    expect(can(undefined)).toBe(false)
+  })
+
+  it("actableUnits lists the scope's units and their descendants only", () => {
+    const ids = actableUnits(sup, state.memberships, all, P, [Permissions.TASK_MANAGE]).map((u) => u.id)
+    expect(ids.sort()).toEqual(["block-a", "floor-a1", "floor-a2"])
+  })
+
+  it("an unscoped member can act on every unit and on the whole project", () => {
+    const ids = actableUnits(manager, state.memberships, all, P, [Permissions.TASK_MANAGE]).map((u) => u.id)
+    expect(ids).toHaveLength(all.length)
+    expect(canAct(manager, state.memberships, all, P, [Permissions.PROJECT_MANAGE], {})).toBe(true)
+  })
+
+  it("union across memberships and permission-awareness", () => {
+    const two = world([scoped({ projectUnitIds: ["block-a"] }, "supervisor", "m-a"), scoped({ projectUnitIds: ["block-b"] }, "supervisor", "m-b")])
+    const ids = actableUnits(sup, two.memberships, all, P, [Permissions.TASK_MANAGE]).map((u) => u.id)
+    expect(ids).toContain("block-b")
+    expect(ids).toContain("floor-a2")
+    // supervisors lack PROJECT_MANAGE, so nothing is actable for it
+    expect(actableUnits(sup, two.memberships, all, P, [Permissions.PROJECT_MANAGE])).toEqual([])
+  })
+
+  it("read scope hides out-of-scope items from lists", () => {
+    const visible = state.tasks.filter((t) =>
+      canAct(sup, state.memberships, state.projectUnits, P, [Permissions.PROJECT_READ], t),
+    )
+    expect(visible.map((t) => t.id)).toContain("task-a1")
+    expect(visible.map((t) => t.id)).not.toContain("task-b")
   })
 })

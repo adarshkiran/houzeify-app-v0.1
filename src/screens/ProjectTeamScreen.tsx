@@ -117,7 +117,13 @@ function ProjectTeam({
       dataIndex: "status",
       key: "status",
       render: (status: ProjectMembership["status"]) => (
-        <Tag color={status === "active" ? "success" : "processing"}>{status}</Tag>
+        <Tag color={status === "active" ? "success" : "processing"}>
+          {status === "invited"
+            ? "Pending invitation"
+            : status === "active"
+              ? "Active"
+              : "Inactive"}
+        </Tag>
       ),
     },
   ]
@@ -186,7 +192,10 @@ function ProjectTeam({
                 </Title>
               }
               extra={
-                <Gated allowed={canManage}>
+                <Gated
+                allowed={canManage}
+                reason="Inviting members needs project-wide access."
+              >
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
@@ -208,7 +217,10 @@ function ProjectTeam({
                 />
               ) : (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No members yet">
-                  <Gated allowed={canManage}>
+                  <Gated
+                allowed={canManage}
+                reason="Inviting members needs project-wide access."
+              >
                     <Button
                       type="primary"
                       icon={<PlusOutlined />}

@@ -1,6 +1,7 @@
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
-import { useCan } from "../session/useCan"
+import { useAccess, useActableUnits } from "../session/useCan"
+import { useScopedLibrary } from "../session/useScopedLibrary"
 import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
@@ -68,12 +69,18 @@ function WorkPlan({
 }) {
   const { state, addWorkPlanItem } = useConstructionData()
   const run = useCommand()
-  const canManage = useCan(Permissions.TASK_MANAGE, projectId)
+  const can = useAccess()
+  const creatableUnits = useActableUnits(Permissions.TASK_MANAGE, projectId)
+  const creatableLibrary = useScopedLibrary(Permissions.TASK_MANAGE, projectId)
+  const canManage = creatableUnits.length > 0
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<PlanFormValues>()
   const project = getProject(state, projectId)
-  const units = getProjectUnits(state, projectId)
-  const items = state.workPlanItems.filter((item) => item.projectId === projectId)
+  const units = getProjectUnits(state, projectId) // name lookup for table rows
+  const items = state.workPlanItems.filter(
+    (item) =>
+      item.projectId === projectId && can(Permissions.PROJECT_READ, projectId, item),
+  )
 
   const columns: TableProps<WorkPlanItem>["columns"] = [
     {
@@ -214,13 +221,13 @@ function WorkPlan({
         >
           <Form.Item label="Project location" name="projectUnitId" rules={[{ required: true }]}>
             <Select
-              options={units.map((unit) => ({
+              options={creatableUnits.map((unit) => ({
                 value: unit.id,
                 label: `${unit.name} · ${unit.kind}`,
               }))}
             />
           </Form.Item>
-          <WorkTypeCascadeFields state={state} form={form} />
+          <WorkTypeCascadeFields state={creatableLibrary} form={form} />
           <Row gutter={16}>
             <Col span={14}>
               <Form.Item label="Planned quantity" name="plannedValue" rules={[{ required: true }]}>

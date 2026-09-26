@@ -28,7 +28,7 @@ import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
-import { useCan } from "../session/useCan"
+import { useAccess } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
 import {
   getAllowedTaskTransitions,
@@ -63,12 +63,12 @@ function TaskDetail({
 }) {
   const { state, assignTask, transitionTask } = useConstructionData()
   const run = useCommand()
-  const canManageTasks = useCan(Permissions.TASK_MANAGE, projectId)
-  const canSubmitProgress = useCan(Permissions.PROGRESS_SUBMIT, projectId)
-  // Workers who can submit progress may also start/pause their own work.
-  const canMoveTask = canManageTasks || canSubmitProgress
+  const can = useAccess()
   const [assigneeId, setAssigneeId] = useState<EntityId>()
-  const task = state.tasks.find((item) => item.id === taskId)
+  // A task outside the viewer's scope is treated as not available.
+  const found = state.tasks.find((item) => item.id === taskId)
+  const task =
+    found && can(Permissions.PROJECT_READ, projectId, found) ? found : undefined
   const project = getProject(state, projectId)
   const unit = getProjectUnits(state, projectId).find(
     (item) => item.id === task?.projectUnitId,
@@ -92,6 +92,11 @@ function TaskDetail({
     )
   }
 
+  // Scope-aware: what the person may do to *this* task.
+  const canManageTasks = can(Permissions.TASK_MANAGE, projectId, task)
+  const canSubmitProgress = can(Permissions.PROGRESS_SUBMIT, projectId, task)
+  // Workers who can submit progress may also start/pause their own work.
+  const canMoveTask = canManageTasks || canSubmitProgress
   const transitions = getAllowedTaskTransitions(task.status)
   const assignments = state.assignments.filter(
     (assignment) => assignment.taskId === task.id,

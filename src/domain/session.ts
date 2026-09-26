@@ -164,6 +164,38 @@ export function authorizingMembership(
   )
 }
 
+/** Whether the person can act on `target` in this project (mirrors the commands). */
+export function canAct(
+  session: Session | null,
+  memberships: readonly ProjectMembership[],
+  units: readonly ProjectUnit[],
+  projectId: EntityId,
+  permissions: readonly Permission[],
+  target: ScopeTarget,
+): boolean {
+  return (
+    authorizingMembership(session, memberships, units, projectId, permissions, target) !==
+    undefined
+  )
+}
+
+/** The project's units the person can act on, for building pickers. */
+export function actableUnits(
+  session: Session | null,
+  memberships: readonly ProjectMembership[],
+  units: readonly ProjectUnit[],
+  projectId: EntityId,
+  permissions: readonly Permission[],
+): ProjectUnit[] {
+  return units.filter(
+    (unit) =>
+      unit.projectId === projectId &&
+      canAct(session, memberships, units, projectId, permissions, {
+        projectUnitId: unit.id,
+      }),
+  )
+}
+
 export class PermissionError extends Error {
   constructor(
     public readonly permission: Permission,

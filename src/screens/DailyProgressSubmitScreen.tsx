@@ -29,6 +29,8 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import VoiceTextArea from "../components/VoiceTextArea"
 import type { EntityId, EvidenceType } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import { Permissions } from "../domain/permissions"
+import { useAccess } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
@@ -74,6 +76,7 @@ function SubmitProgress({
 }) {
   const { state, submitDailyProgress } = useConstructionData()
   const run = useCommand()
+  const can = useAccess()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraMode, setCameraMode] = useState<CameraCaptureMode>("photo")
@@ -81,7 +84,12 @@ function SubmitProgress({
   const videoInputRef = useRef<HTMLInputElement>(null)
   const [form] = Form.useForm<ProgressFormValues>()
   const project = getProject(state, projectId)
-  const tasks = state.tasks.filter((task) => task.projectId === projectId)
+  // Only tasks the person may submit progress on (their own scope).
+  const tasks = state.tasks.filter(
+    (task) =>
+      task.projectId === projectId &&
+      can(Permissions.PROGRESS_SUBMIT, projectId, task),
+  )
   const selectedTaskId = Form.useWatch("taskId", form) ?? taskId
   const task = tasks.find((item) => item.id === selectedTaskId)
   const unit = getProjectUnits(state, projectId).find(
