@@ -28,7 +28,7 @@ import {
   useConstructionData,
   type CreateProjectInput,
 } from "../mock/ConstructionDataProvider"
-import { ACTIVE_ORGANIZATION_ID } from "../mock/seed"
+import { useOrganizationId } from "../session/SessionProvider"
 
 const { Paragraph, Text, Title } = Typography
 
@@ -46,11 +46,12 @@ interface ProjectFormValues {
 function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
   const { createProject } = useConstructionData()
   const run = useCommand()
+  const organizationId = useOrganizationId()
 
   const handleFinish = (values: ProjectFormValues) => {
     const input: CreateProjectInput = {
       ...values,
-      organizationId: ACTIVE_ORGANIZATION_ID,
+      organizationId,
       trackingStartedMidProject: Boolean(values.trackingStartedMidProject),
     }
     const outcome = run(() => createProject(input), { success: "Project created" })

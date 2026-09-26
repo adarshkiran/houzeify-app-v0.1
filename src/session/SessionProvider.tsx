@@ -6,25 +6,18 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import type { Session } from "../domain/session"
+import type { EntityId } from "../domain/models"
+import { parseStoredSession, type Session } from "../domain/session"
+import { ACTIVE_ORGANIZATION_ID } from "../mock/seed"
 
 const SESSION_KEY = "houzeify:session"
 
 function readStoredSession(): Session | null {
   try {
-    const raw = window.localStorage.getItem(SESSION_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<Session>
-    if (
-      (parsed.accountType === "homeowner" || parsed.accountType === "business") &&
-      typeof parsed.personId === "string"
-    ) {
-      return parsed as Session
-    }
+    return parseStoredSession(window.localStorage.getItem(SESSION_KEY))
   } catch {
-    // Storage unavailable or corrupt: behave as signed out.
+    return null // storage unavailable
   }
-  return null
 }
 
 function writeStoredSession(session: Session | null) {
@@ -70,12 +63,21 @@ export function useSession(): SessionContextValue {
   return context
 }
 
+/** The signed-in business's organization. Only call from business-only screens. */
+export function useOrganizationId(): EntityId {
+  const { session } = useSession()
+  if (!session?.organizationId) {
+    throw new Error("useOrganizationId needs a business session")
+  }
+  return session.organizationId
+}
+
 /** Demo identities the prototype signs in as after onboarding (no real auth yet). */
 export const DEMO_IDENTITIES = {
   business: {
     accountType: "business",
     personId: "person-arjun",
-    organizationId: "org-buildright",
+    organizationId: ACTIVE_ORGANIZATION_ID,
   },
   homeowner: {
     accountType: "homeowner",

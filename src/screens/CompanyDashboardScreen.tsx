@@ -47,7 +47,7 @@ import HIcon from "../components/HIcon"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { DailyProgress, Issue, Task } from "../domain/models"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { ACTIVE_ORGANIZATION_ID } from "../mock/seed"
+import { useOrganizationId } from "../session/SessionProvider"
 import {
   type DashboardProject,
   getOrganizationDashboard,
@@ -227,7 +227,8 @@ function CompanyDashboard({
   onNavigate: (screen: string, data?: Record<string, string>) => void
 }) {
   const { state } = useConstructionData()
-  const dashboard = getOrganizationDashboard(state, ACTIVE_ORGANIZATION_ID)
+  const organizationId = useOrganizationId()
+  const dashboard = getOrganizationDashboard(state, organizationId)
   const navItems = buildMenuItems(
     dashboard.projects.length,
     dashboard.openIssues.length,

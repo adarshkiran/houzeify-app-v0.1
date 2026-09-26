@@ -46,7 +46,7 @@ import {
   useConstructionData,
   type AddWorkerInput,
 } from "../mock/ConstructionDataProvider"
-import { ACTIVE_ORGANIZATION_ID } from "../mock/seed"
+import { useOrganizationId } from "../session/SessionProvider"
 import {
   getOrganizationProjects,
   getProjectUnits,
@@ -78,6 +78,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const { state, addWorker, assignWorkerToProject } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
+  const organizationId = useOrganizationId()
   const [search, setSearch] = useState("")
   const [projectFilter, setProjectFilter] = useState<string>("all")
   const [tradeFilter, setTradeFilter] = useState<string>("all")
@@ -91,12 +92,12 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const addProjectId = Form.useWatch("projectId", addForm)
   const assignProjectId = Form.useWatch("projectId", assignForm)
 
-  const projects = getOrganizationProjects(state, ACTIVE_ORGANIZATION_ID)
+  const projects = getOrganizationProjects(state, organizationId)
   // Only projects where the person may manage workforce can be chosen in dialogs.
   const manageableProjects = projects.filter((project) =>
     can(Permissions.WORKFORCE_MANAGE, project.id),
   )
-  const workers = getOrganizationWorkers(state, ACTIVE_ORGANIZATION_ID)
+  const workers = getOrganizationWorkers(state, organizationId)
 
   const filteredWorkers = useMemo(() => {
     return workers.filter((worker) => {
@@ -147,7 +148,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
 
   const handleAdd = (values: AddWorkerFormValues) => {
     const input: AddWorkerInput = {
-      organizationId: ACTIVE_ORGANIZATION_ID,
+      organizationId,
       name: values.name,
       phone: values.phone,
       tradeIds: values.tradeIds,
