@@ -72,3 +72,16 @@ export const SITE_TASK_STATUSES: readonly TaskStatus[] = [
 export function isSiteTaskStatus(status: TaskStatus): boolean {
   return SITE_TASK_STATUSES.includes(status)
 }
+
+/**
+ * After a reviewer asks for changes, put the linked task back in progress
+ * (via reopened) so the submitter can fix it and resend.
+ */
+export function statusAfterChangesRequested(
+  status: TaskStatus,
+): TaskStatus | null {
+  let current = status
+  if (canTransitionTask(current, "reopened")) current = "reopened"
+  if (canTransitionTask(current, "in-progress")) current = "in-progress"
+  return current === status ? null : current
+}

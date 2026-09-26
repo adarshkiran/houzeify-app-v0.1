@@ -3,6 +3,7 @@ import { seedConstructionData } from "../mock/seed"
 import {
   getCustomerVisibleEvidence,
   getEvidenceForProgress,
+  getPublishedEvidence,
   getPublishedForCustomer,
 } from "../mock/selectors"
 import { Permissions, hasPermission, permissionsForRole } from "./permissions"
@@ -39,6 +40,20 @@ describe("published-only customer visibility", () => {
     expect(
       visible.every((item) => item.customerVisibility === "customer-visible"),
     ).toBe(true)
+  })
+
+  it("shows the homeowner only what was chosen at publishing", () => {
+    const progress = seedConstructionData.dailyProgress.find((item) => item.id === "progress-sharma-2009")!
+    const narrowed = {
+      ...seedConstructionData,
+      dailyProgress: seedConstructionData.dailyProgress.map((item) =>
+        item.id === progress.id
+          ? { ...item, publication: { ...item.publication!, evidenceIds: ["evidence-sharma-1"] } }
+          : item,
+      ),
+    }
+    const shown = getPublishedEvidence(narrowed, narrowed.dailyProgress.find((item) => item.id === progress.id)!)
+    expect(shown.map((item) => item.id)).toEqual(["evidence-sharma-1"])
   })
 })
 

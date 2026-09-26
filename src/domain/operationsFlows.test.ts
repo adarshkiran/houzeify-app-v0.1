@@ -116,8 +116,8 @@ describe("Daily progress: submit then approve", () => {
 
     const approved = commands.reviewDailyProgress(submitted.result.id, "approve")(submitted.state, c)
     const item = approved.state.dailyProgress.find((p) => p.id === submitted.result.id)!
-    expect(item.publicationStatus).toBe("published")
-    expect(approved.state.evidence.filter((e) => e.dailyProgressId === item.id).every((e) => e.customerVisibility === "customer-visible")).toBe(true)
+    expect(item.publicationStatus).toBe("private")
+    expect(approved.state.evidence.filter((e) => e.dailyProgressId === item.id).every((e) => e.customerVisibility === "review-required")).toBe(true)
     const before = state.projects.find((p) => p.id === project.id)!.progress
     const after = approved.state.projects.find((p) => p.id === project.id)!.progress
     expect(after).toBeGreaterThanOrEqual(before)

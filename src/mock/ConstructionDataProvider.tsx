@@ -19,6 +19,7 @@ import type {
   Project,
   ProjectMembership,
   ProjectUnit,
+  ReviewDecision,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -60,6 +61,7 @@ export type {
   InviteProjectMemberInput,
   IssueEvidenceInput,
   ReportIssueInput,
+  ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
 } from "../domain/commandInputs"
 
@@ -70,6 +72,10 @@ interface ConstructionDataContextValue {
     input: Inputs.BusinessProfileInput,
   ) => void
   createProject: (input: Inputs.CreateProjectInput) => Project
+  setStageBaselines: (
+    projectId: EntityId,
+    baselines: Record<EntityId, number>,
+  ) => Project
   addProjectUnit: (input: Inputs.AddProjectUnitInput) => ProjectUnit
   addProjectUnits: (inputs: Inputs.AddProjectUnitInput[]) => ProjectUnit[]
   inviteProjectMember: (input: Inputs.InviteProjectMemberInput) => ProjectMembership
@@ -98,10 +104,16 @@ interface ConstructionDataContextValue {
   startTask: (taskId: EntityId) => void
   addEvidence: (input: Inputs.AddEvidenceInput) => Evidence
   submitDailyProgress: (input: Inputs.SubmitDailyProgressInput) => DailyProgress
+  resubmitDailyProgress: (
+    previousId: EntityId,
+    input: Inputs.ResubmitDailyProgressInput,
+  ) => DailyProgress
   reviewDailyProgress: (
     progressId: EntityId,
-    decision: "approve" | "reject",
+    decision: ReviewDecision,
+    note?: string,
   ) => void
+  publishDailyProgress: (progressId: EntityId, evidenceIds: EntityId[]) => void
   reportIssue: (input: Inputs.ReportIssueInput) => Issue
   assignIssue: (issueId: EntityId, membershipId: EntityId | undefined) => void
   transitionIssue: (
@@ -172,6 +184,8 @@ export default function ConstructionDataProvider({
       updateOrganizationProfile: (id, input) =>
         run(commands.updateOrganizationProfile(id, input)),
       createProject: (input) => run(commands.createProject(input)),
+      setStageBaselines: (id, baselines) =>
+        run(commands.setStageBaselines(id, baselines)),
       addProjectUnit: (input) => run(commands.addProjectUnit(input)),
       addProjectUnits: (inputs) => run(commands.addProjectUnits(inputs)),
       inviteProjectMember: (input) => run(commands.inviteProjectMember(input)),
@@ -192,8 +206,12 @@ export default function ConstructionDataProvider({
       startTask: (taskId) => run(commands.startTask(taskId)),
       addEvidence: (input) => run(commands.addEvidence(input)),
       submitDailyProgress: (input) => run(commands.submitDailyProgress(input)),
-      reviewDailyProgress: (id, decision) =>
-        run(commands.reviewDailyProgress(id, decision)),
+      resubmitDailyProgress: (id, input) =>
+        run(commands.resubmitDailyProgress(id, input)),
+      reviewDailyProgress: (id, decision, note) =>
+        run(commands.reviewDailyProgress(id, decision, note)),
+      publishDailyProgress: (id, evidenceIds) =>
+        run(commands.publishDailyProgress(id, evidenceIds)),
       reportIssue: (input) => run(commands.reportIssue(input)),
       assignIssue: (id, membershipId) =>
         run(commands.assignIssue(id, membershipId)),

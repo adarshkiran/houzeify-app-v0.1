@@ -89,7 +89,7 @@ function ProjectStructure({
   /** Reached from project creation: show the steps and the continue button. */
   setup: boolean
 }) {
-  const { state, addProjectUnit, addProjectUnits } = useConstructionData()
+  const { state, addProjectUnit, addProjectUnits, setStageBaselines } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
   const manageableUnits = useActableUnits(Permissions.PROJECT_MANAGE, projectId)
@@ -104,6 +104,22 @@ function ProjectStructure({
   )
   const treeData = useMemo(() => buildTreeData(units), [units])
   const allowBulk = Boolean(project && isMultiUnitProjectKind(project.kind))
+  const stages = [...state.stages].sort((a, b) => a.sequence - b.sequence)
+  const [baselines, setBaselines] = useState<Record<string, number>>(() => project?.stageBaselines ?? {})
+  const saveBaselines = () =>
+    run(() => setStageBaselines(projectId, baselines), { success: "Work already done saved" })
+  const showBaselines = Boolean(setup && project?.trackingStartedMidProject)
+  const baselinesEdited = Boolean(
+    project &&
+      [...new Set([...Object.keys(baselines), ...Object.keys(project.stageBaselines)])].some(
+        (stageId) => (baselines[stageId] ?? 0) !== (project.stageBaselines[stageId] ?? 0),
+      ),
+  )
+  // Unsaved "work already done" edits are saved on the way out, not lost.
+  const continueToTeam = () => {
+    if (showBaselines && baselinesEdited && !saveBaselines().ok) return
+    onNavigate("project-team", { project_id: projectId, setup: "1" })
+  }
 
   const handleAddUnit = (values: UnitFormValues) => {
     const count = values.count && values.count > 1 ? Math.floor(values.count) : 1
@@ -169,6 +185,41 @@ function ProjectStructure({
           </Card>
         )}
 
+        {showBaselines && project && (
+          <Card
+            title={<Title level={5} className="company-heading! m-0!">Work already done</Title>}
+            extra={<Text type="secondary">Project progress now: {project.progress}%</Text>}
+          >
+            <Flex vertical gap="middle">
+              <Text type="secondary">
+                How complete was each stage when you started tracking? Leave 0 for stages not started.
+              </Text>
+              <Row gutter={[16, 8]}>
+                {stages.map((stage) => (
+                  <Col key={stage.id} xs={24} sm={12} lg={8}>
+                    <Flex align="center" justify="space-between" gap="small">
+                      <Text>{stage.name}</Text>
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        suffix="%"
+                        value={baselines[stage.id] ?? 0}
+                        onChange={(value) => setBaselines((current) => ({ ...current, [stage.id]: value ?? 0 }))}
+                        aria-label={`${stage.name} already complete`}
+                      />
+                    </Flex>
+                  </Col>
+                ))}
+              </Row>
+              <Flex justify="flex-end">
+                <Gated allowed={canAddTopLevel}>
+                  <Button onClick={saveBaselines}>Save</Button>
+                </Gated>
+              </Flex>
+            </Flex>
+          </Card>
+        )}
+
         <Card
           title={
             <Title level={5} className="company-heading! m-0!">
@@ -201,7 +252,7 @@ function ProjectStructure({
             <Button
               type="primary"
               disabled={!units.length}
-              onClick={() => onNavigate("project-team", { project_id: projectId, setup: "1" })}
+              onClick={continueToTeam}
             >
               Continue to project team
             </Button>

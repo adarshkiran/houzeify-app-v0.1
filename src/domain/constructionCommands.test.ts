@@ -190,7 +190,7 @@ describe("addProjectUnits", () => {
 })
 
 describe("daily progress review", () => {
-  it("approve publishes the item and is idempotent", () => {
+  it("approve keeps the item private and is idempotent", () => {
     const ctx = ctxFor(manager)
     const submitted = commands.submitDailyProgress(submitInput())(state, ctx)
     const approved = commands.reviewDailyProgress(
@@ -201,12 +201,13 @@ describe("daily progress review", () => {
       (p) => p.id === submitted.result.id,
     )!
     expect(item.reviewStatus).toBe("approved")
-    expect(item.publicationStatus).toBe("published")
+    expect(item.publicationStatus).toBe("private")
 
-    const again = commands.reviewDailyProgress(submitted.result.id, "reject")(
-      approved.state,
-      ctx,
-    )
+    const again = commands.reviewDailyProgress(
+      submitted.result.id,
+      "reject",
+      "Late",
+    )(approved.state, ctx)
     expect(again.state).toBe(approved.state)
   })
 })

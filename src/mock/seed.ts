@@ -241,6 +241,7 @@ const projects: Project[] = [
     currentStageId: "stage-foundation",
     progress: 34,
     trackingStartedMidProject: false,
+    stageBaselines: { "stage-site-prep": 100, "stage-foundation": 90, "stage-rcc": 73 },
     createdAt: "2026-05-22T09:00:00+05:30",
     updatedAt: "2026-09-20T08:15:00+05:30",
   },
@@ -257,6 +258,10 @@ const projects: Project[] = [
     currentStageId: "stage-foundation",
     progress: 67,
     trackingStartedMidProject: true,
+    stageBaselines: {
+      "stage-site-prep": 100, "stage-foundation": 100, "stage-rcc": 100,
+      "stage-masonry": 100, "stage-plaster": 80, "stage-waterproofing": 100,
+    },
     createdAt: "2026-04-02T10:00:00+05:30",
     updatedAt: "2026-09-19T16:40:00+05:30",
   },
@@ -273,6 +278,11 @@ const projects: Project[] = [
     currentStageId: "stage-rcc",
     progress: 81,
     trackingStartedMidProject: true,
+    stageBaselines: {
+      "stage-site-prep": 100, "stage-foundation": 100, "stage-rcc": 96,
+      "stage-masonry": 100, "stage-plaster": 100, "stage-waterproofing": 100,
+      "stage-services": 100,
+    },
     createdAt: "2026-01-08T11:00:00+05:30",
     updatedAt: "2026-09-20T07:35:00+05:30",
   },
@@ -289,6 +299,7 @@ const projects: Project[] = [
     currentStageId: "stage-site-prep",
     progress: 8,
     trackingStartedMidProject: false,
+    stageBaselines: { "stage-site-prep": 100, "stage-foundation": 25 },
     createdAt: "2026-08-28T09:30:00+05:30",
     updatedAt: "2026-09-18T12:00:00+05:30",
   },
@@ -305,6 +316,7 @@ const projects: Project[] = [
     currentStageId: "stage-site-prep",
     progress: 4,
     trackingStartedMidProject: false,
+    stageBaselines: { "stage-site-prep": 80 },
     createdAt: "2026-09-01T10:00:00+05:30",
     updatedAt: "2026-09-20T09:00:00+05:30",
   },
@@ -773,6 +785,17 @@ const dailyProgress: DailyProgress[] = [
     submittedAt: "2026-09-20T17:30:00+05:30",
     reviewStatus: "approved",
     publicationStatus: "published",
+    version: 1,
+    review: {
+      decision: "approve",
+      reviewedByMembershipId: "membership-manager-1",
+      reviewedAt: "2026-09-20T18:30:00+05:30",
+    },
+    publication: {
+      publishedByMembershipId: "membership-manager-1",
+      publishedAt: "2026-09-20T18:35:00+05:30",
+      evidenceIds: ["evidence-sharma-1", "evidence-sharma-2"],
+    },
   },
   {
     id: "progress-tech-1909",
@@ -794,6 +817,7 @@ const dailyProgress: DailyProgress[] = [
     submittedAt: "2026-09-19T18:15:00+05:30",
     reviewStatus: "submitted",
     publicationStatus: "private",
+    version: 1,
   },
   {
     id: "progress-reddy-1809",
@@ -814,7 +838,13 @@ const dailyProgress: DailyProgress[] = [
     submittedByMembershipId: "membership-manager-2",
     submittedAt: "2026-09-18T17:45:00+05:30",
     reviewStatus: "approved",
-    publicationStatus: "ready",
+    publicationStatus: "private",
+    version: 1,
+    review: {
+      decision: "approve",
+      reviewedByMembershipId: "membership-manager-2",
+      reviewedAt: "2026-09-18T19:00:00+05:30",
+    },
   },
 ]
 

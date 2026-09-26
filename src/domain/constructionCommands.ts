@@ -14,6 +14,7 @@ import type {
   InviteProjectMemberInput,
   IssueEvidenceInput,
   ReportIssueInput,
+  ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
 } from "./commandInputs"
 import type {
@@ -28,7 +29,10 @@ import type {
   Project,
   ProjectMembership,
   ProjectUnit,
+  ProgressPublication,
+  ProgressReview,
   Quantity,
+  ReviewDecision,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -58,6 +62,7 @@ import {
 import {
   canTransitionTask,
   isSiteTaskStatus,
+  statusAfterChangesRequested,
   statusAfterProgressApproval,
   statusAfterProgressRejection,
   statusAfterProgressSubmit,
@@ -157,6 +162,28 @@ function projectOrThrow(state: ConstructionDataState, projectId: EntityId) {
   return project
 }
 
+/**
+ * Recalculates a project's stored progress from its tasks. Every command that
+ * changes a project's tasks runs its new state through this, so the stored
+ * figure never drifts from the calculation. updatedAt moves only on a change.
+ */
+function withProjectProgress(
+  state: ConstructionDataState,
+  projectId: EntityId,
+  timestamp: string,
+): ConstructionDataState {
+  const project = state.projects.find((item) => item.id === projectId)
+  if (!project) return state
+  const progress = calculateProjectProgress(project, state.stages, state.tasks)
+  if (progress === project.progress) return state
+  return {
+    ...state,
+    projects: state.projects.map((item) =>
+      item.id === projectId ? { ...project, progress, updatedAt: timestamp } : item,
+    ),
+  }
+}
+
 function assertUnitInProject(
   state: ConstructionDataState,
   projectId: EntityId,
@@ -239,8 +266,9 @@ export const createProject =
       location: input.location,
       startDate: input.startDate,
       targetDate: input.targetDate,
-      progress: input.trackingStartedMidProject ? 1 : 0,
+      progress: 0,
       trackingStartedMidProject: input.trackingStartedMidProject,
+      stageBaselines: {},
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -286,6 +314,35 @@ export const createProject =
           : state.memberships,
       },
       result: project,
+    }
+  }
+
+/** Records how complete each stage was when tracking started, and refreshes project %. */
+export const setStageBaselines =
+  (projectId: EntityId, baselines: Record<EntityId, number>): Command<Project> =>
+  (state, ctx) => {
+    authorizeProject(state, ctx, projectId, [Permissions.PROJECT_MANAGE])
+    const project = projectOrThrow(state, projectId)
+    for (const [stageId, value] of Object.entries(baselines)) {
+      if (!state.stages.some((stage) => stage.id === stageId)) {
+        throw new IntegrityError(`Unknown stage ${stageId}`)
+      }
+      if (!Number.isFinite(value) || value < 0 || value > 100) {
+        throw new ConflictError("Stage baselines must be between 0 and 100.")
+      }
+    }
+    const withBaselines: Project = { ...project, stageBaselines: { ...baselines } }
+    const updated: Project = {
+      ...withBaselines,
+      progress: calculateProjectProgress(withBaselines, state.stages, state.tasks),
+      updatedAt: iso(ctx),
+    }
+    return {
+      state: {
+        ...state,
+        projects: state.projects.map((item) => (item.id === projectId ? updated : item)),
+      },
+      result: updated,
     }
   }
 
@@ -426,7 +483,14 @@ export const createTask =
       createdAt: timestamp,
       updatedAt: timestamp,
     }
-    return { state: { ...state, tasks: [...state.tasks, task] }, result: task }
+    return {
+      state: withProjectProgress(
+        { ...state, tasks: [...state.tasks, task] },
+        input.projectId,
+        timestamp,
+      ),
+      result: task,
+    }
   }
 
 export const assignTask =
@@ -486,15 +550,19 @@ export const assignTask =
       assignedAt: timestamp,
     }
     return {
-      state: {
-        ...state,
-        assignments: [...state.assignments, assignment],
-        tasks: state.tasks.map((item) =>
-          item.id === taskId && item.status === "draft"
-            ? { ...item, status: "assigned", updatedAt: timestamp }
-            : item,
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          assignments: [...state.assignments, assignment],
+          tasks: state.tasks.map((item) =>
+            item.id === taskId && item.status === "draft"
+              ? { ...item, status: "assigned", updatedAt: timestamp }
+              : item,
+          ),
+        },
+        projectId,
+        timestamp,
+      ),
       result: assignment,
     }
   }
@@ -507,14 +575,18 @@ export const transitionTask =
     authorizeTaskMove(state, ctx, task, nextStatus)
     const timestamp = iso(ctx)
     return {
-      state: {
-        ...state,
-        tasks: state.tasks.map((task) =>
-          task.id !== taskId || !canTransitionTask(task.status, nextStatus)
-            ? task
-            : { ...task, status: nextStatus, updatedAt: timestamp },
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          tasks: state.tasks.map((task) =>
+            task.id !== taskId || !canTransitionTask(task.status, nextStatus)
+              ? task
+              : { ...task, status: nextStatus, updatedAt: timestamp },
+          ),
+        },
+        projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }
@@ -598,19 +670,23 @@ export const acceptTaskAssignment =
     }
     const timestamp = iso(ctx)
     return {
-      state: {
-        ...state,
-        assignments: state.assignments.map((item) =>
-          item.id === assignment.id && item.status === "assigned"
-            ? { ...item, status: "accepted" }
-            : item,
-        ),
-        tasks: state.tasks.map((item) =>
-          item.id === task.id && taskAccepts
-            ? { ...item, status: "accepted", updatedAt: timestamp }
-            : item,
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          assignments: state.assignments.map((item) =>
+            item.id === assignment.id && item.status === "assigned"
+              ? { ...item, status: "accepted" }
+              : item,
+          ),
+          tasks: state.tasks.map((item) =>
+            item.id === task.id && taskAccepts
+              ? { ...item, status: "accepted", updatedAt: timestamp }
+              : item,
+          ),
+        },
+        task.projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }
@@ -633,14 +709,18 @@ export const startTask =
     }
     const timestamp = iso(ctx)
     return {
-      state: {
-        ...state,
-        tasks: state.tasks.map((item) =>
-          item.id === task.id
-            ? { ...item, status: "in-progress", updatedAt: timestamp }
-            : item,
-        ),
-      },
+      state: withProjectProgress(
+        {
+          ...state,
+          tasks: state.tasks.map((item) =>
+            item.id === task.id
+              ? { ...item, status: "in-progress", updatedAt: timestamp }
+              : item,
+          ),
+        },
+        task.projectId,
+        timestamp,
+      ),
       result: undefined,
     }
   }
@@ -949,21 +1029,95 @@ export const submitDailyProgress =
       submittedAt: timestamp,
       reviewStatus: "submitted",
       publicationStatus: "private",
+      version: 1,
+    }
+    return {
+      state: withProjectProgress(
+        {
+          ...state,
+          evidence: [...state.evidence, ...evidence],
+          dailyProgress: [progress, ...state.dailyProgress],
+          tasks: state.tasks.map((task) => {
+            if (task.id !== input.taskId) return task
+            const nextStatus = statusAfterProgressSubmit(task.status)
+            return nextStatus
+              ? { ...task, status: nextStatus, updatedAt: timestamp }
+              : task
+          }),
+        },
+        input.projectId,
+        timestamp,
+      ),
+      result: progress,
+    }
+  }
+
+/**
+ * Sends a fixed version of an update the reviewer sent back. Builds the new
+ * version through submitDailyProgress (same checks, same task move), then
+ * links the two; the earlier version is kept as it was, marked superseded.
+ */
+export const resubmitDailyProgress =
+  (
+    previousId: EntityId,
+    input: ResubmitDailyProgressInput,
+  ): Command<DailyProgress> =>
+  (state, ctx) => {
+    const previous = state.dailyProgress.find((item) => item.id === previousId)
+    if (!previous) throw new PermissionError(Permissions.PROGRESS_SUBMIT)
+    // Authorize against the stored record's project before anything else, so
+    // an outsider gets a PermissionError instead of a status/evidence check
+    // leaking whether this record exists and what state it's in.
+    const submitter = authorizeProject(
+      state, ctx, previous.projectId, [Permissions.PROGRESS_SUBMIT], previous,
+    )
+    if (submitter.id !== previous.submittedByMembershipId) {
+      throw new PermissionError(Permissions.PROGRESS_SUBMIT, previous.projectId)
+    }
+    if (previous.reviewStatus !== "changes-requested") {
+      throw new ConflictError("Only an update sent back for changes can be resubmitted.")
+    }
+    const { keepEvidenceIds, ...rest } = input
+    for (const id of keepEvidenceIds) {
+      if (!previous.evidenceIds.includes(id)) {
+        throw new IntegrityError(`Evidence ${id} is not on update ${previousId}`)
+      }
+    }
+
+    const submitted = submitDailyProgress({
+      ...rest,
+      projectId: previous.projectId,
+      projectUnitId: previous.projectUnitId,
+      taskId: previous.taskId,
+      stageId: previous.stageId,
+      tradeId: previous.tradeId,
+      workTypeId: previous.workTypeId,
+    })(state, ctx)
+    const created = submitted.result
+
+    const next: DailyProgress = {
+      ...created,
+      version: previous.version + 1,
+      supersedesId: previous.id,
+      evidenceIds: [...keepEvidenceIds, ...created.evidenceIds],
     }
     return {
       state: {
-        ...state,
-        evidence: [...state.evidence, ...evidence],
-        dailyProgress: [progress, ...state.dailyProgress],
-        tasks: state.tasks.map((task) => {
-          if (task.id !== input.taskId) return task
-          const nextStatus = statusAfterProgressSubmit(task.status)
-          return nextStatus
-            ? { ...task, status: nextStatus, updatedAt: timestamp }
-            : task
-        }),
+        ...submitted.state,
+        dailyProgress: submitted.state.dailyProgress.map((item) =>
+          item.id === created.id
+            ? next
+            : item.id === previous.id
+              ? { ...item, reviewStatus: "superseded" as const, supersededById: created.id }
+              : item,
+        ),
+        evidence: submitted.state.evidence.map((item) =>
+          keepEvidenceIds.includes(item.id)
+            ? { ...item, dailyProgressId: created.id }
+            : item,
+        ),
       },
-      result: progress,
+      result: next,
     }
   }
 
@@ -978,99 +1132,137 @@ function addQuantity(
   return { unit: total.unit, value: total.value + added.value }
 }
 
+const NOTE_REQUIRED: Record<Exclude<ReviewDecision, "approve">, string> = {
+  "request-changes": "Add a note so the worker knows what to fix.",
+  reject: "Add a note saying why this update is rejected.",
+}
+
 export const reviewDailyProgress =
-  (progressId: EntityId, decision: "approve" | "reject"): Command<void> =>
+  (
+    progressId: EntityId,
+    decision: ReviewDecision,
+    note?: string,
+  ): Command<void> =>
   (state, ctx) => {
     // Authorize against the stored item's project, never a caller-supplied one.
     const progress = state.dailyProgress.find((item) => item.id === progressId)
     if (!progress) throw new PermissionError(Permissions.PROGRESS_REVIEW)
-    authorizeProject(
+    const reviewer = authorizeProject(
       state,
       ctx,
       progress.projectId,
       [Permissions.PROGRESS_REVIEW],
       progress,
     )
-    if (
-      progress.reviewStatus === "approved" ||
-      progress.reviewStatus === "rejected"
-    ) {
-      return { state, result: undefined }
+    // Only a waiting update can be reviewed; a repeat review is a no-op.
+    if (progress.reviewStatus !== "submitted") return { state, result: undefined }
+
+    const trimmed = note?.trim() || undefined
+    if (decision !== "approve" && !trimmed) {
+      throw new ConflictError(NOTE_REQUIRED[decision])
     }
 
     const timestamp = iso(ctx)
+    const review: ProgressReview = {
+      decision,
+      note: trimmed,
+      reviewedByMembershipId: reviewer.id,
+      reviewedAt: timestamp,
+    }
+    const nextReviewStatus: DailyProgress["reviewStatus"] =
+      decision === "approve"
+        ? "approved"
+        : decision === "reject"
+          ? "rejected"
+          : "changes-requested"
+    const dailyProgress = state.dailyProgress.map((item) =>
+      item.id === progressId
+        ? { ...item, reviewStatus: nextReviewStatus, review }
+        : item,
+    )
 
-    if (decision === "reject") {
-      return {
-        state: {
-          ...state,
-          dailyProgress: state.dailyProgress.map((item) =>
-            item.id === progressId
-              ? {
-                  ...item,
-                  reviewStatus: "rejected",
-                  publicationStatus: "private",
-                }
-              : item,
-          ),
-          tasks: state.tasks.map((task) => {
-            if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
-              return task
-            }
-            const nextStatus = statusAfterProgressRejection(task.status)
-            return nextStatus
-              ? { ...task, status: nextStatus, updatedAt: timestamp }
-              : task
-          }),
-        },
-        result: undefined,
+    const tasks = state.tasks.map((task) => {
+      if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
+        return task
+      }
+      if (decision === "approve") {
+        const nextStatus = statusAfterProgressApproval(task.status)
+        const completedQuantity = addQuantity(
+          task.completedQuantity,
+          progress.completedQuantity,
+        )
+        return nextStatus === task.status && completedQuantity === task.completedQuantity
+          ? task
+          : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
+      }
+      const nextStatus =
+        decision === "reject"
+          ? statusAfterProgressRejection(task.status)
+          : statusAfterChangesRequested(task.status)
+      return nextStatus ? { ...task, status: nextStatus, updatedAt: timestamp } : task
+    })
+
+    // Every decision can change a task (approve completes it, reject reopens
+    // it), so the official figure is recalculated each time. Publishing is separate.
+    return {
+      state: withProjectProgress(
+        { ...state, dailyProgress, tasks },
+        progress.projectId,
+        timestamp,
+      ),
+      result: undefined,
+    }
+  }
+
+/**
+ * Shares an approved update with the homeowner. Only the chosen evidence
+ * becomes customer-visible; voice notes and review notes never do.
+ */
+export const publishDailyProgress =
+  (progressId: EntityId, evidenceIds: EntityId[]): Command<void> =>
+  (state, ctx) => {
+    const progress = state.dailyProgress.find((item) => item.id === progressId)
+    if (!progress) throw new PermissionError(Permissions.CUSTOMER_PUBLISH)
+    const publisher = authorizeProject(
+      state,
+      ctx,
+      progress.projectId,
+      [Permissions.CUSTOMER_PUBLISH],
+      progress,
+    )
+    if (progress.publicationStatus === "published") return { state, result: undefined }
+    if (progress.reviewStatus !== "approved") {
+      throw new ConflictError("Only approved updates can be published.")
+    }
+    const chosen = [...new Set(evidenceIds)]
+    for (const id of chosen) {
+      const item = state.evidence.find((evidence) => evidence.id === id)
+      if (!item || !progress.evidenceIds.includes(id)) {
+        throw new IntegrityError(`Evidence ${id} is not on update ${progressId}`)
+      }
+      if (item.type === "audio") {
+        throw new ConflictError("Voice notes can't be shared with the homeowner.")
       }
     }
 
-    const updatedProgress = state.dailyProgress.map((item) =>
-      item.id === progressId
-        ? {
-            ...item,
-            reviewStatus: "approved" as const,
-            publicationStatus: "published" as const,
-          }
-        : item,
-    )
+    const publication: ProgressPublication = {
+      publishedByMembershipId: publisher.id,
+      publishedAt: iso(ctx),
+      evidenceIds: chosen,
+    }
     return {
       state: {
         ...state,
-        dailyProgress: updatedProgress,
-        // Approval publishes what was waiting for review; private items
-        // (voice notes) stay private.
-        evidence: state.evidence.map((item) =>
-          (progress.evidenceIds.includes(item.id) ||
-            item.dailyProgressId === progressId) &&
-          item.customerVisibility === "review-required"
-            ? { ...item, customerVisibility: "customer-visible" }
+        dailyProgress: state.dailyProgress.map((item) =>
+          item.id === progressId
+            ? { ...item, publicationStatus: "published" as const, publication }
             : item,
         ),
-        projects: state.projects.map((project) =>
-          project.id !== progress.projectId
-            ? project
-            : {
-                ...project,
-                progress: calculateProjectProgress(project, updatedProgress),
-                updatedAt: timestamp,
-              },
+        evidence: state.evidence.map((item) =>
+          chosen.includes(item.id)
+            ? { ...item, customerVisibility: "customer-visible" as const }
+            : item,
         ),
-        tasks: state.tasks.map((task) => {
-          if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
-            return task
-          }
-          const nextStatus = statusAfterProgressApproval(task.status)
-          const completedQuantity = addQuantity(
-            task.completedQuantity,
-            progress.completedQuantity,
-          )
-          return nextStatus === task.status && completedQuantity === task.completedQuantity
-            ? task
-            : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
-        }),
       },
       result: undefined,
     }

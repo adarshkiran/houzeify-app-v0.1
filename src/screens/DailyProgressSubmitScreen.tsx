@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ArrowLeftOutlined } from "@ant-design/icons"
 import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Flex,
   Form,
@@ -23,8 +24,12 @@ import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
 import { useAccess } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
+import { useSession } from "../session/SessionProvider"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
+  getChangesRequested,
+  getEvidenceForProgress,
+  getMyMembershipIds,
   getProject,
   getProjectUnits,
   getRecentProgress,
@@ -52,10 +57,14 @@ function SubmitProgress({
   projectId: EntityId
   taskId?: EntityId
 }) {
-  const { state, submitDailyProgress } = useConstructionData()
+  const { state, submitDailyProgress, resubmitDailyProgress } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
+  const { session } = useSession()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
+  // Tied to the sent-back update it was made for, so a choice made for one
+  // update is never applied to another.
+  const [keptChoice, setKeptChoice] = useState<{ forId: EntityId; ids: string[] } | null>(null)
   const [form] = Form.useForm<ProgressFormValues>()
   const project = getProject(state, projectId)
   // Only tasks the person may submit progress on (their own scope).
@@ -77,6 +86,37 @@ function SubmitProgress({
       getRecentProgress(state, projectId).find((item) => item.taskId === task?.id),
     [projectId, state, task?.id],
   )
+  const sentBack = task
+    ? getChangesRequested(state, getMyMembershipIds(state, session?.personId), task.id)[0]
+    : undefined
+  const sentBackEvidence = sentBack ? getEvidenceForProgress(state, sentBack) : []
+  const kept =
+    keptChoice && sentBack && keptChoice.forId === sentBack.id
+      ? keptChoice.ids
+      : sentBack?.evidenceIds ?? []
+
+  useEffect(() => {
+    if (!sentBack) {
+      // Switched to a task with nothing sent back: drop the pre-filled text so
+      // it can't be submitted as a new update. The chosen task stays.
+      form.resetFields([
+        "workersPresent",
+        "progressAfter",
+        "todaySummary",
+        "tomorrowPlan",
+        "blockerSummary",
+      ])
+      return
+    }
+    form.setFieldsValue({
+      workersPresent: sentBack.workersPresent,
+      progressAfter: sentBack.progressAfter,
+      todaySummary: sentBack.todaySummary,
+      tomorrowPlan: sentBack.tomorrowPlan,
+      blockerSummary: sentBack.blockerSummary,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, sentBack?.id])
 
   if (!project) {
     return (
@@ -92,21 +132,32 @@ function SubmitProgress({
 
     const outcome = run(
       () =>
-        submitDailyProgress({
-          projectId,
-          projectUnitId: activeTask.projectUnitId,
-          taskId: activeTask.id,
-          stageId: activeTask.stageId,
-          tradeId: activeTask.tradeId,
-          workTypeId: activeTask.workTypeId,
-          workersPresent: values.workersPresent,
-          progressAfter: values.progressAfter,
-          todaySummary: values.todaySummary.trim(),
-          tomorrowPlan: values.tomorrowPlan.trim(),
-          yesterdaySummary: previous?.todaySummary,
-          blockerSummary: values.blockerSummary?.trim() || undefined,
-          evidence,
-        }),
+        sentBack
+          ? resubmitDailyProgress(sentBack.id, {
+              workersPresent: values.workersPresent,
+              progressAfter: values.progressAfter,
+              todaySummary: values.todaySummary.trim(),
+              tomorrowPlan: values.tomorrowPlan.trim(),
+              yesterdaySummary: previous?.todaySummary,
+              blockerSummary: values.blockerSummary?.trim() || undefined,
+              keepEvidenceIds: kept,
+              evidence,
+            })
+          : submitDailyProgress({
+              projectId,
+              projectUnitId: activeTask.projectUnitId,
+              taskId: activeTask.id,
+              stageId: activeTask.stageId,
+              tradeId: activeTask.tradeId,
+              workTypeId: activeTask.workTypeId,
+              workersPresent: values.workersPresent,
+              progressAfter: values.progressAfter,
+              todaySummary: values.todaySummary.trim(),
+              tomorrowPlan: values.tomorrowPlan.trim(),
+              yesterdaySummary: previous?.todaySummary,
+              blockerSummary: values.blockerSummary?.trim() || undefined,
+              evidence,
+            }),
       { success: "Progress submitted for review" },
     )
     if (!outcome.ok) return
@@ -135,6 +186,14 @@ function SubmitProgress({
       }
     >
       <Flex vertical gap="large" className="company-content">
+        {sentBack && (
+          <Alert
+            type="warning"
+            showIcon
+            message="Changes requested"
+            description={sentBack.review?.note}
+          />
+        )}
 
         <Form<ProgressFormValues>
           form={form}
@@ -190,8 +249,9 @@ function SubmitProgress({
                   </Col>
                   <Col xs={24} md={12}>
                     <Form.Item
-                      label="Progress after today (%)"
+                      label="Your estimate of project progress (%)"
                       name="progressAfter"
+                      extra="The official figure is calculated from approved task quantities."
                       rules={[
                         {
                           required: true,
@@ -258,7 +318,26 @@ function SubmitProgress({
                 }
                 styles={{ body: { paddingTop: 16 } }}
               >
-                <EvidenceCapture value={evidence} onChange={setEvidence} />
+                <Flex vertical gap="small">
+                  {sentBackEvidence.length > 0 && (
+                    <Flex vertical gap={6}>
+                      <Text type="secondary" className="text-[12px]!">
+                        From the last update — untick to leave out
+                      </Text>
+                      <Checkbox.Group
+                        value={kept}
+                        onChange={(values) =>
+                          sentBack && setKeptChoice({ forId: sentBack.id, ids: values as string[] })
+                        }
+                        options={sentBackEvidence.map((item) => ({
+                          value: item.id,
+                          label: item.caption || item.type,
+                        }))}
+                      />
+                    </Flex>
+                  )}
+                  <EvidenceCapture value={evidence} onChange={setEvidence} />
+                </Flex>
               </Card>
             </Col>
           </Row>

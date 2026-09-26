@@ -23,6 +23,7 @@ import {
 } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import { reviewStatusLabel } from "../components/progress/progressLabels"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
@@ -185,8 +186,8 @@ function ProjectOverview({
           extra={
             <Space wrap>
               {latestProgress && (
-                <Tag color={latestProgress.reviewStatus === "approved" ? "success" : "warning"}>
-                  {latestProgress.reviewStatus}
+                <Tag color={reviewStatusLabel[latestProgress.reviewStatus].color}>
+                  {reviewStatusLabel[latestProgress.reviewStatus].text}
                 </Tag>
               )}
               <Button

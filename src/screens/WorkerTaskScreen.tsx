@@ -336,6 +336,11 @@ function WorkerTask({
                 >
                   {item.todaySummary}
                 </Paragraph>
+                {item.review?.note && item.reviewStatus !== "approved" && (
+                  <Text type="secondary" className="text-[13px]!">
+                    “{item.review.note}”
+                  </Text>
+                )}
               </Flex>
             ))}
           </Flex>
