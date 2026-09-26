@@ -1038,6 +1038,19 @@ export const reviewDailyProgress =
           }
         : item,
     )
+    const tasks = state.tasks.map((task) => {
+      if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
+        return task
+      }
+      const nextStatus = statusAfterProgressApproval(task.status)
+      const completedQuantity = addQuantity(
+        task.completedQuantity,
+        progress.completedQuantity,
+      )
+      return nextStatus === task.status && completedQuantity === task.completedQuantity
+        ? task
+        : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
+    })
     return {
       state: {
         ...state,
@@ -1056,23 +1069,11 @@ export const reviewDailyProgress =
             ? project
             : {
                 ...project,
-                progress: calculateProjectProgress(project, updatedProgress),
+                progress: calculateProjectProgress(project, state.stages, tasks),
                 updatedAt: timestamp,
               },
         ),
-        tasks: state.tasks.map((task) => {
-          if (task.id !== progress.taskId || task.projectId !== progress.projectId) {
-            return task
-          }
-          const nextStatus = statusAfterProgressApproval(task.status)
-          const completedQuantity = addQuantity(
-            task.completedQuantity,
-            progress.completedQuantity,
-          )
-          return nextStatus === task.status && completedQuantity === task.completedQuantity
-            ? task
-            : { ...task, status: nextStatus, completedQuantity, updatedAt: timestamp }
-        }),
+        tasks,
       },
       result: undefined,
     }
