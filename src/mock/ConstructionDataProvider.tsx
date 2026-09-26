@@ -72,6 +72,10 @@ interface ConstructionDataContextValue {
     input: Inputs.BusinessProfileInput,
   ) => void
   createProject: (input: Inputs.CreateProjectInput) => Project
+  setStageBaselines: (
+    projectId: EntityId,
+    baselines: Record<EntityId, number>,
+  ) => Project
   addProjectUnit: (input: Inputs.AddProjectUnitInput) => ProjectUnit
   addProjectUnits: (inputs: Inputs.AddProjectUnitInput[]) => ProjectUnit[]
   inviteProjectMember: (input: Inputs.InviteProjectMemberInput) => ProjectMembership
@@ -180,6 +184,8 @@ export default function ConstructionDataProvider({
       updateOrganizationProfile: (id, input) =>
         run(commands.updateOrganizationProfile(id, input)),
       createProject: (input) => run(commands.createProject(input)),
+      setStageBaselines: (id, baselines) =>
+        run(commands.setStageBaselines(id, baselines)),
       addProjectUnit: (input) => run(commands.addProjectUnit(input)),
       addProjectUnits: (inputs) => run(commands.addProjectUnits(inputs)),
       inviteProjectMember: (input) => run(commands.inviteProjectMember(input)),

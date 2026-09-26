@@ -242,3 +242,21 @@ describe("publishDailyProgress", () => {
     expect(twice.state).toBe(once.state)
   })
 })
+
+describe("setStageBaselines", () => {
+  it("stores baselines and recalculates progress", () => {
+    const { state, result } = run(seed, manager, commands.setStageBaselines("project-lakeside", { "stage-site-prep": 100, "stage-foundation": 50 }))
+    expect(result.stageBaselines).toEqual({ "stage-site-prep": 100, "stage-foundation": 50 })
+    expect(state.projects.find((p) => p.id === "project-lakeside")!.progress).toBe(11) // 5 + 6
+  })
+
+  it("rejects values outside 0–100 and unknown stages", () => {
+    expect(() => run(seed, manager, commands.setStageBaselines("project-lakeside", { "stage-site-prep": 120 })))
+      .toThrow("Stage baselines must be between 0 and 100.")
+    expect(() => run(seed, manager, commands.setStageBaselines("project-lakeside", { "stage-nope": 10 }))).toThrow()
+  })
+
+  it("needs project management rights", () => {
+    expect(() => run(seed, ravi, commands.setStageBaselines("project-sharma", {}))).toThrow(PermissionError)
+  })
+})

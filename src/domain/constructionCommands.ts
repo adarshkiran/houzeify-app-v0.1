@@ -295,6 +295,35 @@ export const createProject =
     }
   }
 
+/** Records how complete each stage was when tracking started, and refreshes project %. */
+export const setStageBaselines =
+  (projectId: EntityId, baselines: Record<EntityId, number>): Command<Project> =>
+  (state, ctx) => {
+    authorizeProject(state, ctx, projectId, [Permissions.PROJECT_MANAGE])
+    const project = projectOrThrow(state, projectId)
+    for (const [stageId, value] of Object.entries(baselines)) {
+      if (!state.stages.some((stage) => stage.id === stageId)) {
+        throw new IntegrityError(`Unknown stage ${stageId}`)
+      }
+      if (!Number.isFinite(value) || value < 0 || value > 100) {
+        throw new ConflictError("Stage baselines must be between 0 and 100.")
+      }
+    }
+    const withBaselines: Project = { ...project, stageBaselines: { ...baselines } }
+    const updated: Project = {
+      ...withBaselines,
+      progress: calculateProjectProgress(withBaselines, state.stages, state.tasks),
+      updatedAt: iso(ctx),
+    }
+    return {
+      state: {
+        ...state,
+        projects: state.projects.map((item) => (item.id === projectId ? updated : item)),
+      },
+      result: updated,
+    }
+  }
+
 function buildUnit(
   units: readonly ProjectUnit[],
   input: AddProjectUnitInput,
