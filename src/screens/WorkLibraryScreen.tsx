@@ -38,6 +38,7 @@ import {
   getWorkTypesForStageTrade,
   quantityUnitLabel,
 } from "../domain/workLibrary"
+import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getStageName, getTradeName, getWorkTypeName } from "../mock/selectors"
 
@@ -61,6 +62,7 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
     state,
     addLibraryWorkType,
   } = useConstructionData()
+  const run = useCommand()
   const [search, setSearch] = useState("")
   const [stageId, setStageId] = useState("all")
   const [tradeId, setTradeId] = useState("all")
@@ -109,16 +111,22 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
   }
 
   const handleAdd = (values: AddWorkTypeFormValues) => {
-    const { workType } = addLibraryWorkType({
-      name: values.name.trim(),
-      defaultUnit: values.defaultUnit,
-      ...(values.stageChoice === NEW_STAGE
-        ? { newStageName: values.newStageName!.trim() }
-        : { stageId: values.stageChoice }),
-      ...(values.tradeChoice === NEW_TRADE
-        ? { newTradeName: values.newTradeName!.trim() }
-        : { tradeId: values.tradeChoice }),
-    })
+    const outcome = run(
+      () =>
+        addLibraryWorkType({
+          name: values.name.trim(),
+          defaultUnit: values.defaultUnit,
+          ...(values.stageChoice === NEW_STAGE
+            ? { newStageName: values.newStageName!.trim() }
+            : { stageId: values.stageChoice }),
+          ...(values.tradeChoice === NEW_TRADE
+            ? { newTradeName: values.newTradeName!.trim() }
+            : { tradeId: values.tradeChoice }),
+        }),
+      { success: "Work type added" },
+    )
+    if (!outcome.ok) return
+    const { workType } = outcome.value
 
     setStageId(workType.stageId)
     setTradeId(workType.tradeId)

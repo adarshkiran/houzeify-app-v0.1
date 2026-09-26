@@ -1,3 +1,7 @@
+import Gated from "../components/Gated"
+import { Permissions } from "../domain/permissions"
+import { useCan } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
   ArrowLeftOutlined,
@@ -63,6 +67,8 @@ function WorkPlan({
   projectId: EntityId
 }) {
   const { state, addWorkPlanItem } = useConstructionData()
+  const run = useCommand()
+  const canManage = useCan(Permissions.TASK_MANAGE, projectId)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<PlanFormValues>()
   const project = getProject(state, projectId)
@@ -129,7 +135,8 @@ function WorkPlan({
       plannedStart: values.plannedStart,
       dueDate: values.dueDate,
     }
-    addWorkPlanItem(input)
+    const outcome = run(() => addWorkPlanItem(input), { success: "Planned work added" })
+    if (!outcome.ok) return
     form.resetFields()
     setModalOpen(false)
   }
@@ -157,9 +164,11 @@ function WorkPlan({
               Apply standardized construction work to project locations.
             </Paragraph>
           </Flex>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            Add planned work
-          </Button>
+          <Gated allowed={canManage}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              Add planned work
+            </Button>
+          </Gated>
         </Flex>
 
         <Card
@@ -180,9 +189,11 @@ function WorkPlan({
             />
           ) : (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No planned work yet">
-              <Button type="primary" onClick={() => setModalOpen(true)}>
-                Add planned work
-              </Button>
+              <Gated allowed={canManage}>
+                <Button type="primary" onClick={() => setModalOpen(true)}>
+                  Add planned work
+                </Button>
+              </Gated>
             </Empty>
           )}
         </Card>

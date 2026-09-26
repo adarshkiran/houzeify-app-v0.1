@@ -23,6 +23,7 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { ProjectKind, ProjectStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import { useCommand } from "../session/useCommand"
 import {
   useConstructionData,
   type CreateProjectInput,
@@ -44,6 +45,7 @@ interface ProjectFormValues {
 
 function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
   const { createProject } = useConstructionData()
+  const run = useCommand()
 
   const handleFinish = (values: ProjectFormValues) => {
     const input: CreateProjectInput = {
@@ -51,10 +53,11 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
       organizationId: ACTIVE_ORGANIZATION_ID,
       trackingStartedMidProject: Boolean(values.trackingStartedMidProject),
     }
-    const project = createProject(input)
+    const outcome = run(() => createProject(input), { success: "Project created" })
+    if (!outcome.ok) return
     onNavigate("project-structure", {
-      project_id: project.id,
-      project_name: project.name,
+      project_id: outcome.value.id,
+      project_name: outcome.value.name,
     })
   }
 
