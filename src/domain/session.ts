@@ -11,6 +11,28 @@ export interface Session {
   phone?: string
 }
 
+/**
+ * Validate a persisted session. Anything malformed or incomplete is treated
+ * as signed out; a business session must name its organization.
+ */
+export function parseStoredSession(raw: string | null): Session | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<Session> | null
+    if (!parsed || typeof parsed.personId !== "string") return null
+    if (parsed.accountType === "homeowner") return parsed as Session
+    if (
+      parsed.accountType === "business" &&
+      typeof parsed.organizationId === "string"
+    ) {
+      return parsed as Session
+    }
+  } catch {
+    // Corrupt JSON: behave as signed out.
+  }
+  return null
+}
+
 /** Permissions the session's person holds on one project via active memberships. */
 export function projectPermissions(
   session: Session | null,

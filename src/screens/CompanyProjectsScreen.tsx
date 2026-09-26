@@ -27,7 +27,7 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import type { Project, ProjectStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { ACTIVE_ORGANIZATION_ID } from "../mock/seed"
+import { useOrganizationId } from "../session/SessionProvider"
 import {
   getOpenIssues,
   getOpenTasks,
@@ -48,9 +48,10 @@ function statusColor(status: ProjectStatus) {
 
 function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
   const { state } = useConstructionData()
+  const organizationId = useOrganizationId()
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<ProjectStatus | "all">("all")
-  const projects = getOrganizationProjects(state, ACTIVE_ORGANIZATION_ID)
+  const projects = getOrganizationProjects(state, organizationId)
 
   const filteredProjects = useMemo(
     () =>
