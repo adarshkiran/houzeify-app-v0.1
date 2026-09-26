@@ -10,15 +10,14 @@ import {
   Typography,
 } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import EvidenceThumb from "../components/EvidenceThumb"
 import LogoHorizontal from "../components/LogoHorizontal"
+import EvidenceGrid from "../components/progress/EvidenceGrid"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
-  getCustomerVisibleEvidence,
-  getEvidenceForProgress,
   getProject,
+  getPublishedEvidence,
   getPublishedForCustomer,
   getWorkTypeName,
 } from "../mock/selectors"
@@ -58,10 +57,8 @@ function CustomerUpdate({
   const published = getPublishedForCustomer(state, projectId)
   const latest = published[0]
   const project = latest ? getProject(state, latest.projectId) : getProject(state, projectId ?? "")
-  const evidence = latest
-    ? getCustomerVisibleEvidence(getEvidenceForProgress(state, latest))
-    : []
-  const progress = latest?.progressAfter ?? project?.progress ?? 0
+  const evidence = latest ? getPublishedEvidence(state, latest) : []
+  const progress = project?.progress ?? 0
 
   return (
     <Flex vertical className="company-form-page min-h-full">
@@ -127,19 +124,7 @@ function CustomerUpdate({
                 </Title>
               }
             >
-              {evidence.length ? (
-                <Row gutter={[16, 16]}>
-                  {evidence.map((item) => (
-                    <Col key={item.id} xs={12} sm={8}>
-                      <EvidenceThumb evidence={item} />
-                    </Col>
-                  ))}
-                </Row>
-              ) : (
-                <Paragraph type="secondary" className="m-0!">
-                  No photos have been shared with you for this update.
-                </Paragraph>
-              )}
+              <EvidenceGrid items={evidence} audience="homeowner" empty="No photos were shared with this update." />
             </Card>
           </>
         ) : (
