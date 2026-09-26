@@ -36,6 +36,7 @@ import {
   getStageName,
   getTradeName,
   getWorkTypeName,
+  getWorkersForProject,
 } from "../mock/selectors"
 
 const { Paragraph, Text, Title } = Typography
@@ -283,7 +284,7 @@ function TaskDetail({
                     placeholder="Select worker"
                     value={assigneeId}
                     onChange={setAssigneeId}
-                    options={state.workers.map((worker) => ({
+                    options={getWorkersForProject(state, projectId).map((worker) => ({
                       value: worker.id,
                       label: worker.name,
                     }))}
