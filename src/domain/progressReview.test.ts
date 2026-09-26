@@ -118,3 +118,59 @@ describe("reviewDailyProgress", () => {
       .toThrow(PermissionError)
   })
 })
+
+function sentBack() {
+  const submitted = raviSubmitted()
+  const { state } = run(submitted.state, manager, commands.reviewDailyProgress(submitted.result.id, "request-changes", "Add the west side"))
+  return { state, previous: find(state, submitted.result.id) }
+}
+
+describe("resubmitDailyProgress", () => {
+  it("creates version 2, supersedes version 1 and carries kept evidence", () => {
+    const { state, previous } = sentBack()
+    const [keep] = previous.evidenceIds
+    const next = run(state, ravi, commands.resubmitDailyProgress(previous.id, {
+      workersPresent: 3,
+      completedQuantity: { value: 8, unit: "m3" },
+      todaySummary: "Backfilled Grid A east and west",
+      tomorrowPlan: "Grid B",
+      keepEvidenceIds: [keep],
+      evidence: [{ type: "photo", url: "blob:west", caption: "West side" }],
+    }))
+    const v1 = find(next.state, previous.id)
+    const v2 = next.result
+    expect(v2.version).toBe(2)
+    expect(v2.supersedesId).toBe(previous.id)
+    expect(v2.reviewStatus).toBe("submitted")
+    expect(v1.reviewStatus).toBe("superseded")
+    expect(v1.supersededById).toBe(v2.id)
+    expect(v1.todaySummary).toBe("Backfilled Grid A east") // never overwritten
+    expect(v2.evidenceIds[0]).toBe(keep)
+    expect(v2.evidenceIds).toHaveLength(2)
+    expect(next.state.evidence.find((e) => e.id === keep)!.dailyProgressId).toBe(v2.id)
+    expect(v2.taskId).toBe("task-13")
+    // Sent back put it in progress; resending moves it to submitted again.
+    expect(next.state.tasks.find((t) => t.id === "task-13")!.status).toBe("submitted")
+  })
+
+  it("only works on an update sent back for changes", () => {
+    const submitted = raviSubmitted()
+    expect(() => run(submitted.state, ravi, commands.resubmitDailyProgress(submitted.result.id, {
+      workersPresent: 1, todaySummary: "x", tomorrowPlan: "y", keepEvidenceIds: [], evidence: [],
+    }))).toThrow("Only an update sent back for changes can be resubmitted.")
+  })
+
+  it("only the original submitter can resubmit", () => {
+    const { state, previous } = sentBack()
+    expect(() => run(state, manager, commands.resubmitDailyProgress(previous.id, {
+      workersPresent: 1, todaySummary: "x", tomorrowPlan: "y", keepEvidenceIds: [], evidence: [],
+    }))).toThrow(PermissionError)
+  })
+
+  it("can't keep evidence from another update", () => {
+    const { state, previous } = sentBack()
+    expect(() => run(state, ravi, commands.resubmitDailyProgress(previous.id, {
+      workersPresent: 1, todaySummary: "x", tomorrowPlan: "y", keepEvidenceIds: ["evidence-sharma-1"], evidence: [],
+    }))).toThrow()
+  })
+})

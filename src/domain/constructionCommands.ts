@@ -14,6 +14,7 @@ import type {
   InviteProjectMemberInput,
   IssueEvidenceInput,
   ReportIssueInput,
+  ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
 } from "./commandInputs"
 import type {
@@ -969,6 +970,69 @@ export const submitDailyProgress =
         }),
       },
       result: progress,
+    }
+  }
+
+/**
+ * Sends a fixed version of an update the reviewer sent back. Builds the new
+ * version through submitDailyProgress (same checks, same task move), then
+ * links the two; the earlier version is kept as it was, marked superseded.
+ */
+export const resubmitDailyProgress =
+  (
+    previousId: EntityId,
+    input: ResubmitDailyProgressInput,
+  ): Command<DailyProgress> =>
+  (state, ctx) => {
+    const previous = state.dailyProgress.find((item) => item.id === previousId)
+    if (!previous) throw new PermissionError(Permissions.PROGRESS_SUBMIT)
+    if (previous.reviewStatus !== "changes-requested") {
+      throw new ConflictError("Only an update sent back for changes can be resubmitted.")
+    }
+    const { keepEvidenceIds, ...rest } = input
+    for (const id of keepEvidenceIds) {
+      if (!previous.evidenceIds.includes(id)) {
+        throw new IntegrityError(`Evidence ${id} is not on update ${previousId}`)
+      }
+    }
+
+    const submitted = submitDailyProgress({
+      ...rest,
+      projectId: previous.projectId,
+      projectUnitId: previous.projectUnitId,
+      taskId: previous.taskId,
+      stageId: previous.stageId,
+      tradeId: previous.tradeId,
+      workTypeId: previous.workTypeId,
+    })(state, ctx)
+    const created = submitted.result
+    if (created.submittedByMembershipId !== previous.submittedByMembershipId) {
+      throw new PermissionError(Permissions.PROGRESS_SUBMIT, previous.projectId)
+    }
+
+    const next: DailyProgress = {
+      ...created,
+      version: previous.version + 1,
+      supersedesId: previous.id,
+      evidenceIds: [...keepEvidenceIds, ...created.evidenceIds],
+    }
+    return {
+      state: {
+        ...submitted.state,
+        dailyProgress: submitted.state.dailyProgress.map((item) =>
+          item.id === created.id
+            ? next
+            : item.id === previous.id
+              ? { ...item, reviewStatus: "superseded" as const, supersededById: created.id }
+              : item,
+        ),
+        evidence: submitted.state.evidence.map((item) =>
+          keepEvidenceIds.includes(item.id)
+            ? { ...item, dailyProgressId: created.id }
+            : item,
+        ),
+      },
+      result: next,
     }
   }
 

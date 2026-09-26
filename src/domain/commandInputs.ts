@@ -122,6 +122,21 @@ export interface SubmitDailyProgressInput {
   }>
 }
 
+/** A fixed version of an update the reviewer sent back. Location and task stay the same. */
+export interface ResubmitDailyProgressInput {
+  workersPresent: number
+  progressAfter?: number
+  completedQuantity?: Quantity
+  todaySummary: string
+  tomorrowPlan: string
+  yesterdaySummary?: string
+  blockerSummary?: string
+  /** Evidence from the previous version to carry over. */
+  keepEvidenceIds: EntityId[]
+  /** Newly captured evidence. */
+  evidence: SubmitDailyProgressInput["evidence"]
+}
+
 export interface AssignWorkerToProjectInput {
   workerId: EntityId
   projectId: EntityId

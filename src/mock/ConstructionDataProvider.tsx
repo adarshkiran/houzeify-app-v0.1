@@ -61,6 +61,7 @@ export type {
   InviteProjectMemberInput,
   IssueEvidenceInput,
   ReportIssueInput,
+  ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
 } from "../domain/commandInputs"
 
@@ -99,6 +100,10 @@ interface ConstructionDataContextValue {
   startTask: (taskId: EntityId) => void
   addEvidence: (input: Inputs.AddEvidenceInput) => Evidence
   submitDailyProgress: (input: Inputs.SubmitDailyProgressInput) => DailyProgress
+  resubmitDailyProgress: (
+    previousId: EntityId,
+    input: Inputs.ResubmitDailyProgressInput,
+  ) => DailyProgress
   reviewDailyProgress: (
     progressId: EntityId,
     decision: ReviewDecision,
@@ -194,6 +199,8 @@ export default function ConstructionDataProvider({
       startTask: (taskId) => run(commands.startTask(taskId)),
       addEvidence: (input) => run(commands.addEvidence(input)),
       submitDailyProgress: (input) => run(commands.submitDailyProgress(input)),
+      resubmitDailyProgress: (id, input) =>
+        run(commands.resubmitDailyProgress(id, input)),
       reviewDailyProgress: (id, decision, note) =>
         run(commands.reviewDailyProgress(id, decision, note)),
       reportIssue: (input) => run(commands.reportIssue(input)),
