@@ -37,7 +37,7 @@ import {
   useConstructionData,
   type InviteProjectMemberInput,
 } from "../mock/ConstructionDataProvider"
-import { getProject } from "../mock/selectors"
+import { getProject, getProjectUnits } from "../mock/selectors"
 
 const { Paragraph, Text, Title } = Typography
 
@@ -46,6 +46,7 @@ interface InviteFormValues {
   email?: string
   phone?: string
   role: ProjectRole
+  projectUnitIds?: EntityId[]
 }
 
 function ProjectTeam({
@@ -59,6 +60,7 @@ function ProjectTeam({
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<InviteFormValues>()
   const project = getProject(state, projectId)
+  const units = getProjectUnits(state, projectId)
   const memberships = state.memberships.filter(
     (membership) => membership.projectId === projectId,
   )
@@ -115,7 +117,14 @@ function ProjectTeam({
   ]
 
   const handleInvite = (values: InviteFormValues) => {
-    const input: InviteProjectMemberInput = { ...values, projectId }
+    const input: InviteProjectMemberInput = {
+      projectId,
+      name: values.name,
+      email: values.email,
+      phone: values.phone,
+      role: values.role,
+      projectUnitIds: values.projectUnitIds,
+    }
     inviteProjectMember(input)
     form.resetFields()
     setModalOpen(false)
@@ -254,6 +263,21 @@ function ProjectTeam({
                 { value: "consultant", label: "Architect / consultant" },
                 { value: "homeowner", label: "Homeowner / buyer" },
               ]}
+            />
+          </Form.Item>
+          <Form.Item
+            label="Location scope"
+            name="projectUnitIds"
+            extra="Leave empty for entire project access."
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Entire project"
+              options={units.map((unit) => ({
+                value: unit.id,
+                label: `${unit.name} · ${unit.kind}`,
+              }))}
             />
           </Form.Item>
           <Flex justify="flex-end">

@@ -1,5 +1,11 @@
-import { useMemo, useState } from "react"
-import { ArrowLeftOutlined, CameraOutlined } from "@ant-design/icons"
+import { useMemo, useRef, useState } from "react"
+import {
+  ArrowLeftOutlined,
+  CameraOutlined,
+  DeleteOutlined,
+  PictureOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons"
 import {
   Alert,
   Button,
@@ -15,8 +21,12 @@ import {
   Typography,
   Upload,
 } from "antd"
+import CameraCaptureModal, {
+  type CameraCaptureMode,
+} from "../components/CameraCaptureModal"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
+import VoiceTextArea from "../components/VoiceTextArea"
 import type { EntityId, EvidenceType } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
@@ -45,6 +55,13 @@ interface ProgressFormValues {
   blockerSummary?: string
 }
 
+function isTouchDevice() {
+  return (
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  )
+}
+
 function SubmitProgress({
   onNavigate,
   projectId,
@@ -56,6 +73,10 @@ function SubmitProgress({
 }) {
   const { state, submitDailyProgress } = useConstructionData()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraMode, setCameraMode] = useState<CameraCaptureMode>("photo")
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
   const [form] = Form.useForm<ProgressFormValues>()
   const project = getProject(state, projectId)
   const tasks = state.tasks.filter((task) => task.projectId === projectId)
@@ -68,9 +89,43 @@ function SubmitProgress({
     (item) => item.workTypeId === task?.workTypeId,
   )
   const previous = useMemo(
-    () => getRecentProgress(state, projectId).find((item) => item.taskId === task?.id),
+    () =>
+      getRecentProgress(state, projectId).find((item) => item.taskId === task?.id),
     [projectId, state, task?.id],
   )
+
+  const addEvidenceFile = (file: File) => {
+    const type: EvidenceType = file.type.startsWith("video/") ? "video" : "photo"
+    setEvidence((current) => [
+      ...current,
+      {
+        type,
+        url: URL.createObjectURL(file),
+        caption:
+          type === "video"
+            ? `Video ${new Date().toLocaleTimeString("en-IN")}`
+            : file.name,
+      },
+    ])
+  }
+
+  const openCapture = (mode: CameraCaptureMode) => {
+    setCameraMode(mode)
+    if (isTouchDevice()) {
+      if (mode === "video") videoInputRef.current?.click()
+      else cameraInputRef.current?.click()
+      return
+    }
+    setCameraOpen(true)
+  }
+
+  const removeEvidence = (url: string) => {
+    setEvidence((current) => {
+      const next = current.filter((item) => item.url !== url)
+      URL.revokeObjectURL(url)
+      return next
+    })
+  }
 
   if (!project) {
     return (
@@ -136,7 +191,10 @@ function SubmitProgress({
           layout="vertical"
           requiredMark={false}
           initialValues={{
-            taskId: taskId && tasks.some((item) => item.id === taskId) ? taskId : tasks[0]?.id,
+            taskId:
+              taskId && tasks.some((item) => item.id === taskId)
+                ? taskId
+                : tasks[0]?.id,
             workersPresent: 1,
             progressAfter: project.progress,
           }}
@@ -147,7 +205,12 @@ function SubmitProgress({
               <Form.Item
                 label="Task"
                 name="taskId"
-                rules={[{ required: true, message: "Choose the task this update belongs to" }]}
+                rules={[
+                  {
+                    required: true,
+                    message: "Choose the task this update belongs to",
+                  },
+                ]}
               >
                 <Select
                   disabled={Boolean(taskId)}
@@ -162,7 +225,12 @@ function SubmitProgress({
               <Form.Item
                 label="Workers on site"
                 name="workersPresent"
-                rules={[{ required: true, message: "Enter how many workers were present" }]}
+                rules={[
+                  {
+                    required: true,
+                    message: "Enter how many workers were present",
+                  },
+                ]}
               >
                 <InputNumber min={0} max={500} className="w-full!" />
               </Form.Item>
@@ -171,7 +239,12 @@ function SubmitProgress({
               <Form.Item
                 label="Progress after today (%)"
                 name="progressAfter"
-                rules={[{ required: true, message: "Enter progress after today’s work" }]}
+                rules={[
+                  {
+                    required: true,
+                    message: "Enter progress after today’s work",
+                  },
+                ]}
               >
                 <InputNumber min={0} max={100} className="w-full!" />
               </Form.Item>
@@ -180,9 +253,14 @@ function SubmitProgress({
               <Form.Item
                 label="What was done today"
                 name="todaySummary"
-                rules={[{ required: true, message: "Describe the work completed today" }]}
+                rules={[
+                  {
+                    required: true,
+                    message: "Describe the work completed today",
+                  },
+                ]}
               >
-                <Input.TextArea rows={3} placeholder="Work completed on site today" />
+                <VoiceTextArea rows={3} placeholder="Work completed on site today" />
               </Form.Item>
             </Col>
             <Col span={24}>
@@ -191,7 +269,7 @@ function SubmitProgress({
                 name="tomorrowPlan"
                 rules={[{ required: true, message: "Describe tomorrow’s plan" }]}
               >
-                <Input.TextArea rows={3} placeholder="Work planned for the next day" />
+                <VoiceTextArea rows={3} placeholder="Work planned for the next day" />
               </Form.Item>
             </Col>
             <Col span={24}>
@@ -201,51 +279,124 @@ function SubmitProgress({
             </Col>
           </Row>
 
-          <Card>
-            <Flex vertical gap="middle">
+          <Card
+            title={
               <Flex align="center" justify="space-between" gap="middle" wrap>
-                <Flex vertical gap={4}>
-                  <Text strong>Evidence</Text>
-                  <Text type="secondary">
+                <Flex vertical gap={2}>
+                  <Text strong className="m-0!">
+                    Evidence
+                  </Text>
+                  <Text type="secondary" className="text-[13px]!">
                     {task
                       ? getWorkTypeName(state, task.workTypeId)
-                      : "Add photos from the site"}
+                      : "Photo or video from site"}
                   </Text>
                 </Flex>
+                <Flex gap={6} wrap>
+                  {(template?.requiredEvidence ?? ["photo", "video"]).map((type) => (
+                    <Tag key={type} className="m-0!">
+                      {type}
+                    </Tag>
+                  ))}
+                </Flex>
+              </Flex>
+            }
+            styles={{ body: { paddingTop: 16 } }}
+          >
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              aria-hidden
+              tabIndex={-1}
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) addEvidenceFile(file)
+                event.target.value = ""
+              }}
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              capture="environment"
+              aria-hidden
+              tabIndex={-1}
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) addEvidenceFile(file)
+                event.target.value = ""
+              }}
+            />
+
+            <Flex vertical gap="middle">
+              <Flex gap="small" wrap>
+                <Button
+                  type="primary"
+                  icon={<CameraOutlined />}
+                  onClick={() => openCapture("photo")}
+                >
+                  Photo
+                </Button>
+                <Button
+                  icon={<VideoCameraOutlined />}
+                  onClick={() => openCapture("video")}
+                >
+                  Record video
+                </Button>
                 <Upload
                   accept="image/*,video/*"
                   showUploadList={false}
                   beforeUpload={(file) => {
-                    const type: EvidenceType = file.type.startsWith("video/") ? "video" : "photo"
-                    setEvidence((current) => [
-                      ...current,
-                      { type, url: URL.createObjectURL(file), caption: file.name },
-                    ])
+                    addEvidenceFile(file)
                     return false
                   }}
                 >
-                  <Button icon={<CameraOutlined />}>Add photo</Button>
+                  <Button icon={<PictureOutlined />}>Gallery</Button>
                 </Upload>
               </Flex>
-              <Flex gap="small" wrap>
-                {(template?.requiredEvidence ?? ["photo"]).map((type) => (
-                  <Tag key={type}>{type} expected</Tag>
-                ))}
-              </Flex>
+
               {evidence.length ? (
                 <Flex gap="small" wrap>
                   {evidence.map((item) => (
-                    <img
-                      key={item.url}
-                      src={item.url}
-                      alt={item.caption}
-                      className="h-20 w-28 object-cover"
-                      style={{ borderRadius: "var(--ant-border-radius-lg)" }}
-                    />
+                    <div key={item.url} className="relative shrink-0">
+                      {item.type === "video" ? (
+                        <video
+                          src={item.url}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="h-24 w-36 object-cover bg-[#1C1917]"
+                          style={{ borderRadius: "var(--ant-border-radius-lg)" }}
+                        />
+                      ) : (
+                        <img
+                          src={item.url}
+                          alt={item.caption}
+                          className="h-24 w-36 object-cover"
+                          style={{ borderRadius: "var(--ant-border-radius-lg)" }}
+                        />
+                      )}
+                      <Tag className="absolute! left-1 bottom-1 m-0!">{item.type}</Tag>
+                      <Button
+                        size="small"
+                        danger
+                        type="primary"
+                        icon={<DeleteOutlined />}
+                        aria-label={`Remove ${item.caption}`}
+                        className="absolute! top-1 right-1"
+                        onClick={() => removeEvidence(item.url)}
+                      />
+                    </div>
                   ))}
                 </Flex>
               ) : (
-                <Text type="secondary">No photos added yet. You can still send the update.</Text>
+                <Text type="secondary" className="m-0! text-[13px]!">
+                  No files yet — use Photo, Record video, or Gallery above.
+                </Text>
               )}
             </Flex>
           </Card>
@@ -257,6 +408,22 @@ function SubmitProgress({
           </Flex>
         </Form>
       </Flex>
+
+      <CameraCaptureModal
+        open={cameraOpen}
+        mode={cameraMode}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(_file, previewUrl, kind) => {
+          setEvidence((current) => [
+            ...current,
+            {
+              type: kind,
+              url: previewUrl,
+              caption: `${kind === "video" ? "Video" : "Photo"} ${new Date().toLocaleTimeString("en-IN")}`,
+            },
+          ])
+        }}
+      />
     </Flex>
   )
 }

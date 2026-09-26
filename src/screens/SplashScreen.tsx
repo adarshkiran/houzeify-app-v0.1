@@ -49,8 +49,11 @@ function StatusMessage() {
 
 function ProgressFill() {
   return (
-    <div className="bg-[#722ed1] flex h-full items-center justify-end rounded-[3px] shrink-0 w-[160px]">
-      <div className="relative shrink-0 size-[12px]">
+    <div
+      className="bg-[#722ed1] absolute inset-y-0 left-0 flex items-center justify-end rounded-[3px]"
+      data-name="progress-fill"
+    >
+      <div className="relative shrink-0 size-[12px] translate-x-1/2">
         <div className="absolute inset-[-50%]">
           <svg fill="none" height="24" viewBox="0 0 24 24" width="24">
             <g filter="url(#sph_filter)">
@@ -78,7 +81,10 @@ function ProgressFill() {
 
 function ProgressBarTrack() {
   return (
-    <div className="bg-[#ebe8fc] flex h-[6px] items-center rounded-[3px] shrink-0 w-[400px]">
+    <div
+      className="bg-[#ebe8fc] relative h-[6px] w-[400px] max-w-full overflow-visible rounded-[3px] shrink-0"
+      data-name="progress-bar-track"
+    >
       <ProgressFill />
     </div>
   )

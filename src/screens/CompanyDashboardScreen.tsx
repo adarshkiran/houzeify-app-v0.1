@@ -58,37 +58,42 @@ import {
 const { Header, Content, Sider } = Layout
 const { Paragraph, Text, Title } = Typography
 
-const menuItems: MenuProps["items"] = [
-  { key: "home", icon: <HomeOutlined />, label: "Home" },
-  {
-    key: "projects",
-    icon: <ProjectOutlined />,
-    label: (
-      <Flex align="center" justify="space-between">
-        <span>Projects</span>
-        <Badge count={4} size="small" />
-      </Flex>
-    ),
-  },
-  { key: "library", icon: <SnippetsOutlined />, label: "Work Library" },
-  { key: "progress", icon: <LineChartOutlined />, label: "Progress" },
-  {
-    key: "site-ops",
-    icon: <SafetyCertificateOutlined />,
-    label: (
-      <Flex align="center" justify="space-between">
-        <span>Site Operations</span>
-        <Badge count={3} size="small" />
-      </Flex>
-    ),
-  },
-  { key: "workforce", icon: <TeamOutlined />, label: "Workforce" },
-  { key: "live-site", icon: <VideoCameraOutlined />, label: "Live Site" },
-  { key: "documents", icon: <FileTextOutlined />, label: "Documents" },
-  { key: "reports", icon: <BarChartOutlined />, label: "Reports" },
-  { key: "team", icon: <UsergroupAddOutlined />, label: "Team" },
-  { key: "hozie", icon: <RobotOutlined />, label: "Hozie AI" },
-]
+function buildMenuItems(
+  projectCount: number,
+  issueCount: number,
+): MenuProps["items"] {
+  return [
+    { key: "home", icon: <HomeOutlined />, label: "Home" },
+    {
+      key: "projects",
+      icon: <ProjectOutlined />,
+      label: (
+        <Flex align="center" justify="space-between">
+          <span>Projects</span>
+          <Badge count={projectCount} size="small" />
+        </Flex>
+      ),
+    },
+    { key: "library", icon: <SnippetsOutlined />, label: "Work Library" },
+    { key: "progress", icon: <LineChartOutlined />, label: "Progress" },
+    {
+      key: "site-ops",
+      icon: <SafetyCertificateOutlined />,
+      label: (
+        <Flex align="center" justify="space-between">
+          <span>Site Operations</span>
+          <Badge count={issueCount} size="small" />
+        </Flex>
+      ),
+    },
+    { key: "workforce", icon: <TeamOutlined />, label: "Workforce" },
+    { key: "live-site", icon: <VideoCameraOutlined />, label: "Live Site" },
+    { key: "documents", icon: <FileTextOutlined />, label: "Documents" },
+    { key: "reports", icon: <BarChartOutlined />, label: "Reports" },
+    { key: "team", icon: <UsergroupAddOutlined />, label: "Team" },
+    { key: "hozie", icon: <RobotOutlined />, label: "Hozie AI" },
+  ]
+}
 
 function getStageTone(stageName: string) {
   if (stageName === "Foundation") return "warning"
@@ -192,7 +197,9 @@ function ProjectRow({
         </Flex>
         <Flex align="center" gap="small">
           <Progress percent={project.progress} showInfo={false} size="small" />
-          <Text type="secondary">{project.progress}%</Text>
+          <Text type="secondary" className="shrink-0 whitespace-nowrap">
+            {project.progress}%
+          </Text>
         </Flex>
         <Text type="secondary" ellipsis>
           {project.location} · {item.workforceCount} workers ·{" "}
@@ -221,6 +228,10 @@ function CompanyDashboard({
 }) {
   const { state } = useConstructionData()
   const dashboard = getOrganizationDashboard(state, ACTIVE_ORGANIZATION_ID)
+  const navItems = buildMenuItems(
+    dashboard.projects.length,
+    dashboard.openIssues.length,
+  )
   const visibleTasks = dashboard.openTasks.slice(0, 3)
   const visibleIssues = dashboard.openIssues.slice(0, 3)
   const visibleProgress = dashboard.recentProgress.slice(0, 3)
@@ -247,7 +258,7 @@ function CompanyDashboard({
         <Menu
           mode="inline"
           selectedKeys={["home"]}
-          items={menuItems}
+          items={navItems}
           onClick={({ key }) => handleNavigation(key)}
         />
         <Divider />
@@ -276,7 +287,7 @@ function CompanyDashboard({
           <Menu
             mode="inline"
             selectedKeys={["home"]}
-            items={menuItems}
+            items={navItems}
             inlineIndent={18}
             className="company-main-menu flex-1 border-0!"
             onClick={({ key }) => handleNavigation(key)}

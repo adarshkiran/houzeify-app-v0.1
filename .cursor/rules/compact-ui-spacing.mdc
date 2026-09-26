@@ -1,0 +1,17 @@
+---
+description: Keep company UI layouts compact — avoid sparse whitespace
+globs: src/screens/**/*.tsx,src/components/**/*.tsx
+alwaysApply: false
+---
+
+# Compact UI spacing
+
+When building or editing screens (especially company forms, cards, evidence, action rows):
+
+- Prefer tight vertical rhythm: title + actions + content stacked with small gaps, not large empty regions.
+- Do not stretch a few controls across a full-width card with large left/right voids. Group related actions in one compact row.
+- Empty states should be one short line of helper text, not tall dashed boxes or padded placeholders.
+- Hide native `<input type="file">` with `style={{ display: "none" }}` (do not rely on a `hidden` class that may be missing).
+- Keep card headers dense: title, subtitle, and status tags on one row when possible.
+- Prefer Ant Design `Flex`/`Space` with `gap="small"` / `gap="middle"` over custom large padding for sparse looks.
+- Preserve the existing Houzeify / Ant Design visual system; tighten structure, do not redesign.

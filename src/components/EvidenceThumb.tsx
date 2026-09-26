@@ -7,7 +7,8 @@ const { Text } = Typography
 
 export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
   const [failed, setFailed] = useState(evidence.url.startsWith("/mock-evidence"))
-  const Icon = evidence.type === "video" ? PlayCircleOutlined : CameraOutlined
+  const isVideo = evidence.type === "video"
+  const Icon = isVideo ? PlayCircleOutlined : CameraOutlined
 
   return (
     <Flex vertical gap={6} className="min-w-0">
@@ -22,6 +23,15 @@ export default function EvidenceThumb({ evidence }: { evidence: Evidence }) {
           <Flex align="center" justify="center" className="h-full text-[#722ED1]">
             <Icon style={{ fontSize: 28 }} />
           </Flex>
+        ) : isVideo ? (
+          <video
+            src={evidence.url}
+            controls
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-cover"
+            onError={() => setFailed(true)}
+          />
         ) : (
           <img
             src={evidence.url}

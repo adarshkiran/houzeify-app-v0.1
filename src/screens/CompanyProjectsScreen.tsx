@@ -87,9 +87,14 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
       key: "progress",
       width: 180,
       render: (_, project) => (
-        <Flex align="center" gap="small">
-          <Progress percent={project.progress} showInfo={false} size="small" />
-          <Text>{project.progress}%</Text>
+        <Flex align="center" gap="small" className="min-w-0">
+          <Progress
+            percent={project.progress}
+            showInfo={false}
+            size="small"
+            className="m-0! min-w-0 flex-1"
+          />
+          <Text className="shrink-0 whitespace-nowrap">{project.progress}%</Text>
         </Flex>
       ),
     },

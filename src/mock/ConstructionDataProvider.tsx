@@ -30,6 +30,7 @@ import type {
 } from "../domain/models"
 import { calculateProjectProgress } from "../domain/progress"
 import { permissionsForRole } from "../domain/permissions"
+import { defaultRootUnitForKind } from "../domain/projectSetup"
 import {
   canTransitionTask,
   getAllowedTaskTransitions,
@@ -73,6 +74,7 @@ export interface InviteProjectMemberInput {
   phone?: string
   email?: string
   role: ProjectRole
+  projectUnitIds?: EntityId[]
 }
 
 export interface AddWorkPlanItemInput {
@@ -155,6 +157,7 @@ interface ConstructionDataContextValue {
   ) => void
   createProject: (input: CreateProjectInput) => Project
   addProjectUnit: (input: AddProjectUnitInput) => ProjectUnit
+  addProjectUnits: (inputs: AddProjectUnitInput[]) => ProjectUnit[]
   inviteProjectMember: (input: InviteProjectMemberInput) => ProjectMembership
   addWorkPlanItem: (input: AddWorkPlanItemInput) => WorkPlanItem
   createTask: (input: CreateTaskInput) => Task
@@ -245,10 +248,47 @@ export default function ConstructionDataProvider({
       updatedAt: timestamp,
     }
 
-    setState((current) => ({
-      ...current,
-      projects: [...current.projects, project],
-    }))
+    const root = defaultRootUnitForKind(input.kind)
+    const rootUnit: ProjectUnit | null = root
+      ? {
+          id: `unit-${crypto.randomUUID()}`,
+          projectId: id,
+          kind: root.kind,
+          code: root.code,
+          name: root.name,
+          status: "active",
+          sequence: 1,
+        }
+      : null
+
+    setState((current) => {
+      const creatorPerson =
+        current.people.find((person) => person.id === "person-arjun") ??
+        current.people[0]
+      const membership: ProjectMembership | null = creatorPerson
+        ? {
+            id: `membership-${crypto.randomUUID()}`,
+            projectId: id,
+            principalType: "person",
+            principalId: creatorPerson.id,
+            role: "project-manager",
+            scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+            permissions: permissionsForRole("project-manager"),
+            status: "active",
+          }
+        : null
+
+      return {
+        ...current,
+        projects: [...current.projects, project],
+        projectUnits: rootUnit
+          ? [...current.projectUnits, rootUnit]
+          : current.projectUnits,
+        memberships: membership
+          ? [...current.memberships, membership]
+          : current.memberships,
+      }
+    })
     return project
   }, [])
 
@@ -279,6 +319,37 @@ export default function ConstructionDataProvider({
     [state.projectUnits],
   )
 
+  const addProjectUnits = useCallback((inputs: AddProjectUnitInput[]) => {
+    const created: ProjectUnit[] = []
+    if (!inputs.length) return created
+
+    setState((current) => {
+      let units = [...current.projectUnits]
+      for (const input of inputs) {
+        const siblings = units.filter(
+          (unit) =>
+            unit.projectId === input.projectId &&
+            unit.parentUnitId === input.parentUnitId,
+        )
+        const unit: ProjectUnit = {
+          id: `unit-${crypto.randomUUID()}`,
+          projectId: input.projectId,
+          parentUnitId: input.parentUnitId,
+          kind: input.kind,
+          code: input.code,
+          name: input.name,
+          status: "planned",
+          sequence: siblings.length + 1,
+        }
+        units = [...units, unit]
+        created.push(unit)
+      }
+      return { ...current, projectUnits: units }
+    })
+
+    return created
+  }, [])
+
   const inviteProjectMember = useCallback((input: InviteProjectMemberInput) => {
     const person: Person = {
       id: `person-${crypto.randomUUID()}`,
@@ -292,7 +363,11 @@ export default function ConstructionDataProvider({
       principalType: "person",
       principalId: person.id,
       role: input.role,
-      scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+      scope: {
+        projectUnitIds: input.projectUnitIds ?? [],
+        stageIds: [],
+        tradeIds: [],
+      },
       permissions: permissionsForRole(input.role),
       status: "invited",
     }
@@ -586,6 +661,7 @@ export default function ConstructionDataProvider({
       updateOrganizationProfile,
       createProject,
       addProjectUnit,
+      addProjectUnits,
       inviteProjectMember,
       addWorkPlanItem,
       createTask,
@@ -601,6 +677,7 @@ export default function ConstructionDataProvider({
       updateOrganizationProfile,
       createProject,
       addProjectUnit,
+      addProjectUnits,
       inviteProjectMember,
       addWorkPlanItem,
       createTask,

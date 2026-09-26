@@ -51,12 +51,33 @@ function SplashRoute({ onComplete }: { onComplete: () => void }) {
   )
 }
 
+const LAST_SCREEN_KEY = 'houzeify:last-screen'
+
+function readInitialScreen(): AppScreen {
+  if (typeof window === 'undefined') return 'splash'
+  const hash = window.location.hash.replace(/^#/, '')
+  if (isAppScreen(hash)) return hash
+  const saved = window.localStorage.getItem(LAST_SCREEN_KEY)
+  if (saved && isAppScreen(saved) && saved !== 'splash') return saved
+  return 'splash'
+}
+
+function rememberScreen(screen: AppScreen) {
+  if (typeof window === 'undefined') return
+  window.location.hash = screen
+  if (screen !== 'splash') {
+    window.localStorage.setItem(LAST_SCREEN_KEY, screen)
+  }
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<AppScreen>('splash')
+  const [screen, setScreen] = useState<AppScreen>(readInitialScreen)
   const [phone, setPhone] = useState('98765 43210')
   const [projectData, setProjectData] = useState<Record<string, string>>({
     property_type: 'House',
     location: 'Hyderabad, Telangana',
+    project_id: 'project-sharma',
+    task_id: 'task-4',
   })
 
   const navigateTo = (s: string, data?: Record<string, string>) => {
@@ -64,7 +85,22 @@ export default function App() {
     if (data?.phone) setPhone(data.phone)
     if (data) setProjectData(prev => ({ ...prev, ...data }))
     setScreen(s)
+    rememberScreen(s)
   }
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace(/^#/, '')
+      if (isAppScreen(hash)) {
+        setScreen(hash)
+        if (hash !== 'splash') {
+          window.localStorage.setItem(LAST_SCREEN_KEY, hash)
+        }
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   const slide = {
     position: 'absolute' as const,
@@ -75,7 +111,7 @@ export default function App() {
   return (
     <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
       {screen === 'splash' && (
-        <SplashRoute onComplete={() => setScreen('welcome')} />
+        <SplashRoute onComplete={() => navigateTo('welcome')} />
       )}
       {screen === 'welcome' && (
         <div style={slide}>

@@ -13,6 +13,7 @@ import {
   Flex,
   Form,
   Input,
+  InputNumber,
   Modal,
   Row,
   Select,
@@ -28,6 +29,10 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, ProjectUnitKind } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
+  buildBatchUnitLabels,
+  isMultiUnitProjectKind,
+} from "../domain/projectSetup"
+import {
   useConstructionData,
   type AddProjectUnitInput,
 } from "../mock/ConstructionDataProvider"
@@ -40,6 +45,7 @@ interface UnitFormValues {
   kind: ProjectUnitKind
   code: string
   name: string
+  count?: number
 }
 
 function buildTreeData(units: ReturnType<typeof getProjectUnits>): TreeDataNode[] {
@@ -71,16 +77,42 @@ function ProjectStructure({
   onNavigate: Navigate
   projectId: EntityId
 }) {
-  const { state, addProjectUnit } = useConstructionData()
+  const { state, addProjectUnit, addProjectUnits } = useConstructionData()
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<UnitFormValues>()
   const project = getProject(state, projectId)
   const units = getProjectUnits(state, projectId)
   const treeData = useMemo(() => buildTreeData(units), [units])
+  const allowBulk = Boolean(project && isMultiUnitProjectKind(project.kind))
 
   const handleAddUnit = (values: UnitFormValues) => {
-    const input: AddProjectUnitInput = { ...values, projectId }
-    addProjectUnit(input)
+    const count = values.count && values.count > 1 ? Math.floor(values.count) : 1
+    if (count > 1) {
+      const labels = buildBatchUnitLabels({
+        count,
+        kind: values.kind,
+        codePrefix: values.code,
+        namePrefix: values.name,
+      })
+      addProjectUnits(
+        labels.map((label) => ({
+          projectId,
+          parentUnitId: values.parentUnitId,
+          kind: values.kind,
+          code: label.code,
+          name: label.name,
+        })),
+      )
+    } else {
+      const input: AddProjectUnitInput = {
+        projectId,
+        parentUnitId: values.parentUnitId,
+        kind: values.kind,
+        code: values.code,
+        name: values.name,
+      }
+      addProjectUnit(input)
+    }
     form.resetFields()
     setModalOpen(false)
   }
@@ -191,7 +223,7 @@ function ProjectStructure({
           form={form}
           layout="vertical"
           requiredMark={false}
-          initialValues={{ kind: "block" }}
+          initialValues={{ kind: allowBulk ? "villa" : "block", count: 1 }}
           onFinish={handleAddUnit}
         >
           <Form.Item label="Parent location" name="parentUnitId">
@@ -216,23 +248,33 @@ function ProjectStructure({
               ].map((value) => ({ value, label: value }))}
             />
           </Form.Item>
+          {allowBulk ? (
+            <Form.Item
+              label="How many to add"
+              name="count"
+              extra="Use more than 1 to create sequenced villas/blocks under the parent."
+              rules={[{ required: true }]}
+            >
+              <InputNumber min={1} max={200} className="w-full" placeholder="1" />
+            </Form.Item>
+          ) : null}
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item
-                label="Code"
+                label={allowBulk ? "Code prefix" : "Code"}
                 name="code"
                 rules={[{ required: true, message: "Enter a code" }]}
               >
-                <Input placeholder="A" />
+                <Input placeholder={allowBulk ? "V" : "A"} />
               </Form.Item>
             </Col>
             <Col span={16}>
               <Form.Item
-                label="Name"
+                label={allowBulk ? "Name prefix" : "Name"}
                 name="name"
                 rules={[{ required: true, message: "Enter a name" }]}
               >
-                <Input placeholder="Block A" />
+                <Input placeholder={allowBulk ? "Villa" : "Block A"} />
               </Form.Item>
             </Col>
           </Row>

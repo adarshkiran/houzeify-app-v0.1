@@ -180,7 +180,8 @@ export function getProjectMemberships(
 ) {
   return state.memberships.filter(
     (membership) =>
-      membership.projectId === projectId && membership.status === "active",
+      membership.projectId === projectId &&
+      (membership.status === "active" || membership.status === "invited"),
   )
 }
 
