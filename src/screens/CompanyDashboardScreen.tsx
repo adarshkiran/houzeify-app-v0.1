@@ -95,28 +95,39 @@ function SectionAction({
   )
 }
 
+/** One soft colour per summary card; the palettes live in index.css. */
+type KpiTone = "violet" | "amber" | "rose" | "green"
+
 function KpiCard({
   label,
   value,
   description,
+  accent,
   icon,
+  tone,
 }: {
   label: string
   value: number
   description: string
+  /** Short lead-in shown in the card's colour, e.g. "1" before "high severity". */
+  accent?: string
   icon: ReactNode
+  tone: KpiTone
 }) {
   return (
-    <Card className="company-kpi-card h-full" variant="outlined">
-      <Flex vertical gap="middle">
-        <Flex align="center" justify="space-between">
-          <Text type="secondary" className="company-eyebrow">
-            {label}
-          </Text>
-          <Avatar className="company-kpi-icon" icon={icon} shape="square" />
+    <Card className={`company-kpi-card company-kpi-${tone} h-full`} variant="outlined">
+      <Flex vertical justify="space-between" gap="large" className="company-kpi-inner">
+        <Flex align="flex-start" justify="space-between" gap="small">
+          <Text className="company-kpi-label">{label}</Text>
+          <span className="company-kpi-icon">{icon}</span>
         </Flex>
-        <Statistic value={value} classNames={{ content: "company-heading" }} />
-        <Text type="secondary">{description}</Text>
+        <Flex vertical gap={4}>
+          <Statistic value={value} classNames={{ content: "company-kpi-value" }} />
+          <Text type="secondary">
+            {accent && <span className="company-kpi-accent">{accent} </span>}
+            {description}
+          </Text>
+        </Flex>
       </Flex>
     </Card>
   )
@@ -219,6 +230,7 @@ function CompanyDashboard({
               value={dashboard.activeProjectCount}
               description="Across this workspace"
               icon={<ProjectOutlined />}
+              tone="violet"
             />
           </Col>
           <Col xs={12} lg={6}>
@@ -227,14 +239,21 @@ function CompanyDashboard({
               value={dashboard.openTasks.length}
               description="Work requiring attention"
               icon={<CheckSquareOutlined />}
+              tone="amber"
             />
           </Col>
           <Col xs={12} lg={6}>
             <KpiCard
               label="Open Issues"
               value={dashboard.openIssues.length}
-              description={`${dashboard.openIssues.filter((issue) => issue.severity === "high" || issue.severity === "critical").length} high severity`}
+              accent={String(
+                dashboard.openIssues.filter(
+                  (issue) => issue.severity === "high" || issue.severity === "critical",
+                ).length,
+              )}
+              description="high severity"
               icon={<ExclamationCircleOutlined />}
+              tone="rose"
             />
           </Col>
           <Col xs={12} lg={6}>
@@ -243,6 +262,7 @@ function CompanyDashboard({
               value={dashboard.workforceCount}
               description="Across all projects"
               icon={<TeamOutlined />}
+              tone="green"
             />
           </Col>
         </Row>
