@@ -1,3 +1,7 @@
+import Gated from "../components/Gated"
+import { Permissions } from "../domain/permissions"
+import { useCan } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
   ArrowLeftOutlined,
@@ -94,6 +98,8 @@ function Tasks({
   projectId: EntityId
 }) {
   const { state, createTask } = useConstructionData()
+  const run = useCommand()
+  const canManage = useCan(Permissions.TASK_MANAGE, projectId)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<TaskStatus | "all">("all")
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
@@ -205,10 +211,11 @@ function Tasks({
       plannedStart: values.plannedStart,
       dueDate: values.dueDate,
     }
-    const task = createTask(input)
+    const outcome = run(() => createTask(input), { success: "Task created" })
+    if (!outcome.ok) return
     form.resetFields()
     setModalOpen(false)
-    onNavigate("task-detail", { project_id: projectId, task_id: task.id })
+    onNavigate("task-detail", { project_id: projectId, task_id: outcome.value.id })
   }
 
   return (
@@ -234,9 +241,11 @@ function Tasks({
               Structured work across locations, trades, and responsible teams.
             </Paragraph>
           </Flex>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            Create task
-          </Button>
+          <Gated allowed={canManage}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              Create task
+            </Button>
+          </Gated>
         </Flex>
 
         <Card>

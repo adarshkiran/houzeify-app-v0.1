@@ -1,3 +1,7 @@
+import Gated from "../components/Gated"
+import { Permissions } from "../domain/permissions"
+import { useCan } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
   ArrowLeftOutlined,
@@ -57,6 +61,8 @@ function ProjectTeam({
   projectId: EntityId
 }) {
   const { state, inviteProjectMember } = useConstructionData()
+  const run = useCommand()
+  const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<InviteFormValues>()
   const project = getProject(state, projectId)
@@ -125,7 +131,10 @@ function ProjectTeam({
       role: values.role,
       projectUnitIds: values.projectUnitIds,
     }
-    inviteProjectMember(input)
+    const outcome = run(() => inviteProjectMember(input), {
+      success: `${values.name} invited`,
+    })
+    if (!outcome.ok) return
     form.resetFields()
     setModalOpen(false)
   }
@@ -177,13 +186,15 @@ function ProjectTeam({
                 </Title>
               }
               extra={
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setModalOpen(true)}
-                >
-                  Invite member
-                </Button>
+                <Gated allowed={canManage}>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setModalOpen(true)}
+                  >
+                    Invite member
+                  </Button>
+                </Gated>
               }
               classNames={{ body: "company-table-card-body" }}
             >
@@ -197,13 +208,15 @@ function ProjectTeam({
                 />
               ) : (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No members yet">
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setModalOpen(true)}
-                  >
-                    Add first member
-                  </Button>
+                  <Gated allowed={canManage}>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => setModalOpen(true)}
+                    >
+                      Add first member
+                    </Button>
+                  </Gated>
                 </Empty>
               )}
             </Card>

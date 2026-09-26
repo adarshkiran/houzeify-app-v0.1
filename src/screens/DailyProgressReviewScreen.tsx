@@ -20,6 +20,9 @@ import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
 import { projectIdsWithPermission } from "../domain/session"
 import { useSession } from "../session/SessionProvider"
+import Gated from "../components/Gated"
+import { useAccess } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getEvidenceForProgress,
@@ -38,6 +41,8 @@ function ReviewQueue({
   projectId?: EntityId
 }) {
   const { state, reviewDailyProgress } = useConstructionData()
+  const run = useCommand()
+  const can = useAccess()
   const { session } = useSession()
   const reviewable = useMemo(
     () =>
@@ -52,10 +57,16 @@ function ReviewQueue({
   // Company-wide queue: no project is implied until an item is selected.
   const homeownerViewProjectId = projectId ?? selected?.projectId
 
+  const canReview = selected
+    ? can(Permissions.PROGRESS_REVIEW, selected.projectId)
+    : false
+
   const decide = (decision: "approve" | "reject") => {
     if (!selected) return
-    reviewDailyProgress(selected.id, decision)
-    setSelectedId(undefined)
+    const outcome = run(() => reviewDailyProgress(selected.id, decision), {
+      success: decision === "approve" ? "Progress approved" : "Progress rejected",
+    })
+    if (outcome.ok) setSelectedId(undefined)
   }
 
   return (
@@ -180,12 +191,16 @@ function ReviewQueue({
                       )}
                     </Row>
                     <Flex gap="small" wrap>
-                      <Button type="primary" onClick={() => decide("approve")}>
-                        Approve and publish
-                      </Button>
-                      <Button danger onClick={() => decide("reject")}>
-                        Reject
-                      </Button>
+                      <Gated allowed={canReview}>
+                        <Button type="primary" onClick={() => decide("approve")}>
+                          Approve and publish
+                        </Button>
+                      </Gated>
+                      <Gated allowed={canReview}>
+                        <Button danger onClick={() => decide("reject")}>
+                          Reject
+                        </Button>
+                      </Gated>
                     </Flex>
                   </Flex>
                 </Card>

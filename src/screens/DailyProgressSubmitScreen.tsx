@@ -29,6 +29,7 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import VoiceTextArea from "../components/VoiceTextArea"
 import type { EntityId, EvidenceType } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import { useCommand } from "../session/useCommand"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getProject,
@@ -72,6 +73,7 @@ function SubmitProgress({
   taskId?: EntityId
 }) {
   const { state, submitDailyProgress } = useConstructionData()
+  const run = useCommand()
   const [evidence, setEvidence] = useState<DraftEvidence[]>([])
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraMode, setCameraMode] = useState<CameraCaptureMode>("photo")
@@ -139,21 +141,26 @@ function SubmitProgress({
     const activeTask = tasks.find((item) => item.id === (values.taskId ?? taskId))
     if (!activeTask) return
 
-    submitDailyProgress({
-      projectId,
-      projectUnitId: activeTask.projectUnitId,
-      taskId: activeTask.id,
-      stageId: activeTask.stageId,
-      tradeId: activeTask.tradeId,
-      workTypeId: activeTask.workTypeId,
-      workersPresent: values.workersPresent,
-      progressAfter: values.progressAfter,
-      todaySummary: values.todaySummary.trim(),
-      tomorrowPlan: values.tomorrowPlan.trim(),
-      yesterdaySummary: previous?.todaySummary,
-      blockerSummary: values.blockerSummary?.trim() || undefined,
-      evidence,
-    })
+    const outcome = run(
+      () =>
+        submitDailyProgress({
+          projectId,
+          projectUnitId: activeTask.projectUnitId,
+          taskId: activeTask.id,
+          stageId: activeTask.stageId,
+          tradeId: activeTask.tradeId,
+          workTypeId: activeTask.workTypeId,
+          workersPresent: values.workersPresent,
+          progressAfter: values.progressAfter,
+          todaySummary: values.todaySummary.trim(),
+          tomorrowPlan: values.tomorrowPlan.trim(),
+          yesterdaySummary: previous?.todaySummary,
+          blockerSummary: values.blockerSummary?.trim() || undefined,
+          evidence,
+        }),
+      { success: "Progress submitted for review" },
+    )
+    if (!outcome.ok) return
     onNavigate("daily-progress-review", { project_id: projectId })
   }
 

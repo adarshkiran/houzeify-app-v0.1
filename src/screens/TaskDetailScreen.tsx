@@ -26,6 +26,10 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import Gated from "../components/Gated"
+import { Permissions } from "../domain/permissions"
+import { useCan } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import {
   getAllowedTaskTransitions,
   useConstructionData,
@@ -58,6 +62,11 @@ function TaskDetail({
   taskId: EntityId
 }) {
   const { state, assignTask, transitionTask } = useConstructionData()
+  const run = useCommand()
+  const canManageTasks = useCan(Permissions.TASK_MANAGE, projectId)
+  const canSubmitProgress = useCan(Permissions.PROGRESS_SUBMIT, projectId)
+  // Workers who can submit progress may also start/pause their own work.
+  const canMoveTask = canManageTasks || canSubmitProgress
   const [assigneeId, setAssigneeId] = useState<EntityId>()
   const task = state.tasks.find((item) => item.id === taskId)
   const project = getProject(state, projectId)
@@ -93,8 +102,10 @@ function TaskDetail({
 
   const handleAssign = () => {
     if (!assigneeId) return
-    assignTask(task.id, "worker", assigneeId)
-    setAssigneeId(undefined)
+    const outcome = run(() => assignTask(task.id, "worker", assigneeId), {
+      success: "Worker assigned",
+    })
+    if (outcome.ok) setAssigneeId(undefined)
   }
 
   return (
@@ -134,14 +145,15 @@ function TaskDetail({
               Log today’s progress
             </Button>
             {transitions.slice(0, 3).map((nextStatus) => (
-              <Button
-                key={nextStatus}
-                type={nextStatus === "in-progress" || nextStatus === "completed" ? "primary" : "default"}
-                danger={nextStatus === "cancelled"}
-                onClick={() => transitionTask(task.id, nextStatus)}
-              >
-                Move to {nextStatus}
-              </Button>
+              <Gated key={nextStatus} allowed={canMoveTask}>
+                <Button
+                  type={nextStatus === "in-progress" || nextStatus === "completed" ? "primary" : "default"}
+                  danger={nextStatus === "cancelled"}
+                  onClick={() => run(() => transitionTask(task.id, nextStatus))}
+                >
+                  Move to {nextStatus}
+                </Button>
+              </Gated>
             ))}
           </Space>
         </Flex>
@@ -289,14 +301,16 @@ function TaskDetail({
                       label: worker.name,
                     }))}
                   />
-                  <Button
-                    block
-                    icon={<TeamOutlined />}
-                    disabled={!assigneeId}
-                    onClick={handleAssign}
-                  >
-                    Assign worker
-                  </Button>
+                  <Gated allowed={canManageTasks}>
+                    <Button
+                      block
+                      icon={<TeamOutlined />}
+                      disabled={!assigneeId}
+                      onClick={handleAssign}
+                    >
+                      Assign worker
+                    </Button>
+                  </Gated>
                 </Flex>
               </Card>
 

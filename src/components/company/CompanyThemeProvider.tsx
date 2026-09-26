@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ConfigProvider } from "antd"
+import { App, ConfigProvider } from "antd"
 
 const houzeifyCompanyTheme = {
   cssVar: { key: "houzeify-company" },
@@ -68,5 +68,10 @@ const houzeifyCompanyTheme = {
 }
 
 export default function CompanyThemeProvider({ children }: { children: ReactNode }) {
-  return <ConfigProvider theme={houzeifyCompanyTheme}>{children}</ConfigProvider>
+  return (
+    <ConfigProvider theme={houzeifyCompanyTheme}>
+      {/* component={false}: provides message/modal context without a wrapper div. */}
+      <App component={false}>{children}</App>
+    </ConfigProvider>
+  )
 }

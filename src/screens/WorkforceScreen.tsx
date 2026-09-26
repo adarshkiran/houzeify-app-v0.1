@@ -38,6 +38,10 @@ import {
   getOrganizationWorkers,
   workerMatchesProject,
 } from "../domain/workforce"
+import Gated from "../components/Gated"
+import { Permissions } from "../domain/permissions"
+import { useAccess } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import {
   useConstructionData,
   type AddWorkerInput,
@@ -72,6 +76,8 @@ interface AssignFormValues {
 
 function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const { state, addWorker, assignWorkerToProject } = useConstructionData()
+  const run = useCommand()
+  const can = useAccess()
   const [search, setSearch] = useState("")
   const [projectFilter, setProjectFilter] = useState<string>("all")
   const [tradeFilter, setTradeFilter] = useState<string>("all")
@@ -86,6 +92,10 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const assignProjectId = Form.useWatch("projectId", assignForm)
 
   const projects = getOrganizationProjects(state, ACTIVE_ORGANIZATION_ID)
+  // Only projects where the person may manage workforce can be chosen in dialogs.
+  const manageableProjects = projects.filter((project) =>
+    can(Permissions.WORKFORCE_MANAGE, project.id),
+  )
   const workers = getOrganizationWorkers(state, ACTIVE_ORGANIZATION_ID)
 
   const filteredWorkers = useMemo(() => {
@@ -147,19 +157,27 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       projectUnitIds: values.projectUnitIds,
       role: values.role,
     }
-    addWorker(input)
+    const outcome = run(() => addWorker(input), {
+      success: `${values.name} added`,
+    })
+    if (!outcome.ok) return
     setAddOpen(false)
     addForm.resetFields()
   }
 
   const handleAssign = (values: AssignFormValues) => {
-    assignWorkerToProject({
-      workerId: values.workerId,
-      projectId: values.projectId,
-      projectUnitIds: values.projectUnitIds,
-      tradeIds: values.tradeIds,
-      role: values.role,
-    })
+    const outcome = run(
+      () =>
+        assignWorkerToProject({
+          workerId: values.workerId,
+          projectId: values.projectId,
+          projectUnitIds: values.projectUnitIds,
+          tradeIds: values.tradeIds,
+          role: values.role,
+        }),
+      { success: "Worker assigned" },
+    )
+    if (!outcome.ok) return
     setAssignOpen(false)
     assignForm.resetFields()
   }
@@ -304,7 +322,12 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               </Text>
             </Flex>
             <Space>
-              <Button onClick={() => openAssign()}>Assign existing</Button>
+              <Gated
+                allowed={manageableProjects.length > 0}
+                reason="You don't manage workforce on any project."
+              >
+                <Button onClick={() => openAssign()}>Assign existing</Button>
+              </Gated>
               <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
                 Add worker
               </Button>
@@ -444,7 +467,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               showSearch
               optionFilterProp="label"
               placeholder="Optional"
-              options={projects.map((project) => ({
+              options={manageableProjects.map((project) => ({
                 value: project.id,
                 label: project.name,
               }))}
@@ -530,7 +553,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               showSearch
               optionFilterProp="label"
               placeholder="Select project"
-              options={projects.map((project) => ({
+              options={manageableProjects.map((project) => ({
                 value: project.id,
                 label: project.name,
               }))}

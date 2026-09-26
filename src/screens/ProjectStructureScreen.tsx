@@ -1,3 +1,7 @@
+import Gated from "../components/Gated"
+import { Permissions } from "../domain/permissions"
+import { useCan } from "../session/useCan"
+import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
   ApartmentOutlined,
@@ -78,6 +82,8 @@ function ProjectStructure({
   projectId: EntityId
 }) {
   const { state, addProjectUnit, addProjectUnits } = useConstructionData()
+  const run = useCommand()
+  const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<UnitFormValues>()
   const project = getProject(state, projectId)
@@ -87,32 +93,37 @@ function ProjectStructure({
 
   const handleAddUnit = (values: UnitFormValues) => {
     const count = values.count && values.count > 1 ? Math.floor(values.count) : 1
-    if (count > 1) {
-      const labels = buildBatchUnitLabels({
-        count,
-        kind: values.kind,
-        codePrefix: values.code,
-        namePrefix: values.name,
-      })
-      addProjectUnits(
-        labels.map((label) => ({
+    const outcome = run(
+      () => {
+        if (count > 1) {
+          const labels = buildBatchUnitLabels({
+            count,
+            kind: values.kind,
+            codePrefix: values.code,
+            namePrefix: values.name,
+          })
+          return addProjectUnits(
+            labels.map((label) => ({
+              projectId,
+              parentUnitId: values.parentUnitId,
+              kind: values.kind,
+              code: label.code,
+              name: label.name,
+            })),
+          )
+        }
+        const input: AddProjectUnitInput = {
           projectId,
           parentUnitId: values.parentUnitId,
           kind: values.kind,
-          code: label.code,
-          name: label.name,
-        })),
-      )
-    } else {
-      const input: AddProjectUnitInput = {
-        projectId,
-        parentUnitId: values.parentUnitId,
-        kind: values.kind,
-        code: values.code,
-        name: values.name,
-      }
-      addProjectUnit(input)
-    }
+          code: values.code,
+          name: values.name,
+        }
+        return addProjectUnit(input)
+      },
+      { success: count > 1 ? `${count} locations added` : "Location added" },
+    )
+    if (!outcome.ok) return
     form.resetFields()
     setModalOpen(false)
   }
@@ -164,13 +175,15 @@ function ProjectStructure({
                 </Title>
               }
               extra={
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setModalOpen(true)}
-                >
-                  Add location
-                </Button>
+                <Gated allowed={canManage}>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setModalOpen(true)}
+                  >
+                    Add location
+                  </Button>
+                </Gated>
               }
             >
               {treeData.length ? (
@@ -186,13 +199,15 @@ function ProjectStructure({
                   description="No project locations yet"
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                 >
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setModalOpen(true)}
-                  >
-                    Add first location
-                  </Button>
+                  <Gated allowed={canManage}>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => setModalOpen(true)}
+                    >
+                      Add first location
+                    </Button>
+                  </Gated>
                 </Empty>
               )}
             </Card>
