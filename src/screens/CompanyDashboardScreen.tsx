@@ -231,6 +231,7 @@ function CompanyDashboard({
     if (key === "home") onNavigate("company-dashboard")
     if (key === "projects") onNavigate("company-projects")
     if (key === "library") onNavigate("work-library")
+    if (key === "progress") onNavigate("daily-progress-review", { project_id: "" })
   }
 
   return (
@@ -389,7 +390,11 @@ function CompanyDashboard({
 
                   <Card
                     title={<SectionTitle>Recent Site Progress</SectionTitle>}
-                    extra={<SectionAction>View all</SectionAction>}
+                    extra={
+                      <SectionAction onClick={() => onNavigate("daily-progress-review", { project_id: "" })}>
+                        Review
+                      </SectionAction>
+                    }
                     className="company-section-card"
                   >
                     <Timeline

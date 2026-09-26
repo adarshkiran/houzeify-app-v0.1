@@ -8,7 +8,10 @@ import {
 } from "react"
 import type {
   ConstructionDataState,
+  DailyProgress,
   EntityId,
+  Evidence,
+  EvidenceType,
   Organization,
   Person,
   Project,
@@ -74,6 +77,41 @@ export interface AddWorkPlanItemInput {
   dueDate?: string
 }
 
+export interface AddEvidenceInput {
+  projectId: EntityId
+  projectUnitId?: EntityId
+  taskId?: EntityId
+  dailyProgressId?: EntityId
+  type: EvidenceType
+  url: string
+  thumbnailUrl?: string
+  caption?: string
+  capturedByMembershipId?: EntityId
+  customerVisibility?: Evidence["customerVisibility"]
+}
+
+export interface SubmitDailyProgressInput {
+  projectId: EntityId
+  projectUnitId: EntityId
+  taskId?: EntityId
+  stageId: EntityId
+  tradeId: EntityId
+  workTypeId: EntityId
+  workersPresent: number
+  progressAfter: number
+  todaySummary: string
+  tomorrowPlan: string
+  yesterdaySummary?: string
+  blockerSummary?: string
+  submittedByMembershipId?: EntityId
+  evidence: Array<{
+    type: EvidenceType
+    url: string
+    thumbnailUrl?: string
+    caption?: string
+  }>
+}
+
 export interface CreateTaskInput {
   projectId: EntityId
   projectUnitId: EntityId
@@ -102,6 +140,9 @@ interface ConstructionDataContextValue {
     assigneeId: EntityId,
   ) => TaskAssignment
   transitionTask: (taskId: EntityId, nextStatus: TaskStatus) => void
+  addEvidence: (input: AddEvidenceInput) => Evidence
+  submitDailyProgress: (input: SubmitDailyProgressInput) => DailyProgress
+  reviewDailyProgress: (progressId: EntityId, decision: "approve" | "reject") => void
 }
 
 const taskTransitions: Record<TaskStatus, TaskStatus[]> = {
@@ -122,6 +163,36 @@ const taskTransitions: Record<TaskStatus, TaskStatus[]> = {
 
 export function getAllowedTaskTransitions(status: TaskStatus) {
   return taskTransitions[status]
+}
+
+function todayISODate() {
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 10)
+}
+
+function statusAfterProgressSubmit(status: TaskStatus): TaskStatus | null {
+  const allowed = taskTransitions[status]
+  if (allowed.includes("review")) return "review"
+  if (allowed.includes("submitted")) return "submitted"
+  return null
+}
+
+function buildEvidence(input: AddEvidenceInput): Evidence {
+  return {
+    id: `evidence-${crypto.randomUUID()}`,
+    projectId: input.projectId,
+    projectUnitId: input.projectUnitId,
+    taskId: input.taskId,
+    dailyProgressId: input.dailyProgressId,
+    type: input.type,
+    url: input.url,
+    thumbnailUrl: input.thumbnailUrl,
+    caption: input.caption,
+    capturedByMembershipId: input.capturedByMembershipId,
+    capturedAt: new Date().toISOString(),
+    customerVisibility: input.customerVisibility ?? "review-required",
+  }
 }
 
 const ConstructionDataContext = createContext<ConstructionDataContextValue | null>(null)
@@ -287,6 +358,119 @@ export default function ConstructionDataProvider({ children }: { children: React
     [state.tasks],
   )
 
+  const addEvidence = useCallback((input: AddEvidenceInput) => {
+    const evidence = buildEvidence(input)
+    setState((current) => ({
+      ...current,
+      evidence: [...current.evidence, evidence],
+    }))
+    return evidence
+  }, [])
+
+  const submitDailyProgress = useCallback((input: SubmitDailyProgressInput) => {
+    const progressId = `progress-${crypto.randomUUID()}`
+    const timestamp = new Date().toISOString()
+    const project = state.projects.find((item) => item.id === input.projectId)
+    const submitter =
+      input.submittedByMembershipId ??
+      state.memberships.find(
+        (membership) =>
+          membership.projectId === input.projectId &&
+          membership.role === "project-manager",
+      )?.id ??
+      ""
+    const evidence = input.evidence.map((item) =>
+      buildEvidence({
+        ...item,
+        projectId: input.projectId,
+        projectUnitId: input.projectUnitId,
+        taskId: input.taskId,
+        dailyProgressId: progressId,
+        capturedByMembershipId: submitter,
+        customerVisibility: "review-required",
+      }),
+    )
+    const progress: DailyProgress = {
+      id: progressId,
+      projectId: input.projectId,
+      projectUnitId: input.projectUnitId,
+      taskId: input.taskId,
+      stageId: input.stageId,
+      tradeId: input.tradeId,
+      workTypeId: input.workTypeId,
+      date: todayISODate(),
+      workersPresent: input.workersPresent,
+      progressBefore: project?.progress,
+      progressAfter: input.progressAfter,
+      yesterdaySummary: input.yesterdaySummary,
+      todaySummary: input.todaySummary,
+      tomorrowPlan: input.tomorrowPlan,
+      blockerSummary: input.blockerSummary,
+      evidenceIds: evidence.map((item) => item.id),
+      submittedByMembershipId: submitter,
+      submittedAt: timestamp,
+      reviewStatus: "submitted",
+      publicationStatus: "private",
+    }
+
+    setState((current) => ({
+      ...current,
+      evidence: [...current.evidence, ...evidence],
+      dailyProgress: [progress, ...current.dailyProgress],
+      tasks: current.tasks.map((task) => {
+        if (task.id !== input.taskId) return task
+        const nextStatus = statusAfterProgressSubmit(task.status)
+        if (!nextStatus) return task
+        return { ...task, status: nextStatus, updatedAt: timestamp }
+      }),
+    }))
+
+    return progress
+  }, [state.memberships, state.projects])
+
+  const reviewDailyProgress = useCallback(
+    (progressId: EntityId, decision: "approve" | "reject") => {
+      setState((current) => {
+        const progress = current.dailyProgress.find((item) => item.id === progressId)
+        if (!progress || progress.reviewStatus === "approved" || progress.reviewStatus === "rejected") {
+          return current
+        }
+
+        if (decision === "reject") {
+          return {
+            ...current,
+            dailyProgress: current.dailyProgress.map((item) =>
+              item.id === progressId
+                ? { ...item, reviewStatus: "rejected", publicationStatus: "private" }
+                : item,
+            ),
+          }
+        }
+
+        const timestamp = new Date().toISOString()
+        return {
+          ...current,
+          dailyProgress: current.dailyProgress.map((item) =>
+            item.id === progressId
+              ? { ...item, reviewStatus: "approved", publicationStatus: "published" }
+              : item,
+          ),
+          evidence: current.evidence.map((item) =>
+            progress.evidenceIds.includes(item.id) || item.dailyProgressId === progressId
+              ? { ...item, customerVisibility: "customer-visible" }
+              : item,
+          ),
+          projects: current.projects.map((project) =>
+            project.id === progress.projectId && typeof progress.progressAfter === "number"
+              ? { ...project, progress: progress.progressAfter, updatedAt: timestamp }
+              : project,
+          ),
+        }
+      })
+    },
+    [],
+  )
+
   const transitionTask = useCallback((taskId: EntityId, nextStatus: TaskStatus) => {
     setState((current) => ({
       ...current,
@@ -313,6 +497,9 @@ export default function ConstructionDataProvider({ children }: { children: React
       createTask,
       assignTask,
       transitionTask,
+      addEvidence,
+      submitDailyProgress,
+      reviewDailyProgress,
     }),
     [
       state,
@@ -324,6 +511,9 @@ export default function ConstructionDataProvider({ children }: { children: React
       createTask,
       assignTask,
       transitionTask,
+      addEvidence,
+      submitDailyProgress,
+      reviewDailyProgress,
     ],
   )
 
