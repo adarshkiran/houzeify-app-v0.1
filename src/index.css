@@ -767,29 +767,160 @@ html, body, #root {
   border-top: 1px solid var(--ant-color-border-secondary);
 }
 
-/* Conversations: message list scrolls inside the panel; own messages tinted. */
+/* Conversations — list: search on top, rows with avatar, time and unread pill. */
+.conversation-list {
+  min-height: 0;
+  height: 100%;
+}
+
+.conversation-search {
+  padding: 12px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+
+.conversation-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.conversation-item:hover {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.conversation-item.is-active {
+  background: var(--ant-color-primary-bg);
+  border-color: var(--ant-color-primary-border);
+}
+
+.conversation-item:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: 1px;
+}
+
+.conversation-unread {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ant-color-primary-bg-hover);
+  color: var(--ant-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* Conversations — chat: header, scrolling bubbles, one-box composer. */
+.thread-panel {
+  min-height: 0;
+  gap: 12px;
+}
+
+.thread-panel.is-fill {
+  height: 100%;
+  gap: 0;
+}
+
+.thread-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+
+.thread-search {
+  padding: 12px 20px 0;
+}
+
 .thread-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   max-height: 420px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 4px 4px 4px 0;
 }
 
 .thread-panel.is-compact .thread-messages {
-  max-height: 280px;
+  max-height: 320px;
 }
 
-.thread-message {
+.thread-panel.is-fill .thread-messages {
+  flex: 1;
+  max-height: none;
+  padding: 20px;
+}
+
+.thread-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ant-color-text-tertiary);
+  font-size: 12px;
+}
+
+.thread-day::before,
+.thread-day::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.thread-row {
   gap: 4px;
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--ant-color-fill-quaternary);
+  max-width: 78%;
   align-self: flex-start;
+  align-items: flex-start;
 }
 
-.thread-message.is-mine {
+.thread-row.is-mine {
   align-self: flex-end;
-  background: var(--ant-color-primary-bg);
+  align-items: flex-end;
+}
+
+.thread-row.is-dimmed {
+  opacity: 0.35;
+}
+
+.thread-author {
+  font-size: 12px !important;
+  padding-inline: 4px;
+}
+
+.thread-bubble {
+  padding: 10px 14px;
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+  background: var(--ant-color-fill-tertiary);
+  color: var(--ant-color-text);
+  line-height: 1.5;
+}
+
+.thread-row.is-mine .thread-bubble {
+  border-top-left-radius: 14px;
+  border-top-right-radius: 4px;
+  background: var(--ant-color-primary-bg-hover);
+}
+
+.thread-time {
+  font-size: 11px !important;
+  padding-inline: 4px;
 }
 
 .thread-body {
@@ -797,19 +928,114 @@ html, body, #root {
   overflow-wrap: anywhere;
 }
 
+.thread-transcript {
+  color: var(--ant-color-text-secondary) !important;
+}
+
+.thread-highlight {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: var(--ant-color-warning-bg-hover);
+  color: inherit;
+}
+
 .thread-audio {
   width: 100%;
+  min-width: 220px;
   max-width: 320px;
   height: 36px;
 }
 
 .thread-composer {
-  padding-top: 12px;
-  border-top: 1px solid var(--ant-color-border-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--ant-color-border);
+  border-radius: 16px;
+  background: var(--ant-color-bg-container);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.thread-voice-draft {
-  padding: 8px;
-  border-radius: var(--ant-border-radius);
-  background: var(--ant-color-fill-quaternary);
+.thread-composer:focus-within {
+  border-color: var(--ant-color-primary);
+  box-shadow: 0 0 0 3px var(--ant-color-primary-bg);
+}
+
+.thread-composer .ant-input {
+  padding-inline: 0 !important;
+}
+
+/* The composer box shows focus; the field inside it doesn't need its own ring. */
+.thread-composer textarea:focus,
+.thread-composer textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.thread-panel.is-fill .thread-composer {
+  margin: 0 20px 20px;
+}
+
+/* Full chat pages: list and chat cards share one height; each scrolls inside. */
+.chat-card {
+  height: max(480px, calc(100dvh - 65px - 48px));
+  overflow: hidden;
+}
+
+.chat-card > .ant-card-body {
+  height: 100%;
+  padding: 0 !important;
+}
+
+@media (max-width: 991px) {
+  .chat-card.is-list {
+    height: auto;
+    max-height: 360px;
+  }
+
+  .chat-card.is-list .conversation-list {
+    max-height: 358px;
+  }
+
+  .chat-card:not(.is-list) {
+    height: 75dvh;
+  }
+}
+
+.worker-chat-card {
+  height: calc(100dvh - 132px);
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.worker-chat-card > .ant-card-body {
+  height: 100%;
+  padding: 0 !important;
+}
+
+@media (max-width: 575px) {
+  .thread-header {
+    padding: 12px;
+  }
+
+  .thread-header-extra {
+    display: none;
+  }
+
+  .thread-search {
+    padding: 12px 12px 0;
+  }
+
+  .thread-panel.is-fill .thread-messages {
+    padding: 12px;
+  }
+
+  .thread-panel.is-fill .thread-composer {
+    margin: 0 12px 12px;
+  }
+
+  .thread-row {
+    max-width: 88%;
+  }
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
-import { markThreadRead, openDirectThread, postMessage } from "./conversationCommands"
+import { markThreadRead, markThreadUnread, openDirectThread, postMessage } from "./conversationCommands"
 import { unreadCount } from "./conversations"
 import { ConflictError, IntegrityError } from "./errors"
 import type { ConstructionDataState, ProjectMembership } from "./models"
@@ -138,5 +138,23 @@ describe("markThreadRead", () => {
 
   it("refuses a thread the caller can't read", () => {
     expect(() => run(seed, ravi, markThreadRead("thread-sharma-homeowner"))).toThrow(PermissionError)
+  })
+})
+
+describe("markThreadUnread", () => {
+  it("brings back the latest message from someone else as unread", () => {
+    const task4 = "thread-sharma-task-4"
+    const read = run(seed, arjun, markThreadRead(task4)).state
+    expect(unreadCount(read, read.threads.find((t) => t.id === task4)!, "membership-manager-1")).toBe(0)
+    const { state } = run(read, arjun, markThreadUnread(task4))
+    expect(unreadCount(state, state.threads.find((t) => t.id === task4)!, "membership-manager-1")).toBe(1)
+  })
+
+  it("refuses when nobody else has written in the thread", () => {
+    expect(() => run(seed, arjun, markThreadUnread("thread-sharma-direct-arjun-ravi"))).toThrow(ConflictError)
+  })
+
+  it("refuses a thread the caller can't read", () => {
+    expect(() => run(seed, ravi, markThreadUnread("thread-sharma-homeowner"))).toThrow(PermissionError)
   })
 })

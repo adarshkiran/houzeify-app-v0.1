@@ -6,7 +6,7 @@ import WorkerShell from "../components/worker/WorkerShell"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { getViewerThreads, threadTitle } from "../mock/conversationSelectors"
+import { getViewerThreads } from "../mock/conversationSelectors"
 import { useSession } from "../session/SessionProvider"
 
 const { Text, Title } = Typography
@@ -29,17 +29,24 @@ export default function WorkerMessagesScreen({ onNavigate, threadId }: { onNavig
       }
     >
       {open ? (
-        <Flex vertical gap="small">
-          <Title level={4} className="company-heading! m-0!">{threadTitle(state, open.thread, open.reader.id)}</Title>
-          <Card size="small">
-            <ThreadPanel key={open.thread.id} threadId={open.thread.id} />
-          </Card>
-        </Flex>
+        <Card className="worker-chat-card">
+          <ThreadPanel
+            key={open.thread.id}
+            threadId={open.thread.id}
+            fill
+            header
+            onOpenTarget={
+              open.thread.subject === "task" && open.thread.targetId
+                ? () => onNavigate("worker-task", { project_id: open.thread.projectId, task_id: open.thread.targetId! })
+                : undefined
+            }
+          />
+        </Card>
       ) : (
         <Flex vertical gap="small">
           <Title level={4} className="company-heading! m-0!">Messages</Title>
           <Text type="secondary">Your supervisor, your tasks and the project team.</Text>
-          <Card size="small" classNames={{ body: "progress-queue-body" }}>
+          <Card size="small" classNames={{ body: "p-0!" }}>
             <ConversationList items={items} onSelect={(id) => onNavigate("worker-messages", { thread_id: id })} />
           </Card>
         </Flex>

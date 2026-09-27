@@ -161,3 +161,25 @@ export const markThreadRead =
       result: undefined,
     }
   }
+
+/** Moves the caller's read marker to just before the latest message from someone else. */
+export const markThreadUnread =
+  (threadId: EntityId): Command<void> =>
+  (state, ctx) => {
+    const thread = state.threads.find((item) => item.id === threadId)
+    if (!thread) throw new PermissionError(Permissions.PROJECT_READ)
+    const reader = readerMembership(state, ctx.actor, thread)
+    if (!reader) throw new PermissionError(Permissions.PROJECT_READ, thread.projectId)
+    const latest = state.messages
+      .filter((message) => message.threadId === thread.id && message.authorMembershipId !== reader.id)
+      .reduce<Message | undefined>(
+        (last, message) => (!last || Date.parse(message.createdAt) > Date.parse(last.createdAt) ? message : last),
+        undefined,
+      )
+    if (!latest) throw new ConflictError("There's no message from someone else to mark unread.")
+    const justBefore = new Date(Date.parse(latest.createdAt) - 1).toISOString()
+    return {
+      state: { ...state, threadReads: withRead(state.threadReads, thread.id, reader.id, justBefore) },
+      result: undefined,
+    }
+  }

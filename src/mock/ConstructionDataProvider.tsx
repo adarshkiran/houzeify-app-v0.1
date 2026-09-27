@@ -132,6 +132,7 @@ interface ConstructionDataContextValue {
   postMessage: (input: PostMessageInput) => Message
   openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
   markThreadRead: (threadId: EntityId) => void
+  markThreadUnread: (threadId: EntityId) => void
 }
 
 export { getAllowedTaskTransitions, canTransitionTask }
@@ -231,6 +232,8 @@ export default function ConstructionDataProvider({
         run(conversationCommands.openDirectThread(projectId, otherId)),
       markThreadRead: (threadId) =>
         run(conversationCommands.markThreadRead(threadId)),
+      markThreadUnread: (threadId) =>
+        run(conversationCommands.markThreadUnread(threadId)),
     }),
     [state, run],
   )

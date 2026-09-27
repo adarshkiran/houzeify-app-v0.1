@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined } from "@ant-design/icons"
-import { Button, Card, Col, Flex, Row, Tag, Typography } from "antd"
+import { Button, Card, Col, Flex, Row, Tag } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import ConversationList from "../components/conversations/ConversationList"
@@ -7,10 +7,8 @@ import ThreadPanel from "../components/conversations/ThreadPanel"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { getViewerThreads, threadTitle } from "../mock/conversationSelectors"
+import { getViewerThreads } from "../mock/conversationSelectors"
 import { useSession } from "../session/SessionProvider"
-
-const { Title } = Typography
 
 type Props = { onNavigate: Navigate; projectId: EntityId; threadId?: EntityId; from?: string }
 
@@ -21,6 +19,10 @@ function Messages({ onNavigate, projectId, threadId, from }: Props) {
   const selected = items.find((item) => item.thread.id === threadId) ?? items[0]
   // Opened from Project Team's Message button: keep the way back while browsing.
   const fromTeam = from === "project-team"
+  const openTarget = (subject: string, targetId?: EntityId) => {
+    if (subject === "task" && targetId) onNavigate("task-detail", { project_id: projectId, task_id: targetId })
+    if (subject === "issue" && targetId) onNavigate("issue-detail", { project_id: projectId, issue_id: targetId })
+  }
   const select = (id: EntityId) =>
     onNavigate("project-messages", { project_id: projectId, thread_id: id, ...(fromTeam ? { from } : {}) })
 
@@ -38,37 +40,32 @@ function Messages({ onNavigate, projectId, threadId, from }: Props) {
       }
     >
       <Flex vertical gap="large" className="company-content">
-        <Row gutter={[16, 16]} align="top">
-          <Col xs={24} lg={8}>
-            <Card
-              title={<Title level={5} className="company-heading! m-0!">Conversations</Title>}
-              classNames={{ body: "progress-queue-body" }}
-            >
+        <Row gutter={[16, 16]} align="stretch">
+          <Col xs={24} lg={9} xl={8}>
+            <Card className="chat-card is-list">
               <ConversationList items={items} selectedId={selected?.thread.id} onSelect={select} />
             </Card>
           </Col>
-          <Col xs={24} lg={16}>
-            {selected ? (
-              <Card
-                title={
-                  <Title level={5} className="company-heading! m-0!">
-                    {threadTitle(state, selected.thread, selected.reader.id)}
-                  </Title>
-                }
-                extra={
-                  selected.thread.audience === "homeowner"
-                    ? <Tag color="purple">Homeowner can see this</Tag>
-                    : <Tag>Internal</Tag>
-                }
-              >
-                <ThreadPanel key={selected.thread.id} threadId={selected.thread.id} />
-              </Card>
-            ) : (
-              // No conversations yet: the first message starts the project chat.
-              <Card title={<Title level={5} className="company-heading! m-0!">Project chat</Title>}>
-                <ThreadPanel projectId={projectId} subject="project" emptyText="Start the project conversation." />
-              </Card>
-            )}
+          <Col xs={24} lg={15} xl={16}>
+            <Card className="chat-card">
+              {selected ? (
+                <ThreadPanel
+                  key={selected.thread.id}
+                  threadId={selected.thread.id}
+                  fill
+                  header
+                  headerExtra={
+                    selected.thread.audience === "homeowner"
+                      ? <Tag color="purple" className="m-0!">Homeowner can see this</Tag>
+                      : <Tag className="m-0!">Internal</Tag>
+                  }
+                  onOpenTarget={() => openTarget(selected.thread.subject, selected.thread.targetId)}
+                />
+              ) : (
+                // No conversations yet: the first message starts the project chat.
+                <ThreadPanel projectId={projectId} subject="project" fill header emptyText="Start the project conversation." />
+              )}
+            </Card>
           </Col>
         </Row>
       </Flex>

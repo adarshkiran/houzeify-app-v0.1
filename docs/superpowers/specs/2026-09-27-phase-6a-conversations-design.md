@@ -94,6 +94,11 @@ Homeowners never use direct messages. Project managers count as the "supervisor"
 - Messages oldest → newest: author name, role, time; voice messages show a player and transcript.
 - Composer: text box with the existing mic dictation (`VoiceTextArea`), a character counter (`n / 2000`) beside **Send**. (A separate **Record voice message** button was removed after review, 2026-09-28: the mic in the text box covers speaking a message.)
 - Opening a panel marks the thread read.
+- Redesign (2026-09-28, after review):
+  - List: search box, avatar (initials for people, soft icon for group chats), name, who it's for, last message, relative time, purple unread pill.
+  - Chat: header with avatar, name and role; search in the conversation (highlights matches); call and video buttons greyed out on direct chats until the calls update (6C); ⋮ menu with **Mark as unread** and **Open task / issue**.
+  - Bubbles with day dividers and the time under each bubble; the one-box composer has the counter, the dictation mic and a round send button (Enter sends on a keyboard).
+  - On the full chat pages the list and chat share one height and scroll inside.
 
 ### Company
 
@@ -131,6 +136,7 @@ The data model and message list still support voice messages (seeded ones play w
 - `postMessage(input)` — input is either `{ threadId }` or `{ projectId, subject, targetId? }` for a thread's first message, plus `body?` and `voice?`. Creates the thread if missing (never a duplicate for the same subject/target), appends the message, updates `lastMessageAt`, and marks the thread read for the author.
 - `openDirectThread(projectId, otherMembershipId)` — returns the existing direct thread for the pair or creates it; only for allowed pairs.
 - `markThreadRead(threadId)` — sets the caller's `lastReadAt` to now.
+- `markThreadUnread(threadId)` — moves the caller's `lastReadAt` to just before the latest message from someone else; refused when there is none.
 
 ### Errors (exact copy)
 
