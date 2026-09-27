@@ -42,6 +42,7 @@ const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressRevi
 const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
 const IssuesScreen = lazy(() => import('./screens/IssuesScreen'))
 const IssueDetailScreen = lazy(() => import('./screens/IssueDetailScreen'))
+const ProjectMessagesScreen = lazy(() => import('./screens/ProjectMessagesScreen'))
 const WorkerOnboardingScreen = lazy(() => import('./screens/WorkerOnboardingScreen'))
 const WorkerTodayScreen = lazy(() => import('./screens/WorkerTodayScreen'))
 const WorkerTaskScreen = lazy(() => import('./screens/WorkerTaskScreen'))
@@ -400,6 +401,13 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <Suspense fallback={null}>
             <IssuesScreen onNavigate={navigateTo} projectId={projectId} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'project-messages' && (
+        <div style={{ ...slide }}>
+          <Suspense fallback={null}>
+            <ProjectMessagesScreen onNavigate={navigateTo} projectId={projectId} threadId={params.thread_id} />
           </Suspense>
         </div>
       )}

@@ -6,6 +6,7 @@ import LogoHorizontal from "../LogoHorizontal"
 import { resolveRoute, type Navigate } from "../../domain/navigation"
 import { useConstructionData } from "../../mock/ConstructionDataProvider"
 import { getOrganizationProjects, getProject } from "../../mock/selectors"
+import { getUnreadTotal } from "../../mock/conversationSelectors"
 import { useSession } from "../../session/SessionProvider"
 import { useScopedData } from "../../session/useScopedData"
 import {
@@ -138,7 +139,11 @@ export default function CompanyLayout({
             {project?.name ?? "Project"}
           </Text>
         ),
-        children: projectItems.map((item) => toMenuItem(item)).filter(Boolean),
+        children: projectItems
+          .map((item) =>
+            toMenuItem(item, item.key === "messages" ? getUnreadTotal(state, session, nav.projectId) : undefined),
+          )
+          .filter(Boolean),
       },
     ]
     targets = {
