@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
-import { CloseOutlined, SendOutlined } from "@ant-design/icons"
-import { Button, Empty, Flex, Input, Tag, Typography } from "antd"
+import { SendOutlined } from "@ant-design/icons"
+import { Button, Empty, Flex, Typography } from "antd"
 import { findThread, readerMembership, unreadCount } from "../../domain/conversations"
-import type { EntityId, MessageVoice, Thread, ThreadSubject } from "../../domain/models"
+import type { EntityId, Thread, ThreadSubject } from "../../domain/models"
 import { useConstructionData } from "../../mock/ConstructionDataProvider"
 import { getThreadMessages, roleLabel } from "../../mock/conversationSelectors"
 import { getMembershipName } from "../../mock/selectors"
 import { useSession } from "../../session/SessionProvider"
 import { useCommand } from "../../session/useCommand"
-import VoiceNoteRecorder from "../VoiceNoteRecorder"
 import VoiceTextArea from "../VoiceTextArea"
 
 const { Text } = Typography
@@ -17,10 +16,7 @@ type PanelTarget =
   | { threadId: EntityId }
   | { projectId: EntityId; subject: Exclude<ThreadSubject, "direct">; targetId?: EntityId }
 
-/** An unsent recording's object URL; a sent message keeps its URL. */
-const revokeDraftUrl = (draft?: MessageVoice) => {
-  if (draft?.url.startsWith("blob:")) URL.revokeObjectURL(draft.url)
-}
+const MAX_LENGTH = 2000
 
 const timeLabel = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
@@ -35,7 +31,6 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
   const { session } = useSession()
   const run = useCommand()
   const [body, setBody] = useState("")
-  const [voice, setVoice] = useState<MessageVoice>()
 
   const thread: Thread | undefined =
     "threadId" in props
@@ -68,16 +63,8 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
     const target: PanelTarget = thread
       ? { threadId: thread.id }
       : { projectId: probe.projectId, subject: probe.subject as Exclude<ThreadSubject, "direct">, targetId: probe.targetId }
-    const outcome = run(() => postMessage({ ...target, body, voice }))
-    if (outcome.ok) {
-      setBody("")
-      setVoice(undefined)
-    }
-  }
-
-  const discardVoice = () => {
-    revokeDraftUrl(voice)
-    setVoice(undefined)
+    const outcome = run(() => postMessage({ ...target, body }))
+    if (outcome.ok) setBody("")
   }
 
   return (
@@ -110,41 +97,19 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
       </Flex>
 
       <Flex vertical gap="small" className="thread-composer">
-        {voice && (
-          <Flex vertical gap={6} className="thread-voice-draft">
-            <Flex align="center" justify="space-between" gap="small">
-              <Tag className="m-0!">Voice message · {voice.durationSec ?? 0}s</Tag>
-              <Button size="small" type="text" icon={<CloseOutlined />} aria-label="Remove voice message" onClick={discardVoice} />
-            </Flex>
-            <audio src={voice.url} controls className="thread-audio" />
-            <Input.TextArea
-              rows={2}
-              value={voice.transcript ?? ""}
-              onChange={(event) => setVoice({ ...voice, transcript: event.target.value })}
-              placeholder="Transcript (optional) — correct it if needed"
-              aria-label="Voice message transcript"
-            />
-          </Flex>
-        )}
         <VoiceTextArea
           rows={2}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder="Write a message"
           aria-label="Message"
-          maxLength={2000}
-          showCount
+          maxLength={MAX_LENGTH}
         />
-        <Flex justify="space-between" align="center" gap="small" wrap>
-          <VoiceNoteRecorder
-            label="Record voice message"
-            onRecorded={(url, durationSec) => {
-              revokeDraftUrl(voice)
-              setVoice({ url, durationSec })
-            }}
-            onTranscript={(text) => setVoice((current) => (current ? { ...current, transcript: text || undefined } : current))}
-          />
-          <Button type="primary" icon={<SendOutlined />} disabled={!body.trim() && !voice} onClick={send}>
+        <Flex justify="space-between" align="center" gap="small">
+          <Text type="secondary" className="text-[12px]!">
+            {body.length} / {MAX_LENGTH}
+          </Text>
+          <Button type="primary" icon={<SendOutlined />} disabled={!body.trim()} onClick={send}>
             Send
           </Button>
         </Flex>

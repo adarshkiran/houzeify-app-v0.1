@@ -187,13 +187,13 @@ function IssueDetail({
               <Card title={<Title level={5} className="company-heading! m-0!">Details</Title>}>
                 <Flex vertical gap="small">
                   <Flex justify="space-between"><Text type="secondary">Location</Text><Text>{unit?.name ?? "Whole project"}</Text></Flex>
-                  <Flex justify="space-between" align="center">
-                    <Text type="secondary">Task</Text>
+                  <Flex justify="space-between" align="center" gap="middle">
+                    <Text type="secondary" className="shrink-0">Task</Text>
                     {issue.taskId ? (
                       task ? (
                         <Button
                           type="link"
-                          className="p-0!"
+                          className="p-0! h-auto! whitespace-normal! text-right!"
                           onClick={() => onNavigate("task-detail", { project_id: projectId, task_id: task.id })}
                         >
                           {task.title}

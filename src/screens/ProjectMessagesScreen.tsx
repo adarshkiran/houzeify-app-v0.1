@@ -1,4 +1,5 @@
-import { Card, Col, Flex, Row, Tag, Typography } from "antd"
+import { ArrowLeftOutlined } from "@ant-design/icons"
+import { Button, Card, Col, Flex, Row, Tag, Typography } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import ConversationList from "../components/conversations/ConversationList"
@@ -11,18 +12,30 @@ import { useSession } from "../session/SessionProvider"
 
 const { Title } = Typography
 
-function Messages({ onNavigate, projectId, threadId }: { onNavigate: Navigate; projectId: EntityId; threadId?: EntityId }) {
+type Props = { onNavigate: Navigate; projectId: EntityId; threadId?: EntityId; from?: string }
+
+function Messages({ onNavigate, projectId, threadId, from }: Props) {
   const { state } = useConstructionData()
   const { session } = useSession()
   const items = getViewerThreads(state, session, projectId)
   const selected = items.find((item) => item.thread.id === threadId) ?? items[0]
-  const select = (id: EntityId) => onNavigate("project-messages", { project_id: projectId, thread_id: id })
+  // Opened from Project Team's Message button: keep the way back while browsing.
+  const fromTeam = from === "project-team"
+  const select = (id: EntityId) =>
+    onNavigate("project-messages", { project_id: projectId, thread_id: id, ...(fromTeam ? { from } : {}) })
 
   return (
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "messages" }}
       onNavigate={onNavigate}
       description="Conversations about this project's work"
+      actions={
+        fromTeam && (
+          <Button icon={<ArrowLeftOutlined />} onClick={() => onNavigate("project-team", { project_id: projectId })}>
+            Project Team
+          </Button>
+        )
+      }
     >
       <Flex vertical gap="large" className="company-content">
         <Row gutter={[16, 16]} align="top">
@@ -63,7 +76,7 @@ function Messages({ onNavigate, projectId, threadId }: { onNavigate: Navigate; p
   )
 }
 
-export default function ProjectMessagesScreen(props: { onNavigate: Navigate; projectId: EntityId; threadId?: EntityId }) {
+export default function ProjectMessagesScreen(props: Props) {
   return (
     <CompanyThemeProvider>
       <Messages {...props} />

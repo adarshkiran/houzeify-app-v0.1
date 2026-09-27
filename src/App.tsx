@@ -415,7 +415,7 @@ export default function App() {
       {screen === 'project-messages' && (
         <div style={{ ...slide }}>
           <Suspense fallback={null}>
-            <ProjectMessagesScreen onNavigate={navigateTo} projectId={projectId} threadId={params.thread_id} />
+            <ProjectMessagesScreen onNavigate={navigateTo} projectId={projectId} threadId={params.thread_id} from={params.from} />
           </Suspense>
         </div>
       )}

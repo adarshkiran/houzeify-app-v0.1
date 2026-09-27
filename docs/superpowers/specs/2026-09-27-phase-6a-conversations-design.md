@@ -92,7 +92,7 @@ Homeowners never use direct messages. Project managers count as the "supervisor"
 ### Shared `ThreadPanel` component
 
 - Messages oldest → newest: author name, role, time; voice messages show a player and transcript.
-- Composer: text box with the existing mic dictation (`VoiceTextArea`), **Record voice message**, **Send**.
+- Composer: text box with the existing mic dictation (`VoiceTextArea`), a character counter (`n / 2000`) beside **Send**. (A separate **Record voice message** button was removed after review, 2026-09-28: the mic in the text box covers speaking a message.)
 - Opening a panel marks the thread read.
 
 ### Company
@@ -101,7 +101,7 @@ Homeowners never use direct messages. Project managers count as the "supervisor"
   - Left "Conversations" card, in order: Project chat, Homeowner, then unit / task / issue threads that have messages (newest first), then direct messages; each row shows an unread count.
   - Right: the `ThreadPanel`.
 - **Task detail** and **Issue detail**: a **Discussion** card with that item's thread (created on first message).
-- **Project Team**: a **Message** button on member rows the viewer may message directly; opens or starts the direct thread in Messages.
+- **Project Team**: a **Message** button on member rows the viewer may message directly; opens or starts the direct thread in Messages, which then shows a **← Project Team** back button.
 
 ### Worker app
 
@@ -119,6 +119,8 @@ Notifications / sounds, typing indicators, editing or deleting messages, attachm
 ## 3. Voice, commands, rules, testing
 
 ### Voice messages
+
+The data model and message list still support voice messages (seeded ones play with their transcript), but the composer no longer records them (removed after review, 2026-09-28).
 
 - Recorded with `VoiceNoteRecorder`.
 - Where the browser supports speech recognition (Chrome, Edge), the transcript is captured live while recording and can be corrected before sending; otherwise the message is voice-only.

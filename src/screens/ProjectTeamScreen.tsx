@@ -91,7 +91,7 @@ function ProjectTeam({
     myMemberships.some((m) => m.id !== other.id && canMessageDirectly(m.role, other.role))
   const message = (other: ProjectMembership) => {
     const outcome = run(() => openDirectThread(projectId, other.id))
-    if (outcome.ok) onNavigate("project-messages", { project_id: projectId, thread_id: outcome.value.id })
+    if (outcome.ok) onNavigate("project-messages", { project_id: projectId, thread_id: outcome.value.id, from: "project-team" })
   }
 
   const getPrincipalName = (membership: ProjectMembership) => {
