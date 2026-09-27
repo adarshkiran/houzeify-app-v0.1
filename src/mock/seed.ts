@@ -3,10 +3,13 @@ import type {
   ConstructionStage,
   DailyProgress,
   Issue,
+  Message,
   Project,
   ProjectMembership,
   ProjectUnit,
   Task,
+  Thread,
+  ThreadRead,
   Trade,
   WorkType,
   Worker,
@@ -1019,6 +1022,125 @@ const issues: Issue[] = [
   },
 ]
 
+// Demo conversations on Sharma Residence. Some messages are left unread:
+// Arjun 1 (project chat), Ravi 2 (task-4, direct), homeowner 1.
+const threads: Thread[] = [
+  {
+    id: "thread-sharma-project",
+    projectId: "project-sharma",
+    subject: "project",
+    audience: "internal",
+    createdAt: "2026-09-25T09:00:00+05:30",
+    lastMessageAt: "2026-09-27T07:50:00+05:30",
+  },
+  {
+    id: "thread-sharma-task-4",
+    projectId: "project-sharma",
+    subject: "task",
+    targetId: "task-4",
+    audience: "internal",
+    createdAt: "2026-09-26T17:30:00+05:30",
+    lastMessageAt: "2026-09-26T17:45:00+05:30",
+  },
+  {
+    id: "thread-sharma-homeowner",
+    projectId: "project-sharma",
+    subject: "homeowner",
+    audience: "homeowner",
+    createdAt: "2026-09-26T19:00:00+05:30",
+    lastMessageAt: "2026-09-26T19:30:00+05:30",
+  },
+  {
+    id: "thread-sharma-direct-arjun-ravi",
+    projectId: "project-sharma",
+    subject: "direct",
+    audience: "internal",
+    participantMembershipIds: ["membership-manager-1", "membership-worker-ravi-sharma"],
+    createdAt: "2026-09-27T08:30:00+05:30",
+    lastMessageAt: "2026-09-27T08:30:00+05:30",
+  },
+]
+
+const messages: Message[] = [
+  {
+    id: "message-1",
+    threadId: "thread-sharma-project",
+    authorMembershipId: "membership-manager-1",
+    body: "Morning all — concrete for the Grid A columns arrives at 10.",
+    createdAt: "2026-09-25T09:00:00+05:30",
+  },
+  {
+    id: "message-2",
+    threadId: "thread-sharma-project",
+    authorMembershipId: "membership-worker-ravi-sharma",
+    body: "Noted. Curing team is ready.",
+    createdAt: "2026-09-25T09:20:00+05:30",
+  },
+  {
+    id: "message-3",
+    threadId: "thread-sharma-project",
+    authorMembershipId: "membership-manager-1",
+    body: "Inspection went well. Backfilling starts Monday.",
+    createdAt: "2026-09-26T18:05:00+05:30",
+  },
+  {
+    id: "message-4",
+    threadId: "thread-sharma-project",
+    authorMembershipId: "membership-worker-ravi-sharma",
+    body: "Pump is booked for 7 am Monday.",
+    createdAt: "2026-09-27T07:50:00+05:30",
+  },
+  {
+    id: "message-5",
+    threadId: "thread-sharma-task-4",
+    authorMembershipId: "membership-worker-ravi-sharma",
+    voice: {
+      url: "/mock-evidence/ravi-curing-voice.webm",
+      durationSec: 18,
+      transcript: "Footings are covered with wet hessian. I will keep them wet till Friday.",
+    },
+    createdAt: "2026-09-26T17:30:00+05:30",
+  },
+  {
+    id: "message-6",
+    threadId: "thread-sharma-task-4",
+    authorMembershipId: "membership-manager-1",
+    body: "Good. Add a photo with today's update.",
+    createdAt: "2026-09-26T17:45:00+05:30",
+  },
+  {
+    id: "message-7",
+    threadId: "thread-sharma-homeowner",
+    authorMembershipId: "membership-homeowner-sharma",
+    body: "When will the ground floor slab be poured?",
+    createdAt: "2026-09-26T19:00:00+05:30",
+  },
+  {
+    id: "message-8",
+    threadId: "thread-sharma-homeowner",
+    authorMembershipId: "membership-manager-1",
+    body: "Around 10 October, after the columns cure. We'll share photos as it happens.",
+    createdAt: "2026-09-26T19:30:00+05:30",
+  },
+  {
+    id: "message-9",
+    threadId: "thread-sharma-direct-arjun-ravi",
+    authorMembershipId: "membership-manager-1",
+    body: "Ravi, can you come in at 8 tomorrow for the pour?",
+    createdAt: "2026-09-27T08:30:00+05:30",
+  },
+]
+
+const threadReads: ThreadRead[] = [
+  { threadId: "thread-sharma-project", membershipId: "membership-manager-1", lastReadAt: "2026-09-26T18:05:00+05:30" },
+  { threadId: "thread-sharma-project", membershipId: "membership-worker-ravi-sharma", lastReadAt: "2026-09-27T07:50:00+05:30" },
+  { threadId: "thread-sharma-task-4", membershipId: "membership-manager-1", lastReadAt: "2026-09-26T17:45:00+05:30" },
+  { threadId: "thread-sharma-task-4", membershipId: "membership-worker-ravi-sharma", lastReadAt: "2026-09-26T17:30:00+05:30" },
+  { threadId: "thread-sharma-homeowner", membershipId: "membership-manager-1", lastReadAt: "2026-09-26T19:30:00+05:30" },
+  { threadId: "thread-sharma-homeowner", membershipId: "membership-homeowner-sharma", lastReadAt: "2026-09-26T19:00:00+05:30" },
+  { threadId: "thread-sharma-direct-arjun-ravi", membershipId: "membership-manager-1", lastReadAt: "2026-09-27T08:30:00+05:30" },
+]
+
 export const seedConstructionData: ConstructionDataState = {
   organizations: [
     {
@@ -1279,4 +1401,7 @@ export const seedConstructionData: ConstructionDataState = {
     },
   ],
   issues,
+  threads,
+  messages,
+  threadReads,
 }
