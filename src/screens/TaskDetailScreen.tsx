@@ -307,6 +307,7 @@ function TaskDetail({
                 title={<Title level={5} className="company-heading! m-0!">Discussion</Title>}
               >
                 <ThreadPanel
+                  key={task.id}
                   compact
                   projectId={projectId}
                   subject="task"

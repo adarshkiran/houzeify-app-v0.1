@@ -132,6 +132,8 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
           onChange={(event) => setBody(event.target.value)}
           placeholder="Write a message"
           aria-label="Message"
+          maxLength={2000}
+          showCount
         />
         <Flex justify="space-between" align="center" gap="small" wrap>
           <VoiceNoteRecorder

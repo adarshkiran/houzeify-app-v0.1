@@ -1,12 +1,13 @@
 import { AudioOutlined } from "@ant-design/icons"
 import { Badge, Empty, Flex, Typography } from "antd"
-import type { EntityId } from "../../domain/models"
+import type { EntityId, ThreadSubject } from "../../domain/models"
 import { useConstructionData } from "../../mock/ConstructionDataProvider"
 import { threadTitle, type ViewerThread } from "../../mock/conversationSelectors"
+import { getProject } from "../../mock/selectors"
 
 const { Text } = Typography
 
-const SUBJECT_LABEL: Record<string, string> = {
+const SUBJECT_LABEL: Record<ThreadSubject, string> = {
   project: "Everyone on the project",
   homeowner: "Homeowner and project team",
   task: "Task",
@@ -27,6 +28,8 @@ export default function ConversationList({
 }) {
   const { state } = useConstructionData()
   if (!items.length) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No conversations yet." />
+  // Name the project only when the list spans more than one.
+  const manyProjects = new Set(items.map(({ thread }) => thread.projectId)).size > 1
   return (
     <Flex vertical gap={4} role="listbox" aria-label="Conversations">
       {items.map(({ thread, reader, unread, lastMessage }) => {
@@ -45,7 +48,11 @@ export default function ConversationList({
               <Text strong ellipsis>{threadTitle(state, thread, reader.id)}</Text>
               <Badge count={unread} size="small" />
             </Flex>
-            <Text type="secondary" className="text-[12px]!">{SUBJECT_LABEL[thread.subject]}</Text>
+            <Text type="secondary" className="text-[12px]!">
+              {[manyProjects ? getProject(state, thread.projectId)?.name : undefined, SUBJECT_LABEL[thread.subject]]
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
             {preview && (
               <Text type="secondary" ellipsis>
                 {lastMessage?.voice && !lastMessage.body && <AudioOutlined />} {preview}

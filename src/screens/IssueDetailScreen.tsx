@@ -165,6 +165,7 @@ function IssueDetail({
 
               <Card title={<Title level={5} className="company-heading! m-0!">Discussion</Title>}>
                 <ThreadPanel
+                  key={issue.id}
                   compact
                   projectId={projectId}
                   subject="issue"

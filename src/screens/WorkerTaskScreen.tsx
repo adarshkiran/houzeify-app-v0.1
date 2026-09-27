@@ -351,7 +351,7 @@ function WorkerTask({
       </Card>
 
       <Card size="small" title="Discussion">
-        <ThreadPanel compact projectId={task.projectId} subject="task" targetId={task.id} emptyText="Ask your supervisor about this task." />
+        <ThreadPanel key={task.id} compact projectId={task.projectId} subject="task" targetId={task.id} emptyText="Ask your supervisor about this task." />
       </Card>
 
       <ReportIssueModal
