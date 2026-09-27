@@ -2,41 +2,9 @@ import { useEffect, useRef, useState } from "react"
 import { AudioMutedOutlined, AudioOutlined } from "@ant-design/icons"
 import { Button, Flex, Input, Tooltip, Typography, theme } from "antd"
 import type { TextAreaProps } from "antd/es/input"
+import { getSpeechRecognition, type SpeechRecognitionLike } from "./speechRecognition"
 
 const { Text } = Typography
-
-type SpeechRecognitionResultLike = {
-  isFinal: boolean
-  0: { transcript: string }
-}
-
-type SpeechRecognitionEventLike = {
-  resultIndex: number
-  results: ArrayLike<SpeechRecognitionResultLike>
-}
-
-type SpeechRecognitionLike = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null
-  onerror: ((event: { error: string }) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
-
-function getSpeechRecognition(): SpeechRecognitionConstructor | null {
-  if (typeof window === "undefined") return null
-  const speechWindow = window as Window & {
-    SpeechRecognition?: SpeechRecognitionConstructor
-    webkitSpeechRecognition?: SpeechRecognitionConstructor
-  }
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null
-}
 
 export default function VoiceTextArea({
   value,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { AudioOutlined, BorderOutlined } from "@ant-design/icons"
 import { App, Button } from "antd"
+import { getSpeechRecognition, type SpeechRecognitionLike } from "./speechRecognition"
 
 function pickAudioMimeType() {
   const candidates = [
@@ -30,19 +31,31 @@ const formatElapsed = (seconds: number) =>
  */
 export default function VoiceNoteRecorder({
   onRecorded,
+  onTranscript,
   maxSeconds = 120,
+  label,
 }: {
-  onRecorded: (url: string) => void
+  onRecorded: (url: string, durationSec: number) => void
+  onTranscript?: (text: string) => void
   maxSeconds?: number
+  label?: string
 }) {
   const { message } = App.useApp()
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const transcriptRef = useRef("")
   const onRecordedRef = useRef(onRecorded)
   onRecordedRef.current = onRecorded
+  const onTranscriptRef = useRef(onTranscript)
+  onTranscriptRef.current = onTranscript
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const elapsedRef = useRef(0)
+  useEffect(() => {
+    elapsedRef.current = elapsed
+  }, [elapsed])
 
   const releaseMic = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -71,6 +84,7 @@ export default function VoiceNoteRecorder({
       if (recorderRef.current) recorderRef.current.onstop = null
       stop()
       releaseMic()
+      recognitionRef.current?.abort()
     },
     [],
   )
@@ -100,14 +114,47 @@ export default function VoiceNoteRecorder({
       recorder.onstop = () => {
         setRecording(false)
         releaseMic()
+        recognitionRef.current?.stop()
+        recognitionRef.current = null
         const blob = new Blob(chunksRef.current, {
           type: recorder.mimeType || mimeType || "audio/webm",
         })
         chunksRef.current = []
-        if (blob.size > 0) onRecordedRef.current(URL.createObjectURL(blob))
+        if (blob.size > 0) {
+          onRecordedRef.current(URL.createObjectURL(blob), Math.max(1, elapsedRef.current))
+          if (onTranscriptRef.current) onTranscriptRef.current(transcriptRef.current.trim())
+        }
       }
       recorderRef.current = recorder
       recorder.start()
+
+      const Recognition = onTranscriptRef.current ? getSpeechRecognition() : null
+      if (Recognition) {
+        transcriptRef.current = ""
+        const recognition = new Recognition()
+        recognition.continuous = true
+        recognition.interimResults = false
+        recognition.lang = "en-IN"
+        recognition.onresult = (event) => {
+          let finalChunk = ""
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const result = event.results[index]
+            if (result.isFinal) finalChunk += result[0].transcript
+          }
+          if (finalChunk) {
+            transcriptRef.current = [transcriptRef.current.trim(), finalChunk.trim()]
+              .filter(Boolean)
+              .join(" ")
+          }
+        }
+        recognitionRef.current = recognition
+        try {
+          recognition.start()
+        } catch {
+          // recognition unavailable: voice-only
+        }
+      }
+
       setElapsed(0)
       setRecording(true)
     } catch {
@@ -124,7 +171,7 @@ export default function VoiceNoteRecorder({
     </Button>
   ) : (
     <Button icon={<AudioOutlined />} onClick={start}>
-      Voice note
+      {label ?? "Voice note"}
     </Button>
   )
 }

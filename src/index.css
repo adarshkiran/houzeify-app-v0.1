@@ -766,3 +766,50 @@ html, body, #root {
   padding-top: 16px;
   border-top: 1px solid var(--ant-color-border-secondary);
 }
+
+/* Conversations: message list scrolls inside the panel; own messages tinted. */
+.thread-messages {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.thread-panel.is-compact .thread-messages {
+  max-height: 280px;
+}
+
+.thread-message {
+  gap: 4px;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--ant-color-fill-quaternary);
+  align-self: flex-start;
+}
+
+.thread-message.is-mine {
+  align-self: flex-end;
+  background: var(--ant-color-primary-bg);
+}
+
+.thread-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.thread-audio {
+  width: 100%;
+  max-width: 320px;
+  height: 36px;
+}
+
+.thread-composer {
+  padding-top: 12px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.thread-voice-draft {
+  padding: 8px;
+  border-radius: var(--ant-border-radius);
+  background: var(--ant-color-fill-quaternary);
+}
