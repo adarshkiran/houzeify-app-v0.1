@@ -1,7 +1,6 @@
 import { canMessageDirectly, findThread, readerMembership } from "./conversations"
 import { ConflictError, IntegrityError } from "./errors"
 import type {
-  ConstructionDataState,
   EntityId,
   Message,
   MessageVoice,
@@ -38,26 +37,24 @@ function withRead(
   return [...rest, { threadId, membershipId, lastReadAt }]
 }
 
-function assertTargetInProject(state: ConstructionDataState, thread: Thread) {
-  if (thread.subject === "project" || thread.subject === "homeowner") return
-  const exists =
-    thread.subject === "unit"
-      ? state.projectUnits.some((u) => u.id === thread.targetId && u.projectId === thread.projectId)
-      : thread.subject === "task"
-        ? state.tasks.some((t) => t.id === thread.targetId && t.projectId === thread.projectId)
-        : state.issues.some((i) => i.id === thread.targetId && i.projectId === thread.projectId)
-  if (!exists) {
-    throw new IntegrityError(`${thread.subject} ${thread.targetId} is not in project ${thread.projectId}`)
-  }
+/** Project / homeowner threads have no target; unit / task / issue threads need one. */
+function normalizedTarget(
+  subject: Exclude<ThreadSubject, "direct">,
+  targetId: EntityId | undefined,
+): EntityId | undefined {
+  if (subject === "project" || subject === "homeowner") return undefined
+  if (!targetId) throw new IntegrityError("A unit, task or issue conversation needs its target.")
+  return targetId
 }
 
 export const postMessage =
   (input: PostMessageInput): Command<Message> =>
   (state, ctx) => {
+    const targetId = "threadId" in input ? undefined : normalizedTarget(input.subject, input.targetId)
     const existing =
       "threadId" in input
         ? state.threads.find((thread) => thread.id === input.threadId)
-        : findThread(state, input.projectId, input.subject, input.targetId)
+        : findThread(state, input.projectId, input.subject, targetId)
     if (!existing && "threadId" in input) throw new PermissionError(Permissions.PROJECT_READ)
 
     const timestamp = iso(ctx)
@@ -69,15 +66,16 @@ export const postMessage =
           id: ctx.ids.next("thread"),
           projectId: target.projectId,
           subject: target.subject,
-          targetId: target.targetId,
+          targetId,
           audience: target.subject === "homeowner" ? "homeowner" : "internal",
           createdAt: timestamp,
         }
       })()
 
+    // A unit / task / issue outside the project has no scope target, so no
+    // membership can read (or create) its thread.
     const author = readerMembership(state, ctx.actor, thread)
     if (!author) throw new PermissionError(Permissions.PROJECT_READ, thread.projectId)
-    if (!existing) assertTargetInProject(state, thread)
 
     const body = input.body?.trim() || undefined
     if (!body && !input.voice) throw new ConflictError("Write a message or record a voice note.")
@@ -122,7 +120,10 @@ export const openDirectThread =
       (m) => m.id === otherMembershipId && m.projectId === projectId && m.status === "active",
     )
     if (!other) throw new IntegrityError(`Membership ${otherMembershipId} is not active on ${projectId}`)
-    const me = mine.find((m) => m.id !== other.id && canMessageDirectly(m.role, other.role))
+    const me =
+      other.principalType === "person" && other.principalId !== ctx.actor.personId
+        ? mine.find((m) => canMessageDirectly(m.role, other.role))
+        : undefined
     if (!me) {
       throw new ConflictError("You can't message this person directly. Use the task or project conversation.")
     }

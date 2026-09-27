@@ -57,6 +57,11 @@ describe("canReadThread", () => {
     expect(canReadThread(seed, null, thread("thread-sharma-project"))).toBe(false)
   })
 
+  it("never lets the homeowner read a direct thread, even one naming them", () => {
+    const direct = draft({ subject: "direct", participantMembershipIds: ["membership-manager-1", "membership-homeowner-sharma"] })
+    expect(canReadThread(seed, homeowner, direct)).toBe(false)
+  })
+
   it("returns the membership a person reads (and posts) with", () => {
     expect(readerMembership(seed, ravi, thread("thread-sharma-task-4"))?.id).toBe("membership-worker-ravi-sharma")
   })

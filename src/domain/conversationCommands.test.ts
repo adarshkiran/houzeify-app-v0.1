@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { markThreadRead, openDirectThread, postMessage } from "./conversationCommands"
 import { unreadCount } from "./conversations"
-import { ConflictError } from "./errors"
-import type { ConstructionDataState } from "./models"
+import { ConflictError, IntegrityError } from "./errors"
+import type { ConstructionDataState, ProjectMembership } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import { PermissionError, type Session } from "./session"
 
@@ -64,6 +64,17 @@ describe("postMessage", () => {
   it("rejects a target that isn't in the project", () => {
     expect(() => run(seed, arjun, postMessage({ projectId: "project-sharma", subject: "task", targetId: "task-6", body: "Hi" }))).toThrow()
   })
+
+  it("ignores a stray target on the project thread instead of creating a second one", () => {
+    const { state, result } = run(seed, arjun, postMessage({ projectId: "project-sharma", subject: "project", targetId: "x", body: "Hi" }))
+    expect(result.threadId).toBe("thread-sharma-project")
+    expect(state.threads).toHaveLength(seed.threads.length)
+  })
+
+  it("refuses a unit, task or issue message without its target", () => {
+    expect(() => run(seed, arjun, postMessage({ projectId: "project-sharma", subject: "task", body: "Hi" })))
+      .toThrow(new IntegrityError("A unit, task or issue conversation needs its target."))
+  })
 })
 
 describe("openDirectThread", () => {
@@ -76,6 +87,38 @@ describe("openDirectThread", () => {
     expect(() => run(seed, arjun, openDirectThread("project-sharma", "membership-homeowner-sharma")))
       .toThrow("You can't message this person directly. Use the task or project conversation.")
     expect(() => run(seed, arjun, openDirectThread("project-sharma", "membership-manager-1"))).toThrow(ConflictError)
+  })
+
+  it("refuses a DM with another of your own memberships", () => {
+    const second: ProjectMembership = {
+      id: "membership-arjun-supervisor-sharma",
+      projectId: "project-sharma",
+      principalType: "person",
+      principalId: "person-arjun",
+      role: "supervisor",
+      scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+      permissions: [],
+      status: "active",
+    }
+    const state = { ...seed, memberships: [...seed.memberships, second] }
+    expect(() => run(state, arjun, openDirectThread("project-sharma", second.id)))
+      .toThrow("You can't message this person directly. Use the task or project conversation.")
+  })
+
+  it("refuses a DM with an organization membership", () => {
+    const org: ProjectMembership = {
+      id: "membership-org-sharma",
+      projectId: "project-sharma",
+      principalType: "organization",
+      principalId: "org-buildright",
+      role: "supervisor",
+      scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+      permissions: [],
+      status: "active",
+    }
+    const state = { ...seed, memberships: [...seed.memberships, org] }
+    expect(() => run(state, arjun, openDirectThread("project-sharma", org.id)))
+      .toThrow("You can't message this person directly. Use the task or project conversation.")
   })
 
   it("creates a DM for an allowed new pair", () => {

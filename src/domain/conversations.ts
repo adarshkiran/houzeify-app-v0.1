@@ -80,6 +80,7 @@ function membershipCanRead(
     )
   }
   if (thread.subject === "direct") {
+    if (membership.role === "homeowner") return false
     return thread.participantMembershipIds?.includes(membership.id) ?? false
   }
   if (membership.role === "homeowner") return false
