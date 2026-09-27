@@ -47,6 +47,7 @@ const WorkerOnboardingScreen = lazy(() => import('./screens/WorkerOnboardingScre
 const WorkerTodayScreen = lazy(() => import('./screens/WorkerTodayScreen'))
 const WorkerTaskScreen = lazy(() => import('./screens/WorkerTaskScreen'))
 const WorkerSubmitScreen = lazy(() => import('./screens/WorkerSubmitScreen'))
+const WorkerMessagesScreen = lazy(() => import('./screens/WorkerMessagesScreen'))
 
 function SplashRoute({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
@@ -229,6 +230,13 @@ export default function App() {
               projectId={projectId}
               taskId={params.task_id}
             />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'worker-messages' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <WorkerMessagesScreen onNavigate={navigateTo} threadId={params.thread_id} />
           </Suspense>
         </div>
       )}

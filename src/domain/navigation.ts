@@ -91,6 +91,7 @@ export const routes = {
     access: workerProject(Permissions.PROGRESS_SUBMIT),
     requires: ["project_id", "task_id"],
   },
+  "worker-messages": { access: WORKER },
 
   "project-overview": {
     access: project(Permissions.PROJECT_READ),
