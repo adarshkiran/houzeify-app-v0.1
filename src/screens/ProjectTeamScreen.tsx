@@ -1,5 +1,6 @@
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
+import { canMessageDirectly } from "../domain/conversations"
 import { useCan } from "../session/useCan"
 import { useSession } from "../session/SessionProvider"
 import { visibleMemberships } from "../domain/readScope"
@@ -8,6 +9,7 @@ import { useState } from "react"
 import {
   CheckCircleOutlined,
   MailOutlined,
+  MessageOutlined,
   PlusOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
@@ -62,7 +64,7 @@ function ProjectTeam({
   /** Reached from project setup: show the steps and the finish button. */
   setup: boolean
 }) {
-  const { state, inviteProjectMember } = useConstructionData()
+  const { state, inviteProjectMember, openDirectThread } = useConstructionData()
   const run = useCommand()
   const { session } = useSession()
   const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
@@ -76,6 +78,21 @@ function ProjectTeam({
     state.projectUnits,
     projectId,
   )
+  const myMemberships = state.memberships.filter(
+    (m) =>
+      m.projectId === projectId &&
+      m.status === "active" &&
+      m.principalType === "person" &&
+      m.principalId === session?.personId,
+  )
+  const canDm = (other: ProjectMembership) =>
+    other.status === "active" &&
+    other.principalType === "person" &&
+    myMemberships.some((m) => m.id !== other.id && canMessageDirectly(m.role, other.role))
+  const message = (other: ProjectMembership) => {
+    const outcome = run(() => openDirectThread(projectId, other.id))
+    if (outcome.ok) onNavigate("project-messages", { project_id: projectId, thread_id: outcome.value.id })
+  }
 
   const getPrincipalName = (membership: ProjectMembership) => {
     if (membership.principalType === "organization") {
@@ -131,6 +148,17 @@ function ProjectTeam({
               : "Inactive"}
         </Tag>
       ),
+    },
+    {
+      key: "message",
+      title: "",
+      width: 110,
+      render: (_: unknown, member: ProjectMembership) =>
+        canDm(member) ? (
+          <Button size="small" icon={<MessageOutlined />} onClick={() => message(member)}>
+            Message
+          </Button>
+        ) : null,
     },
   ]
 

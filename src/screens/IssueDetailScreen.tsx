@@ -3,6 +3,7 @@ import { Alert, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Space
 import { useState } from "react"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import ThreadPanel from "../components/conversations/ThreadPanel"
 import EvidenceThumb from "../components/EvidenceThumb"
 import Gated from "../components/Gated"
 import { issueActionLabel, issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
@@ -160,6 +161,16 @@ function IssueDetail({
                 ) : (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No evidence attached" />
                 )}
+              </Card>
+
+              <Card title={<Title level={5} className="company-heading! m-0!">Discussion</Title>}>
+                <ThreadPanel
+                  compact
+                  projectId={projectId}
+                  subject="issue"
+                  targetId={issue.id}
+                  emptyText="No messages about this issue yet."
+                />
               </Card>
 
               {issue.resolutionNote ? (

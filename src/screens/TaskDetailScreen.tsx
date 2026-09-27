@@ -23,6 +23,7 @@ import {
 } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import ThreadPanel from "../components/conversations/ThreadPanel"
 import { reviewStatusLabel } from "../components/progress/progressLabels"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -300,6 +301,18 @@ function TaskDetail({
                     No daily progress has been submitted against this task.
                   </Paragraph>
                 )}
+              </Card>
+
+              <Card
+                title={<Title level={5} className="company-heading! m-0!">Discussion</Title>}
+              >
+                <ThreadPanel
+                  compact
+                  projectId={projectId}
+                  subject="task"
+                  targetId={task.id}
+                  emptyText="No messages about this task yet."
+                />
               </Card>
             </Flex>
           </Col>
