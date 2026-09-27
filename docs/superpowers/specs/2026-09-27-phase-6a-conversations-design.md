@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-27  
 **Branch:** `feature/communication-voice`  
-**Status:** Design approved — not yet implemented  
+**Status:** Implemented  
 **Source:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` → Phase 6 (Communication & Voice), §21 Communication Security Model
 
 ## Goal
@@ -139,7 +139,7 @@ Notifications / sounds, typing indicators, editing or deleting messages, attachm
 
 ### Seed data (Sharma Residence)
 
-- Project chat: 3 messages (Arjun, Ravi).
+- Project chat: 4 messages (Arjun, Ravi).
 - Task-4 thread: Ravi and Arjun, including one voice message with a transcript.
 - Homeowner thread: demo homeowner and Arjun.
 - Direct thread Arjun ↔ Ravi: 1 message.
