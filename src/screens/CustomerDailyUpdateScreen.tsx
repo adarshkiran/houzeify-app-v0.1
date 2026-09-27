@@ -13,7 +13,8 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import ThreadPanel from "../components/conversations/ThreadPanel"
 import EvidenceGrid from "../components/progress/EvidenceGrid"
-import type { EntityId } from "../domain/models"
+import { findThread, readerMembership } from "../domain/conversations"
+import type { EntityId, Thread } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
@@ -22,6 +23,7 @@ import {
   getPublishedForCustomer,
   getWorkTypeName,
 } from "../mock/selectors"
+import { useSession } from "../session/SessionProvider"
 
 const { Paragraph, Text, Title } = Typography
 
@@ -55,11 +57,24 @@ function CustomerUpdate({
   projectId?: EntityId
 }) {
   const { state } = useConstructionData()
+  const { session } = useSession()
   const published = getPublishedForCustomer(state, projectId)
   const latest = published[0]
   const project = latest ? getProject(state, latest.projectId) : getProject(state, projectId ?? "")
   const evidence = latest ? getPublishedEvidence(state, latest) : []
   const progress = project?.progress ?? 0
+  // Only the homeowner gets a composer here; company staff use Messages.
+  const homeownerThread: Thread | undefined = project
+    ? findThread(state, project.id, "homeowner") ?? {
+        id: "draft",
+        projectId: project.id,
+        subject: "homeowner",
+        audience: "homeowner",
+        createdAt: "",
+      }
+    : undefined
+  const canMessageTeam =
+    homeownerThread !== undefined && readerMembership(state, session, homeownerThread)?.role === "homeowner"
 
   return (
     <Flex vertical className="company-form-page min-h-full">
@@ -127,18 +142,18 @@ function CustomerUpdate({
             >
               <EvidenceGrid items={evidence} audience="homeowner" empty="No photos were shared with this update." />
             </Card>
-
-            {project && (
-              <Card title="Message your project team">
-                <ThreadPanel compact projectId={project.id} subject="homeowner" emptyText="Ask the project team anything about your home." />
-              </Card>
-            )}
           </>
         ) : (
           <Card>
             <Paragraph className="m-0!">
               Nothing has been published for you yet. Your contractor’s update appears here after it is reviewed.
             </Paragraph>
+          </Card>
+        )}
+
+        {project && canMessageTeam && (
+          <Card title="Message your project team">
+            <ThreadPanel compact projectId={project.id} subject="homeowner" emptyText="Ask the project team anything about your home." />
           </Card>
         )}
       </Flex>
