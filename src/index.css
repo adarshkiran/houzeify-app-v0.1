@@ -725,3 +725,44 @@ html, body, #root {
   text-align: left;
   cursor: zoom-in;
 }
+
+/* Progress review queue: selectable list rows inside a card (list + detail). */
+.progress-queue-body {
+  padding: 8px !important;
+}
+
+.progress-queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: var(--ant-border-radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.progress-queue-item:hover {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.progress-queue-item.is-active {
+  background: var(--ant-color-primary-bg);
+  border-left-color: var(--ant-color-primary);
+}
+
+.progress-queue-item:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: 1px;
+}
+
+/* Review actions sit at the bottom of the detail card, separated by a rule. */
+.progress-review-actions {
+  padding-top: 16px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}

@@ -21,7 +21,17 @@ describe("progress selectors", () => {
 
   it("history leaves out drafts and is newest first", () => {
     const ids = getProgressHistory(seed).map((p) => p.id)
-    expect(ids).toEqual(["progress-sharma-2009", "progress-tech-1909", "progress-reddy-1809"])
+    expect(ids).toEqual([
+      "progress-tech-2609",
+      "progress-sharma-2609",
+      "progress-reddy-2609",
+      "progress-reddy-2509",
+      "progress-tech-2509",
+      "progress-reddy-2409",
+      "progress-sharma-2009",
+      "progress-tech-1909",
+      "progress-reddy-1809",
+    ])
   })
 
   it("walks the version chain oldest first", () => {

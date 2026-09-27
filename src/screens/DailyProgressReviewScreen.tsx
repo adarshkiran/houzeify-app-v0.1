@@ -22,7 +22,7 @@ import {
 import { useAccess } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
 
-const { Text } = Typography
+const { Text, Title } = Typography
 
 const SUCCESS: Record<ReviewDecision, string> = {
   approve: "Approved — ready to publish",
@@ -51,47 +51,58 @@ function ReviewTab({ items }: { items: DailyProgress[] }) {
   }
 
   return (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} lg={9}>
-        <Flex vertical gap="small">
-          {items.map((item) => {
-            const active = item.id === selected.id
-            return (
-              <Button
-                key={item.id}
-                block
-                type={active ? "primary" : "default"}
-                className="h-auto! py-3! text-left! whitespace-normal!"
-                onClick={() => setSelectedId(item.id)}
-              >
-                <Flex vertical align="flex-start" gap={2}>
-                  <Text strong className={active ? "text-inherit!" : undefined}>
-                    {getProject(state, item.projectId)?.name ?? "Project"}
-                    {item.version > 1 ? ` · v${item.version}` : ""}
+    <Row gutter={[16, 16]} align="top">
+      <Col xs={24} lg={8}>
+        <Card
+          title={<Title level={5} className="company-heading! m-0!">Updates</Title>}
+          extra={<Text type="secondary">{items.length} waiting</Text>}
+          classNames={{ body: "progress-queue-body" }}
+        >
+          <Flex vertical gap={4} role="listbox" aria-label="Updates waiting for review">
+            {items.map((item) => {
+              const active = item.id === selected.id
+              const submitter = getMembershipName(state, item.submittedByMembershipId)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`progress-queue-item${active ? " is-active" : ""}`}
+                  onClick={() => setSelectedId(item.id)}
+                >
+                  <Flex align="center" justify="space-between" gap="small">
+                    <Text strong ellipsis>
+                      {getProject(state, item.projectId)?.name ?? "Project"}
+                    </Text>
+                    {item.version > 1 && <Tag className="m-0!">v{item.version}</Tag>}
+                  </Flex>
+                  <Text type="secondary" ellipsis>
+                    {getWorkTypeName(state, item.workTypeId)}
                   </Text>
-                  <Text className={active ? "text-inherit!" : undefined} type={active ? undefined : "secondary"}>
-                    {item.date} · {getWorkTypeName(state, item.workTypeId)}
-                    {getMembershipName(state, item.submittedByMembershipId) ? ` · ${getMembershipName(state, item.submittedByMembershipId)}` : ""}
+                  <Text type="secondary" className="text-[12px]!">
+                    {item.date}
+                    {submitter ? ` · ${submitter}` : ""}
                   </Text>
-                </Flex>
-              </Button>
-            )
-          })}
-        </Flex>
+                </button>
+              )
+            })}
+          </Flex>
+        </Card>
       </Col>
-      <Col xs={24} lg={15}>
-        <Card>
+      <Col xs={24} lg={16}>
+        <Card title={<Title level={5} className="company-heading! m-0!">Update details</Title>}>
           <Flex vertical gap="large">
             <ProgressDetail progress={selected} />
-            <Flex gap="small" wrap>
-              <Gated allowed={canReview}>
-                <Button type="primary" onClick={() => setDecision("approve")}>Approve</Button>
-              </Gated>
+            <Flex gap="small" wrap className="progress-review-actions">
               <Gated allowed={canReview}>
                 <Button onClick={() => setDecision("request-changes")}>Request changes</Button>
               </Gated>
               <Gated allowed={canReview}>
                 <Button danger onClick={() => setDecision("reject")}>Reject</Button>
+              </Gated>
+              <Gated allowed={canReview}>
+                <Button type="primary" onClick={() => setDecision("approve")}>Approve</Button>
               </Gated>
             </Flex>
           </Flex>
