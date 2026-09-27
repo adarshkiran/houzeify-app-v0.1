@@ -11,6 +11,7 @@ import {
 } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
+import ThreadPanel from "../components/conversations/ThreadPanel"
 import EvidenceGrid from "../components/progress/EvidenceGrid"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -126,6 +127,12 @@ function CustomerUpdate({
             >
               <EvidenceGrid items={evidence} audience="homeowner" empty="No photos were shared with this update." />
             </Card>
+
+            {project && (
+              <Card title="Message your project team">
+                <ThreadPanel compact projectId={project.id} subject="homeowner" emptyText="Ask the project team anything about your home." />
+              </Card>
+            )}
           </>
         ) : (
           <Card>
