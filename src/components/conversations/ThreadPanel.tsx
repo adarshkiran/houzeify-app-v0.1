@@ -17,6 +17,11 @@ type PanelTarget =
   | { threadId: EntityId }
   | { projectId: EntityId; subject: Exclude<ThreadSubject, "direct">; targetId?: EntityId }
 
+/** An unsent recording's object URL; a sent message keeps its URL. */
+const revokeDraftUrl = (draft?: MessageVoice) => {
+  if (draft?.url.startsWith("blob:")) URL.revokeObjectURL(draft.url)
+}
+
 const timeLabel = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 
@@ -70,6 +75,11 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
     }
   }
 
+  const discardVoice = () => {
+    revokeDraftUrl(voice)
+    setVoice(undefined)
+  }
+
   return (
     <Flex vertical gap="middle" className={`thread-panel${props.compact ? " is-compact" : ""}`}>
       <Flex vertical gap="small" className="thread-messages" role="log" aria-live="polite">
@@ -104,7 +114,7 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
           <Flex vertical gap={6} className="thread-voice-draft">
             <Flex align="center" justify="space-between" gap="small">
               <Tag className="m-0!">Voice message · {voice.durationSec ?? 0}s</Tag>
-              <Button size="small" type="text" icon={<CloseOutlined />} aria-label="Remove voice message" onClick={() => setVoice(undefined)} />
+              <Button size="small" type="text" icon={<CloseOutlined />} aria-label="Remove voice message" onClick={discardVoice} />
             </Flex>
             <audio src={voice.url} controls className="thread-audio" />
             <Input.TextArea
@@ -126,8 +136,11 @@ export default function ThreadPanel(props: PanelTarget & { emptyText?: string; c
         <Flex justify="space-between" align="center" gap="small" wrap>
           <VoiceNoteRecorder
             label="Record voice message"
-            onRecorded={(url, durationSec) => setVoice((current) => ({ ...current, url, durationSec }))}
-            onTranscript={(text) => setVoice((current) => (current ? { ...current, transcript: text || current.transcript } : current))}
+            onRecorded={(url, durationSec) => {
+              revokeDraftUrl(voice)
+              setVoice({ url, durationSec })
+            }}
+            onTranscript={(text) => setVoice((current) => (current ? { ...current, transcript: text || undefined } : current))}
           />
           <Button type="primary" icon={<SendOutlined />} disabled={!body.trim() && !voice} onClick={send}>
             Send
