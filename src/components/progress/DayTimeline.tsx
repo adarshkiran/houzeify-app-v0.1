@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
-import { CalendarOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
+import { CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
 import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
 import type { DailyProgress, ISODate, Task } from "../../domain/models"
 import { addDays, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, type DayAudience, type DayNote } from "../../mock/dayStory"
@@ -13,9 +13,10 @@ const fmt = (date: ISODate, options: Intl.DateTimeFormatOptions) =>
 const weekday = (date: ISODate) => fmt(date, { weekday: "short" })
 const longLabel = formatDay
 
+/** Coloured tags (dark text on a light fill + border) stay readable on the tinted Today card. */
 const STORY_TAG = {
-  planned: "Planned",
-  scheduled: "Scheduled tasks",
+  planned: { label: "Planned", color: "blue", icon: <ClockCircleOutlined /> },
+  scheduled: { label: "Scheduled tasks", color: "cyan", icon: <CalendarOutlined /> },
 } as const
 
 /** Month grid for jumping to any date (Monday first). */
@@ -193,7 +194,11 @@ export default function DayTimeline({
                   </div>
                 ) : (
                   <Flex vertical gap="middle">
-                    {story.kind !== "done" && <Tag className="m-0! self-start">{STORY_TAG[story.kind]}</Tag>}
+                    {story.kind !== "done" && (
+                      <Tag variant="outlined" color={STORY_TAG[story.kind].color} icon={STORY_TAG[story.kind].icon} className="m-0! self-start">
+                        {STORY_TAG[story.kind].label}
+                      </Tag>
+                    )}
                     {story.notes.map((note, index) => (
                       <Flex key={note.progressId ?? note.taskId ?? index} vertical gap={4}>
                         <Text>{note.text}</Text>
