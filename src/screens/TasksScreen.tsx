@@ -170,14 +170,16 @@ function Tasks({
       onNavigate={onNavigate}
       description="Work across locations, trades and teams"
       actions={
-        <Gated allowed={canManage}>
-          <Space>
+        <Space>
+          <Gated allowed={canManage}>
             <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>Speak a task</Button>
+          </Gated>
+          <Gated allowed={canManage}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
               Create task
             </Button>
-          </Space>
-        </Gated>
+          </Gated>
+        </Space>
       }
     >
       <Flex vertical gap="large" className="company-content">

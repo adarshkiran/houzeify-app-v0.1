@@ -52,7 +52,13 @@ export default function CreateTaskModal({
   const [form] = Form.useForm<TaskFormValues>()
 
   useEffect(() => {
-    if (!open || !draft) return
+    if (!open) {
+      // Closing (Cancel, X, or mask click) — clear any values a previous
+      // draft left behind so the next open (with or without a draft) starts clean.
+      form.resetFields()
+      return
+    }
+    if (!draft) return
     const workType = state.workTypes.find((w) => w.id === draft.values.workTypeId)
     form.setFieldsValue({
       ...draft.values,
