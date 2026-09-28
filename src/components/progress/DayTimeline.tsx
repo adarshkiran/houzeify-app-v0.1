@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import { CalendarOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
 import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
 import type { DailyProgress, ISODate, Task } from "../../domain/models"
-import { addDays, datesWithUpdates, dayStory, formatDay, localToday, type DayAudience, type DayNote } from "../../mock/dayStory"
+import { addDays, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, type DayAudience, type DayNote } from "../../mock/dayStory"
 import { NoteCard } from "./UpdateNotes"
 
 const { Text } = Typography
@@ -137,6 +137,10 @@ export default function DayTimeline({
     )
   }
 
+  const stories = [-1, 0, 1].map((offset) => dayStory(addDays(selected, offset), updates, { today, audience, tasks }))
+  const allEmpty = stories.every((story) => story.kind === "empty")
+  const latest = latestUpdateDate(updates)
+
   const columns = [
     { offset: -1, label: onToday ? "Yesterday" : "Day before" },
     { offset: 0, label: onToday ? "Today" : "Selected day" },
@@ -176,14 +180,17 @@ export default function DayTimeline({
       </div>
 
       <Row gutter={[16, 16]}>
-        {columns.map(({ offset, label }) => {
+        {columns.map(({ offset, label }, index) => {
           const date = addDays(selected, offset)
-          const story = dayStory(date, updates, { today, audience, tasks })
+          const story = stories[index]!
           return (
             <Col key={offset} xs={24} md={8}>
               <NoteCard label={label} date={date} emphasis={offset === 0}>
                 {story.kind === "empty" ? (
-                  <Text type="secondary">{story.message}</Text>
+                  <div className="note-empty">
+                    <span className="note-empty-dash" aria-hidden>—</span>
+                    <Text type="secondary" className="text-[12px]!">{story.message}</Text>
+                  </div>
                 ) : (
                   <Flex vertical gap="middle">
                     {story.kind !== "done" && <Tag className="m-0! self-start">{STORY_TAG[story.kind]}</Tag>}
@@ -205,6 +212,18 @@ export default function DayTimeline({
           )
         })}
       </Row>
+
+      {/* Three dashes in a row can read like a failed load, so say it and offer the way out. */}
+      {allEmpty && (
+        <Flex align="center" justify="center" gap={6} wrap className="text-center">
+          <Text type="secondary">{latest ? "No updates around this date." : "No updates yet."}</Text>
+          {latest && (
+            <Button type="link" size="small" className="p-0!" onClick={() => setSelected(latest)}>
+              Latest update: {formatDay(latest)} →
+            </Button>
+          )}
+        </Flex>
+      )}
     </Flex>
   )
 }

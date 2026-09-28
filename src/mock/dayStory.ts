@@ -40,6 +40,11 @@ export function formatDay(date: ISODate): string {
   return `${part({ weekday: "short" })} ${part({ day: "numeric", month: "short" })}`
 }
 
+/** The most recent date with an update, if any. */
+export function latestUpdateDate(updates: readonly DailyProgress[]): ISODate | undefined {
+  return updates.reduce<ISODate | undefined>((latest, update) => (!latest || update.date > latest ? update.date : latest), undefined)
+}
+
 /** Dates that have at least one update, for the dots on the date strip. */
 export function datesWithUpdates(updates: readonly DailyProgress[]): Set<ISODate> {
   return new Set(updates.map((update) => update.date))
@@ -83,9 +88,10 @@ export function dayStory(
     return { kind: "scheduled", notes: scheduled.map((task) => ({ text: task.title, taskId: task.id })) }
   }
 
+  // Short captions: they sit under a dash in a small card.
   const future = date > options.today
   if (options.audience === "homeowner") {
-    return { kind: "empty", message: future ? "Nothing planned yet for this day." : "No update was shared for this day." }
+    return { kind: "empty", message: future ? "Nothing planned yet" : "No update shared" }
   }
-  return { kind: "empty", message: future ? "No task was assigned for this day." : "No update was submitted for this day." }
+  return { kind: "empty", message: future ? "No task assigned" : "No update submitted" }
 }

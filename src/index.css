@@ -602,7 +602,29 @@ html, body, #root {
 
 .project-narrative-card {
   height: 100%;
+  min-height: 128px;
   box-shadow: none !important;
+}
+
+.project-narrative-card > .ant-card-body {
+  height: 100%;
+}
+
+/* An empty day: a light dash centred in the card, with a short caption under it. */
+.note-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding-block: 4px;
+}
+
+.note-empty-dash {
+  font-size: var(--ant-font-size-heading-3);
+  line-height: 1;
+  color: var(--ant-color-text-quaternary);
 }
 
 /* Day timeline: date strip (three days each side of the selected date).

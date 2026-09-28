@@ -19,7 +19,7 @@ export function NoteCard({
 }) {
   return (
     <Card size="small" className={emphasis ? "project-narrative-card project-narrative-today" : "project-narrative-card"}>
-      <Flex vertical gap="small">
+      <Flex vertical gap="small" className="h-full">
         <Flex align="baseline" justify="space-between" gap="small">
           <Text className="company-eyebrow">{label}</Text>
           <Text type="secondary" className="text-[13px]!">{formatDay(date)}</Text>

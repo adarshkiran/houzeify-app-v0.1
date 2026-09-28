@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { DailyProgress, Task } from "../domain/models"
 import { seedConstructionData as seed } from "./seed"
-import { addDays, datesWithUpdates, dayStory, formatDay, localToday } from "./dayStory"
+import { addDays, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday } from "./dayStory"
 
 const base = seed.dailyProgress.find((p) => p.id === "progress-sharma-2009")!
 const update = (over: Partial<DailyProgress>): DailyProgress => ({ ...base, ...over })
@@ -23,6 +23,11 @@ describe("dates", () => {
 
   it("formats the local date", () => {
     expect(localToday(new Date(2026, 8, 5, 23, 30))).toBe("2026-09-05")
+  })
+
+  it("finds the latest update date", () => {
+    expect(latestUpdateDate([update({ date: "2026-09-20" }), update({ date: "2026-09-26" }), update({ date: "2026-09-18" })])).toBe("2026-09-26")
+    expect(latestUpdateDate([])).toBeUndefined()
   })
 
   it("lists the dates that have updates", () => {
@@ -68,9 +73,9 @@ describe("dayStory", () => {
   })
 
   it("says why a day is empty", () => {
-    expect(dayStory("2026-10-05", [], { today, audience: "company" })).toEqual({ kind: "empty", message: "No task was assigned for this day." })
-    expect(dayStory("2026-09-10", [], { today, audience: "company" })).toEqual({ kind: "empty", message: "No update was submitted for this day." })
-    expect(dayStory("2026-10-05", [], { today, audience: "homeowner" })).toEqual({ kind: "empty", message: "Nothing planned yet for this day." })
-    expect(dayStory("2026-09-10", [], { today, audience: "homeowner" })).toEqual({ kind: "empty", message: "No update was shared for this day." })
+    expect(dayStory("2026-10-05", [], { today, audience: "company" })).toEqual({ kind: "empty", message: "No task assigned" })
+    expect(dayStory("2026-09-10", [], { today, audience: "company" })).toEqual({ kind: "empty", message: "No update submitted" })
+    expect(dayStory("2026-10-05", [], { today, audience: "homeowner" })).toEqual({ kind: "empty", message: "Nothing planned yet" })
+    expect(dayStory("2026-09-10", [], { today, audience: "homeowner" })).toEqual({ kind: "empty", message: "No update shared" })
   })
 })
