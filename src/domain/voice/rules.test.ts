@@ -42,6 +42,23 @@ describe("findDate", () => {
   it("returns nothing without a date", () => {
     expect(findDate("pour the columns", MON)).toBeUndefined()
   })
+  it("doesn't read ordinals that name a thing as dates", () => {
+    expect(findDate("Plaster the 2nd floor walls", MON)).toBeUndefined()
+    expect(findDate("apply the 1st coat", MON)).toBeUndefined()
+    expect(findDate("cast the 3rd floor slab by the 5th", MON)?.date).toBe("2026-10-05")
+  })
+  it("rejects days that don't exist", () => {
+    expect(findDate("by the 45th", MON)).toBeUndefined()
+    expect(findDate("by the 0th", MON)).toBeUndefined()
+    // September has 30 days.
+    expect(findDate("by the 31st", MON)).toBeUndefined()
+  })
+  it("marks 'from' as a start only right before the date", () => {
+    expect(findDate("Get sand from the depot tomorrow", MON)?.start).toBe(false)
+    expect(findDate("plastering from tomorrow", MON)?.start).toBe(true)
+    expect(findDate("curing from the 30th", MON)?.start).toBe(true)
+    expect(findDate("starting on Friday", MON)?.start).toBe(true)
+  })
 })
 
 describe("findQuantity", () => {

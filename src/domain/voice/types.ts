@@ -48,6 +48,8 @@ export interface ProgressDraftValues {
   tomorrowPlan?: string
   blockerSummary?: string
   completedQuantity?: number
+  /** The unit the quantity was said in; the screen checks it against the task's unit. */
+  unit?: QuantityUnit
   workersPresent?: number
 }
 

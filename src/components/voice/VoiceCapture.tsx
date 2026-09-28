@@ -25,6 +25,9 @@ export default function VoiceCapture({
   const [text, setText] = useState("")
   const dictation = useDictation(text, setText)
   const close = () => {
+    // The component stays mounted between opens, so the mic must stop here or
+    // it keeps listening (and appending words) behind the closed dialog.
+    dictation.cancel()
     setText("")
     onCancel()
   }

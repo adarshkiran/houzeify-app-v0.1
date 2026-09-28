@@ -35,11 +35,11 @@ export function voiceLabel(label: ReactNode, field?: FieldState): ReactNode {
   )
 }
 
-/** "You said: …" above a pre-filled form. */
-export function VoiceDraftBanner({ transcript }: { transcript: string }) {
+/** "You said: …" above a pre-filled form (`label` names someone else, e.g. "Ravi said"). */
+export function VoiceDraftBanner({ transcript, label = "You said" }: { transcript: string; label?: string }) {
   return (
     <div className="voice-draft-banner">
-      <Text type="secondary" className="text-[12px]!">You said</Text>
+      <Text type="secondary" className="text-[12px]!">{label}</Text>
       <Text italic>"{transcript}"</Text>
     </div>
   )

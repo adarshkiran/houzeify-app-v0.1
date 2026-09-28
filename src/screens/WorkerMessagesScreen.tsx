@@ -41,6 +41,7 @@ export default function WorkerMessagesScreen({ onNavigate, threadId }: { onNavig
                 : undefined
             }
             // Workers open tasks from a message's chips; issue chips stay plain text.
+            openableKinds={["task"]}
             onOpenRecord={(kind, id) => {
               if (kind === "task") onNavigate("worker-task", { project_id: open.thread.projectId, task_id: id })
             }}

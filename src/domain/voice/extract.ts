@@ -83,6 +83,7 @@ function issue(text: string, ctx: VoiceContext): VoiceDraft<IssueDraftValues> {
   values.title = cleanTitle(firstSentence, [])
   fields.title = values.title ? heard : missing
   values.description = transcript
+  fields.description = heard
 
   const severity = findSeverity(transcript)
   values.severity = severity.severity
@@ -140,6 +141,7 @@ function progress(text: string, _ctx: VoiceContext): VoiceDraft<ProgressDraftVal
   const quantity = findQuantity(join(parts.today) || transcript)
   if (quantity) {
     values.completedQuantity = quantity.value
+    values.unit = quantity.unit
     fields.completedQuantity = quantity.converted ? guessed(quantity.converted) : heard
   }
   return { transcript, values, fields }

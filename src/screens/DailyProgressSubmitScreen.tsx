@@ -103,8 +103,12 @@ function SubmitProgress({
       ? keptChoice.ids
       : sentBack?.evidenceIds ?? []
 
+  // A voice draft's markers/banner belong to the task they were made for.
   useEffect(() => {
-    // A voice draft's markers/banner belong to the task they were made for.
+    setProgressDraft(undefined)
+  }, [task?.id])
+
+  useEffect(() => {
     setProgressDraft(undefined)
     if (!sentBack) {
       // Switched to a task with nothing sent back: drop the pre-filled text so
@@ -381,7 +385,7 @@ function SubmitProgress({
           setCapturing(false)
           const draft = voiceExtractor.progress(text, voiceContext)
           // The company screen has no quantity field.
-          const { completedQuantity: _completedQuantity, ...values } = draft.values
+          const { completedQuantity: _completedQuantity, unit: _unit, ...values } = draft.values
           form.setFieldsValue(values)
           setProgressDraft(draft)
         }}

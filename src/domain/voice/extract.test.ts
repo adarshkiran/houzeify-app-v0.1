@@ -62,6 +62,13 @@ describe("task drafts", () => {
     expect(d.values.unit).toBe("day")
     expect(d.fields.unit).toEqual({ state: "guessed", reason: "The work type's usual unit" })
   })
+
+  it("keeps an ordinal like '2nd floor' in the title instead of reading a date", () => {
+    const d = x.task("Plaster the 2nd floor walls in Main House", ctx)
+    expect(d.values.dueDate).toBeUndefined()
+    expect(d.values.plannedStart).toBeUndefined()
+    expect(d.values.title).toContain("2nd floor")
+  })
 })
 
 describe("issue drafts", () => {
@@ -69,6 +76,7 @@ describe("issue drafts", () => {
     const d = x.issue("Water leak in the Block B basement. Pump stopped.", ctx)
     expect(d.values).toMatchObject({ severity: "high", projectUnitId: "u-b", description: "Water leak in the Block B basement. Pump stopped." })
     expect(d.values.title).toBe("Water leak in the Block B basement")
+    expect(d.fields.description).toEqual({ state: "heard" })
   })
   it("links the current task when started from one", () => {
     const d = x.issue("hessian is drying out", { ...ctx, currentTaskId: "task-4" })
@@ -88,6 +96,12 @@ describe("progress drafts", () => {
     expect(d.values.blockerSummary).toBe("Waiting for cement")
     expect(d.values.workersPresent).toBe(5)
     expect(d.values.completedQuantity).toBe(200)
+    expect(d.values.unit).toBe("nos")
+  })
+  it("says which unit the quantity was spoken in", () => {
+    expect(x.progress("Worked 8 hours on the slab", ctx).values).toMatchObject({ completedQuantity: 8, unit: "hour" })
+    expect(x.progress("Poured 12 cubic metres", ctx).values).toMatchObject({ completedQuantity: 12, unit: "m3" })
+    expect(x.progress("finished curing the footings", ctx).values.unit).toBeUndefined()
   })
   it("leaves tomorrow missing when not said", () => {
     const d = x.progress("finished curing the footings", ctx)

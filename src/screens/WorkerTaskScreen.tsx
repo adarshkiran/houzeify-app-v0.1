@@ -364,6 +364,7 @@ function WorkerTask({
           targetId={task.id}
           emptyText="Ask your supervisor about this task."
           // Workers open tasks from a message's chips; issue chips stay plain text.
+          openableKinds={["task"]}
           onOpenRecord={(kind, id) => {
             if (kind === "task") onNavigate("worker-task", { project_id: task.projectId, task_id: id })
           }}

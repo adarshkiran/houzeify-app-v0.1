@@ -51,6 +51,8 @@ type PanelProps = PanelTarget & {
   onOpenTarget?: () => void
   /** Opens a task or issue made from a message (the chips under it). Chips are plain text without it. */
   onOpenRecord?: (kind: "task" | "issue", id: EntityId) => void
+  /** Which chip kinds `onOpenRecord` opens (default: both). Other chips stay plain text. */
+  openableKinds?: ReadonlyArray<"task" | "issue">
 }
 
 const FROM_TASK_THREAD = "From this task's conversation"
@@ -89,6 +91,8 @@ export default function ThreadPanel(props: PanelProps) {
   const [taskDraft, setTaskDraft] = useState<VoiceDraft<TaskDraftValues>>()
   const [issueDraft, setIssueDraft] = useState<VoiceDraft<IssueDraftValues>>()
   const [source, setSource] = useState<MessageSource>()
+  // Who said the message a draft was made from; unset when it was the reader.
+  const [draftAuthor, setDraftAuthor] = useState<string>()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const thread: Thread | undefined =
@@ -150,7 +154,11 @@ export default function ThreadPanel(props: PanelProps) {
   }
 
   const group = probe.subject !== "direct"
-  const links = thread ? messageLinks(thread.id, scoped.tasks, scoped.issues) : new Map<EntityId, MessageLink[]>()
+  // Homeowners don't see internal tasks and issues anywhere else, so no chips for them either.
+  const links =
+    thread && me.role !== "homeowner"
+      ? messageLinks(thread.id, scoped.tasks, scoped.issues)
+      : new Map<EntityId, MessageLink[]>()
   // Project-wide checks, as in the brief and controller ruling: a worker who may only report on
   // their own task keeps using Report issue there, and sees no per-message actions here.
   const canTask = !!thread && can([Permissions.TASK_MANAGE], probe.projectId)
@@ -161,6 +169,11 @@ export default function ThreadPanel(props: PanelProps) {
     if (!thread) return
     const text = messageText(message)
     setSource({ threadId: thread.id, messageId: message.id })
+    setDraftAuthor(
+      message.authorMembershipId === me.id
+        ? undefined
+        : getMembershipName(state, message.authorMembershipId) ?? "Someone",
+    )
     if (kind === "issue") {
       setIssueDraft(voiceExtractor.issue(text, voiceContext))
       return
@@ -310,7 +323,9 @@ export default function ThreadPanel(props: PanelProps) {
                     {message.body && <span className="thread-body">{highlight(message.body, needle)}</span>}
                   </div>
                   {links.get(message.id)?.map((link) => {
-                    const open = props.onOpenRecord ? () => props.onOpenRecord!(link.kind, link.id) : undefined
+                    const openable = !props.openableKinds || props.openableKinds.includes(link.kind)
+                    const open =
+                      props.onOpenRecord && openable ? () => props.onOpenRecord!(link.kind, link.id) : undefined
                     return (
                       <Tag
                         key={`${link.kind}-${link.id}`}
@@ -418,6 +433,7 @@ export default function ThreadPanel(props: PanelProps) {
           onClose={() => setTaskDraft(undefined)}
           projectId={probe.projectId}
           draft={taskDraft}
+          draftLabel={draftAuthor ? `${draftAuthor} said` : undefined}
           source={source}
         />
       )}
@@ -428,6 +444,7 @@ export default function ThreadPanel(props: PanelProps) {
           projectId={probe.projectId}
           taskId={threadTask?.id}
           draft={issueDraft}
+          draftLabel={draftAuthor ? `${draftAuthor} said` : undefined}
           source={source}
         />
       )}

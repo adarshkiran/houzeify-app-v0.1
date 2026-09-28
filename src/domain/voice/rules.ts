@@ -14,11 +14,18 @@ const addDays = (date: ISODate, days: number): ISODate => {
 const weekdayOf = (date: ISODate) => new Date(`${date}T00:00:00Z`).getUTCDay()
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-const START_WORDS = /\b(start|starting|begin|from)\b[^.,]*$/i
+const START_WORDS = /\b(start|starting|begin)\b[^.,]*$/i
+// "from" only marks a start right before the date ("from Monday"), not anywhere earlier ("sand from the depot").
+const FROM_JUST_BEFORE = /\bfrom\s+$/i
+// Ordinals that name a thing, not a day ("2nd floor", "1st coat").
+const NOT_A_DAY = "(?:floor|coat|column|slab|lift|phase|storey|story)s?\\b"
 
 export function findDate(text: string, today: ISODate) {
   const lower = text.toLowerCase()
-  const startsBefore = (index: number) => START_WORDS.test(lower.slice(0, index))
+  const startsBefore = (index: number) => {
+    const before = lower.slice(0, index)
+    return START_WORDS.test(before) || FROM_JUST_BEFORE.test(before)
+  }
   const hit = (date: ISODate, match: RegExpMatchArray, guessed?: string) => ({
     date,
     start: startsBefore(match.index ?? 0),
@@ -45,13 +52,17 @@ export function findDate(text: string, today: ISODate) {
       ? hit(addDays(today, 7), m, `Today is ${m[1]}, so read as next week`)
       : hit(addDays(today, ahead), m)
   }
-  m = lower.match(/\b(?:by |on )?(?:the )?(\d{1,2})(?:st|nd|rd|th)\b/)
+  m = lower.match(new RegExp(`\\b(?:by |on )?(?:the )?(\\d{1,2})(?:st|nd|rd|th)\\b(?!\\s+${NOT_A_DAY})`))
   if (m) {
     const day = Number(m[1])
+    if (day < 1 || day > 31) return undefined
     const [y, mo, d] = today.split("-").map(Number)
     const sameMonth = day >= d!
-    const date = new Date(Date.UTC(y!, mo! - 1 + (sameMonth ? 0 : 1), day)).toISOString().slice(0, 10)
-    return hit(date, m, sameMonth ? undefined : "That day has passed this month, so next month")
+    const monthIndex = mo! - 1 + (sameMonth ? 0 : 1)
+    const when = new Date(Date.UTC(y!, monthIndex, day))
+    // A day the month doesn't have (the 31st of a 30-day month) would roll over — don't guess.
+    if (when.getUTCMonth() !== new Date(Date.UTC(y!, monthIndex, 1)).getUTCMonth()) return undefined
+    return hit(when.toISOString().slice(0, 10), m, sameMonth ? undefined : "That day has passed this month, so next month")
   }
   return undefined
 }

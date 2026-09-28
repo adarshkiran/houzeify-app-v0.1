@@ -34,6 +34,7 @@ export default function CreateTaskModal({
   onClose,
   projectId,
   draft,
+  draftLabel,
   source,
   onCreated,
 }: {
@@ -41,6 +42,8 @@ export default function CreateTaskModal({
   onClose: () => void
   projectId: EntityId
   draft?: VoiceDraft<TaskDraftValues>
+  /** Banner label when the draft came from someone else's message (default "You said"). */
+  draftLabel?: string
   source?: MessageSource
   onCreated?: (task: Task) => void
 }) {
@@ -114,7 +117,7 @@ export default function CreateTaskModal({
       footer={null}
       destroyOnHidden
     >
-      {draft ? <VoiceDraftBanner transcript={draft.transcript} /> : null}
+      {draft ? <VoiceDraftBanner transcript={draft.transcript} label={draftLabel} /> : null}
       <Form<TaskFormValues>
         form={form}
         layout="vertical"
@@ -166,7 +169,7 @@ export default function CreateTaskModal({
             </Form.Item>
           </Col>
           <Col span={10}>
-            <Form.Item label="Unit" name="unit">
+            <Form.Item label={draft ? voiceLabel("Unit", draft.fields.unit) : "Unit"} name="unit">
               <Select
                 options={QUANTITY_UNITS.map((value) => ({
                   value,

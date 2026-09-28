@@ -422,8 +422,28 @@ function SubmitWork({
         onDraft={(text) => {
           setCapturing(false)
           const draft = voiceExtractor.progress(text, voiceContext)
-          form.setFieldsValue(draft.values)
-          setProgressDraft(draft)
+          const { completedQuantity, unit: saidUnit, ...values } = draft.values
+          // The quantity is saved in the task's unit, so only use it when it was said in that unit.
+          if (completedQuantity == null) {
+            form.setFieldsValue(values)
+            setProgressDraft(draft)
+          } else if (saidUnit === unitOfMeasure) {
+            form.setFieldsValue({ ...values, completedQuantity })
+            setProgressDraft(draft)
+          } else {
+            form.setFieldsValue(values)
+            setProgressDraft({
+              ...draft,
+              values,
+              fields: {
+                ...draft.fields,
+                completedQuantity: {
+                  state: "missing",
+                  note: `Heard ${completedQuantity} ${saidUnit}, but this task is measured in ${unitOfMeasure} — enter today's amount in ${unitOfMeasure}`,
+                },
+              },
+            })
+          }
         }}
       />
     </>

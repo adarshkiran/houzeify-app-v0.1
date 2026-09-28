@@ -1,7 +1,7 @@
 import { CameraOutlined } from "@ant-design/icons"
 import { Button, Flex, Form, Input, Modal, Select, Space, Typography, Upload } from "antd"
 import type { UploadFile } from "antd"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { EntityId, Issue, MessageSource } from "../domain/models"
 import { ISSUE_REPORT_PERMISSIONS } from "../domain/permissions"
 import type { IssueDraftValues, VoiceDraft } from "../domain/voice/types"
@@ -42,6 +42,7 @@ export default function ReportIssueModal({
   taskId,
   dailyProgressId,
   draft,
+  draftLabel,
   source,
   onReported,
 }: {
@@ -52,6 +53,8 @@ export default function ReportIssueModal({
   taskId?: EntityId
   dailyProgressId?: EntityId
   draft?: VoiceDraft<IssueDraftValues>
+  /** Banner label when the draft came from someone else's message (default "You said"). */
+  draftLabel?: string
   source?: MessageSource
   onReported?: (issue: Issue) => void
 }) {
@@ -68,6 +71,18 @@ export default function ReportIssueModal({
   const taskUnit = task
     ? state.projectUnits.find((unit) => unit.id === task.projectUnitId)
     : undefined
+
+  useEffect(() => {
+    if (!open) {
+      // Closing (Cancel, X, mask click) — drop what a previous draft left behind
+      // so the next open (with or without a draft) starts clean.
+      form.resetFields()
+      setFiles([])
+      return
+    }
+    if (!draft) return
+    form.setFieldsValue({ ...draft.values, taskId: taskId ?? draft.values.taskId })
+  }, [open, draft, taskId, form])
 
   const reportableTasks = scoped.tasks.filter(
     (item) => item.projectId === projectId && can(ISSUE_REPORT_PERMISSIONS, projectId, item),
@@ -109,14 +124,10 @@ export default function ReportIssueModal({
         form={form}
         layout="vertical"
         requiredMark={false}
-        initialValues={{
-          severity: "medium",
-          ...draft?.values,
-          taskId: taskId ?? draft?.values.taskId,
-        }}
+        initialValues={{ severity: "medium", taskId }}
         onFinish={handleFinish}
       >
-        {draft ? <VoiceDraftBanner transcript={draft.transcript} /> : null}
+        {draft ? <VoiceDraftBanner transcript={draft.transcript} label={draftLabel} /> : null}
         <Form.Item
           label={voiceLabel("What is the problem?", draft?.fields.title)}
           name="title"
