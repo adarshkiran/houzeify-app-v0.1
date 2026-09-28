@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { ArrowLeftOutlined } from "@ant-design/icons"
+import { useEffect, useState } from "react"
+import { ArrowLeftOutlined, AudioOutlined } from "@ant-design/icons"
 import {
   Alert,
   Button,
@@ -17,8 +17,13 @@ import EvidenceCapture, {
 } from "../components/EvidenceCapture"
 import VoiceNoteRecorder from "../components/VoiceNoteRecorder"
 import VoiceTextArea from "../components/VoiceTextArea"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { VoiceDraftBanner, voiceLabel } from "../components/voice/VoiceFieldMark"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
 import WorkerShell from "../components/worker/WorkerShell"
 import { quantityProgress } from "../components/worker/workerLabels"
+import { voiceExtractor } from "../domain/voice/extract"
+import type { ProgressDraftValues, VoiceDraft } from "../domain/voice/types"
 import type { EntityId, QuantityUnit } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
@@ -71,6 +76,13 @@ function SubmitWork({
   // update is never applied to another.
   const [keptChoice, setKeptChoice] = useState<{ forId: EntityId; ids: string[] } | null>(null)
   const [form] = Form.useForm<WorkerProgressValues>()
+  const [capturing, setCapturing] = useState(false)
+  const [progressDraft, setProgressDraft] = useState<VoiceDraft<ProgressDraftValues>>()
+  const voiceContext = useVoiceContext(projectId, taskId)
+  // Drop the previous draft's markers/banner when the task changes underneath.
+  useEffect(() => {
+    setProgressDraft(undefined)
+  }, [taskId])
 
   const found = state.tasks.find(
     (item) => item.id === taskId && item.projectId === projectId,
@@ -221,6 +233,16 @@ function SubmitWork({
         />
       )}
 
+      <Button
+        block
+        icon={<AudioOutlined />}
+        onClick={() => setCapturing(true)}
+      >
+        Fill from voice
+      </Button>
+
+      {progressDraft && <VoiceDraftBanner transcript={progressDraft.transcript} />}
+
       <Form<WorkerProgressValues>
         key={sentBack?.id ?? "new"}
         form={form}
@@ -241,7 +263,7 @@ function SubmitWork({
       >
         <Card size="small">
           <Form.Item
-            label="Work done today"
+            label={voiceLabel("Work done today", progressDraft?.fields.completedQuantity)}
             name="completedQuantity"
             extra={
               task.plannedQuantity || task.completedQuantity
@@ -261,7 +283,10 @@ function SubmitWork({
             />
           </Form.Item>
           <Form.Item
-            label="People working with you (including you)"
+            label={voiceLabel(
+              "People working with you (including you)",
+              progressDraft?.fields.workersPresent,
+            )}
             name="workersPresent"
             rules={[
               { required: true, message: "Enter how many people worked" },
@@ -275,7 +300,7 @@ function SubmitWork({
             />
           </Form.Item>
           <Form.Item
-            label="What did you do today?"
+            label={voiceLabel("What did you do today?", progressDraft?.fields.todaySummary)}
             name="todaySummary"
             rules={[
               {
@@ -291,7 +316,7 @@ function SubmitWork({
             />
           </Form.Item>
           <Form.Item
-            label="Plan for tomorrow"
+            label={voiceLabel("Plan for tomorrow", progressDraft?.fields.tomorrowPlan)}
             name="tomorrowPlan"
             rules={[
               {
@@ -304,7 +329,7 @@ function SubmitWork({
             <VoiceTextArea rows={2} placeholder="What you will do next" />
           </Form.Item>
           <Form.Item
-            label="Any problem on site?"
+            label={voiceLabel("Any problem on site?", progressDraft?.fields.blockerSummary)}
             name="blockerSummary"
             className="mb-0!"
           >
@@ -388,6 +413,19 @@ function SubmitWork({
           {sentBack ? "Send again" : "Send to supervisor"}
         </Button>
       </Form>
+
+      <VoiceCapture
+        open={capturing}
+        title="Fill from voice"
+        placeholder="e.g. Laid 200 blocks, 5 of us. Tomorrow the lintel. Waiting for cement"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          const draft = voiceExtractor.progress(text, voiceContext)
+          form.setFieldsValue(draft.values)
+          setProgressDraft(draft)
+        }}
+      />
     </>
   )
 }
