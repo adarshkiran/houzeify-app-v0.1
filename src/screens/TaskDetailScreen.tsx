@@ -57,6 +57,7 @@ function statusColor(status: TaskStatus) {
   if (status === "blocked" || status === "cancelled") return "error"
   if (status === "delayed") return "warning"
   if (status === "completed" || status === "approved") return "success"
+  if (status === "in-progress") return "orange"
   return "processing"
 }
 

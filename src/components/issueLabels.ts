@@ -9,7 +9,7 @@ export const issueStatusLabel: Record<Issue["status"], string> = {
 
 export function issueStatusColor(status: Issue["status"]) {
   if (status === "open") return "error"
-  if (status === "in-progress") return "processing"
+  if (status === "in-progress") return "orange"
   if (status === "resolved") return "success"
   return "default"
 }

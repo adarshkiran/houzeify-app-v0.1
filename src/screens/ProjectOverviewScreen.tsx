@@ -256,7 +256,7 @@ function ProjectOverview({
                         <Text type="secondary">Due {formatDate(task.dueDate)}</Text>
                       </Space>
                     </Flex>
-                    <Tag color={task.status === "blocked" ? "error" : "processing"}>
+                    <Tag color={task.status === "blocked" ? "error" : task.status === "in-progress" ? "orange" : "processing"}>
                       {task.status}
                     </Tag>
                   </Flex>

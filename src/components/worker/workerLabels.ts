@@ -22,7 +22,7 @@ export function workerStatusColor(status: TaskStatus): string {
     case "assigned":
       return "purple"
     case "in-progress":
-      return "processing"
+      return "orange"
     case "submitted":
     case "review":
       return "warning"
