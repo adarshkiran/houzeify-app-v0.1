@@ -7,6 +7,9 @@ const houzeifyCompanyTheme = {
     colorPrimary: "#722ED1",
     colorInfo: "#0284C7",
     colorSuccess: "#16A34A",
+    // Lighter green fill for success tags/alerts (Active, Approved, Completed).
+    colorSuccessBg: "#EDF9F1",
+    colorSuccessBorder: "#C6EBD3",
     colorWarning: "#D97706",
     colorError: "#DC2626",
     colorBgBase: "#FFFFFF",

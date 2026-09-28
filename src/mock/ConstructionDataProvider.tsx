@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react"
 import type * as Inputs from "../domain/commandInputs"
+import * as conversationCommands from "../domain/conversationCommands"
+import type { PostMessageInput } from "../domain/conversationCommands"
 import * as commands from "../domain/constructionCommands"
 import type {
   ConstructionDataState,
@@ -16,6 +18,7 @@ import type {
   EntityId,
   Evidence,
   Issue,
+  Message,
   Project,
   ProjectMembership,
   ProjectUnit,
@@ -24,6 +27,7 @@ import type {
   TaskAssignment,
   TaskStatus,
   TaskTemplate,
+  Thread,
   Trade,
   WorkPlanItem,
   WorkType,
@@ -125,6 +129,10 @@ interface ConstructionDataContextValue {
     issueId: EntityId,
     items: Inputs.IssueEvidenceInput[],
   ) => Evidence[]
+  postMessage: (input: PostMessageInput) => Message
+  openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
+  markThreadRead: (threadId: EntityId) => void
+  markThreadUnread: (threadId: EntityId) => void
 }
 
 export { getAllowedTaskTransitions, canTransitionTask }
@@ -219,6 +227,13 @@ export default function ConstructionDataProvider({
         run(commands.transitionIssue(id, next, note)),
       addIssueEvidence: (id, items) =>
         run(commands.addIssueEvidence(id, items)),
+      postMessage: (input) => run(conversationCommands.postMessage(input)),
+      openDirectThread: (projectId, otherId) =>
+        run(conversationCommands.openDirectThread(projectId, otherId)),
+      markThreadRead: (threadId) =>
+        run(conversationCommands.markThreadRead(threadId)),
+      markThreadUnread: (threadId) =>
+        run(conversationCommands.markThreadUnread(threadId)),
     }),
     [state, run],
   )

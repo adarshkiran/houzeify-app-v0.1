@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { taskChecklist, templateForTask } from "../domain/workerTasks"
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
@@ -23,6 +24,7 @@ import {
 } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import ThreadPanel from "../components/conversations/ThreadPanel"
 import { reviewStatusLabel } from "../components/progress/progressLabels"
 import type { EntityId, TaskStatus } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -55,6 +57,7 @@ function statusColor(status: TaskStatus) {
   if (status === "blocked" || status === "cancelled") return "error"
   if (status === "delayed") return "warning"
   if (status === "completed" || status === "approved") return "success"
+  if (status === "in-progress") return "orange"
   return "processing"
 }
 
@@ -126,6 +129,9 @@ function TaskDetail({
     })
     if (outcome.ok) setAssigneeId(undefined)
   }
+
+  const checklist = taskChecklist(state, task)
+  const requiredEvidence = templateForTask(state, task)?.requiredEvidence ?? []
 
   return (
     <CompanyLayout
@@ -245,9 +251,9 @@ function TaskDetail({
                   <Title level={5} className="company-heading! m-0!">Checklist</Title>
                 }
               >
-                {task.checklist.length ? (
+                {checklist.length ? (
                   <Flex vertical gap="middle">
-                    {task.checklist.map((item) => (
+                    {checklist.map((item) => (
                       <Checkbox key={item.id} checked={item.completed} disabled>
                         {item.label}
                       </Checkbox>
@@ -300,6 +306,19 @@ function TaskDetail({
                     No daily progress has been submitted against this task.
                   </Paragraph>
                 )}
+              </Card>
+
+              <Card
+                title={<Title level={5} className="company-heading! m-0!">Discussion</Title>}
+              >
+                <ThreadPanel
+                  key={task.id}
+                  compact
+                  projectId={projectId}
+                  subject="task"
+                  targetId={task.id}
+                  emptyText="No messages about this task yet."
+                />
               </Card>
             </Flex>
           </Col>
@@ -393,11 +412,15 @@ function TaskDetail({
                 }
               >
                 <Flex vertical gap="small">
-                  {state.taskTemplates
-                    .find((template) => template.id === task.templateId)
-                    ?.requiredEvidence.map((type) => (
-                      <Tag key={type} icon={<CheckSquareOutlined />}>{type}</Tag>
-                    )) ?? <Text type="secondary">No evidence rule configured.</Text>}
+                  {requiredEvidence.length ? (
+                    <Space wrap>
+                      {requiredEvidence.map((type) => (
+                        <Tag key={type} icon={<CheckSquareOutlined />}>{type}</Tag>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Text type="secondary">No evidence rule configured.</Text>
+                  )}
                 </Flex>
               </Card>
             </Flex>

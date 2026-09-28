@@ -7,10 +7,12 @@ import {
 } from "@ant-design/icons"
 import { Alert, Button, Card, Descriptions, Flex, Tag, Typography } from "antd"
 import Gated from "../components/Gated"
+import ThreadPanel from "../components/conversations/ThreadPanel"
 import ReportIssueModal from "../components/ReportIssueModal"
 import WorkerShell from "../components/worker/WorkerShell"
 import {
   formatQuantity,
+  quantityProgress,
   priorityColor,
   reviewLabel,
   workerStatusColor,
@@ -20,6 +22,7 @@ import type { EntityId, Task } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { canTransitionTask } from "../domain/taskTransitions"
 import {
+  taskChecklist,
   templateForTask,
   workerAssignment,
   workerNextAction,
@@ -114,13 +117,7 @@ function WorkerTask({
     (item) => item.id === task.projectUnitId,
   )
   const template = templateForTask(state, task)
-  const checklist = task.checklist.length
-    ? task.checklist
-    : (template?.checklist ?? []).map((label, index) => ({
-        id: `template-${index}`,
-        label,
-        completed: false,
-      }))
+  const checklist = taskChecklist(state, task)
   const workTypeName = getWorkTypeName(state, task.workTypeId)
   const myMembershipIds = new Set(
     state.memberships
@@ -270,8 +267,8 @@ function WorkerTask({
             },
             {
               key: "quantity",
-              label: "Done / planned",
-              children: `${formatQuantity(task.completedQuantity)} / ${formatQuantity(task.plannedQuantity)}`,
+              label: "Progress",
+              children: quantityProgress(task.completedQuantity, task.plannedQuantity),
             },
             { key: "due", label: "Due", children: task.dueDate ?? "—" },
           ]}
@@ -347,6 +344,10 @@ function WorkerTask({
         ) : (
           <Text type="secondary">No updates sent yet.</Text>
         )}
+      </Card>
+
+      <Card size="small" title="Discussion">
+        <ThreadPanel key={task.id} compact projectId={task.projectId} subject="task" targetId={task.id} emptyText="Ask your supervisor about this task." />
       </Card>
 
       <ReportIssueModal

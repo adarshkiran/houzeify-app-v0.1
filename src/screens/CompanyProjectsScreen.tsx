@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react"
+import { clickableRow, stopRowClick } from "../components/company/clickableRow"
+import { countLabel } from "../components/countLabel"
 import {
   ArrowRightOutlined,
   PlusOutlined,
@@ -84,6 +86,7 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
       title: "Progress",
       key: "progress",
       width: 180,
+      responsive: ["sm"],
       render: (_, project) => (
         <Flex align="center" gap="small" className="min-w-0">
           <Progress
@@ -102,14 +105,17 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
       responsive: ["lg"],
       render: (_, project) => (
         <Space>
-          <Text type="secondary">{getOpenTasks(scoped, project.id).length} tasks</Text>
+          <Text type="secondary">{countLabel(getOpenTasks(scoped, project.id).length, "task")}</Text>
           <Button
             type="link"
             className="p-0!"
             danger={getOpenIssues(scoped, project.id).length > 0}
-            onClick={() => onNavigate("issues", { project_id: project.id })}
+            onClick={(event) => {
+              stopRowClick(event)
+              onNavigate("issues", { project_id: project.id })
+            }}
           >
-            {getOpenIssues(scoped, project.id).length} issues
+            {countLabel(getOpenIssues(scoped, project.id).length, "issue")}
           </Button>
         </Space>
       ),
@@ -123,19 +129,8 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
     {
       key: "action",
       width: 48,
-      render: (_, project) => (
-        <Button
-          type="text"
-          aria-label={`Open ${project.name}`}
-          icon={<ArrowRightOutlined />}
-          onClick={() =>
-            onNavigate("project-overview", {
-              project_id: project.id,
-              project_name: project.name,
-            })
-          }
-        />
-      ),
+      // The whole row opens the project; the arrow is just the hint.
+      render: () => <ArrowRightOutlined aria-hidden className="clickable-row-arrow" />,
     },
   ]
 
@@ -191,7 +186,7 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
               Project portfolio
             </Title>
           }
-          extra={<Text type="secondary">{filteredProjects.length} projects</Text>}
+          extra={<Text type="secondary">{countLabel(filteredProjects.length, "project")}</Text>}
           className="company-section-card"
           classNames={{ body: "company-table-card-body" }}
         >
@@ -200,11 +195,12 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
             columns={columns}
             dataSource={filteredProjects}
             pagination={false}
-            scroll={{ x: 840 }}
-            onRow={(project) => ({
-              onDoubleClick: () =>
-                onNavigate("project-overview", { project_id: project.id }),
-            })}
+            onRow={(project) =>
+              clickableRow(
+                () => onNavigate("project-overview", { project_id: project.id, project_name: project.name }),
+                `Open ${project.name}`,
+              )
+            }
           />
         </Card>
       </Flex>

@@ -42,10 +42,12 @@ const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressRevi
 const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
 const IssuesScreen = lazy(() => import('./screens/IssuesScreen'))
 const IssueDetailScreen = lazy(() => import('./screens/IssueDetailScreen'))
+const ProjectMessagesScreen = lazy(() => import('./screens/ProjectMessagesScreen'))
 const WorkerOnboardingScreen = lazy(() => import('./screens/WorkerOnboardingScreen'))
 const WorkerTodayScreen = lazy(() => import('./screens/WorkerTodayScreen'))
 const WorkerTaskScreen = lazy(() => import('./screens/WorkerTaskScreen'))
 const WorkerSubmitScreen = lazy(() => import('./screens/WorkerSubmitScreen'))
+const WorkerMessagesScreen = lazy(() => import('./screens/WorkerMessagesScreen'))
 
 function SplashRoute({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
@@ -231,6 +233,13 @@ export default function App() {
           </Suspense>
         </div>
       )}
+      {screen === 'worker-messages' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <WorkerMessagesScreen onNavigate={navigateTo} threadId={params.thread_id} />
+          </Suspense>
+        </div>
+      )}
       {screen === 'dashboard-home' && (
         <div style={{ ...slide }}>
           <HomeDashboardScreen onNavigate={navigateTo} />
@@ -400,6 +409,13 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <Suspense fallback={null}>
             <IssuesScreen onNavigate={navigateTo} projectId={projectId} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'project-messages' && (
+        <div style={{ ...slide }}>
+          <Suspense fallback={null}>
+            <ProjectMessagesScreen onNavigate={navigateTo} projectId={projectId} threadId={params.thread_id} from={params.from} />
           </Suspense>
         </div>
       )}

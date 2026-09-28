@@ -1,4 +1,6 @@
 import Gated from "../components/Gated"
+import { clickableRow, stopRowClick } from "../components/company/clickableRow"
+import { countLabel } from "../components/countLabel"
 import { Permissions } from "../domain/permissions"
 import { useAccess, useActableUnits } from "../session/useCan"
 import { useScopedLibrary } from "../session/useScopedLibrary"
@@ -83,9 +85,8 @@ function taskStatusColor(status: TaskStatus) {
   if (status === "blocked" || status === "cancelled") return "error"
   if (status === "delayed") return "warning"
   if (status === "completed" || status === "approved") return "success"
-  if (status === "in-progress" || status === "submitted" || status === "review") {
-    return "processing"
-  }
+  if (status === "in-progress") return "orange"
+  if (status === "submitted" || status === "review") return "processing"
   return "default"
 }
 
@@ -156,6 +157,7 @@ function Tasks({
       title: "Priority",
       dataIndex: "priority",
       key: "priority",
+      responsive: ["sm"],
       render: (priority: Task["priority"]) => (
         <Tag color={priority === "high" || priority === "critical" ? "error" : "default"}>
           {priority}
@@ -180,19 +182,8 @@ function Tasks({
     {
       key: "action",
       width: 48,
-      render: (_, task) => (
-        <Button
-          type="text"
-          aria-label={`Open ${task.title}`}
-          icon={<ArrowRightOutlined />}
-          onClick={() =>
-            onNavigate("task-detail", {
-              project_id: projectId,
-              task_id: task.id,
-            })
-          }
-        />
-      ),
+      // The whole row opens the task; the arrow is just the hint.
+      render: () => <ArrowRightOutlined aria-hidden className="clickable-row-arrow" />,
     },
   ]
 
@@ -274,15 +265,20 @@ function Tasks({
               Task register
             </Title>
           }
-          extra={<Text type="secondary">{filteredTasks.length} tasks</Text>}
+          extra={<Text type="secondary">{countLabel(filteredTasks.length, "task")}</Text>}
           classNames={{ body: "company-table-card-body" }}
         >
           <Table
             rowKey="id"
             columns={columns}
             dataSource={filteredTasks}
+            onRow={(task) =>
+              clickableRow(
+                () => onNavigate("task-detail", { project_id: projectId, task_id: task.id }),
+                `Open ${task.title}`,
+              )
+            }
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 780 }}
           />
         </Card>
       </Flex>

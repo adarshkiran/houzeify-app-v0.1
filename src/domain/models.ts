@@ -303,6 +303,46 @@ export interface Issue {
   closedAt?: ISODateTime
 }
 
+/** What a conversation is attached to. */
+export type ThreadSubject = "project" | "unit" | "task" | "issue" | "homeowner" | "direct"
+
+/** A conversation attached to a piece of work, the project's homeowner channel, or two people. */
+export interface Thread {
+  id: EntityId
+  projectId: EntityId
+  subject: ThreadSubject
+  /** Unit, task or issue id for those subjects; absent otherwise. */
+  targetId?: EntityId
+  /** "homeowner" only for the homeowner subject. */
+  audience: "internal" | "homeowner"
+  /** Direct threads only: exactly two membership ids. */
+  participantMembershipIds?: EntityId[]
+  createdAt: ISODateTime
+  lastMessageAt?: ISODateTime
+}
+
+export interface MessageVoice {
+  url: string
+  durationSec?: number
+  transcript?: string
+}
+
+export interface Message {
+  id: EntityId
+  threadId: EntityId
+  authorMembershipId: EntityId
+  body?: string
+  voice?: MessageVoice
+  createdAt: ISODateTime
+}
+
+/** When a member last read a thread; newer messages by others are unread. */
+export interface ThreadRead {
+  threadId: EntityId
+  membershipId: EntityId
+  lastReadAt: ISODateTime
+}
+
 export interface ConstructionDataState {
   organizations: Organization[]
   people: Person[]
@@ -321,4 +361,7 @@ export interface ConstructionDataState {
   dailyProgress: DailyProgress[]
   evidence: Evidence[]
   issues: Issue[]
+  threads: Thread[]
+  messages: Message[]
+  threadReads: ThreadRead[]
 }

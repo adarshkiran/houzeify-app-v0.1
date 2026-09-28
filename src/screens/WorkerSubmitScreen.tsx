@@ -18,7 +18,7 @@ import EvidenceCapture, {
 import VoiceNoteRecorder from "../components/VoiceNoteRecorder"
 import VoiceTextArea from "../components/VoiceTextArea"
 import WorkerShell from "../components/worker/WorkerShell"
-import { formatQuantity } from "../components/worker/workerLabels"
+import { quantityProgress } from "../components/worker/workerLabels"
 import type { EntityId, QuantityUnit } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
@@ -241,9 +241,13 @@ function SubmitWork({
       >
         <Card size="small">
           <Form.Item
-            label={`Work done today (${unitOfMeasure})`}
+            label="Work done today"
             name="completedQuantity"
-            extra={`Done so far ${formatQuantity(task.completedQuantity)} of ${formatQuantity(task.plannedQuantity)} planned`}
+            extra={
+              task.plannedQuantity || task.completedQuantity
+                ? `So far: ${quantityProgress(task.completedQuantity, task.plannedQuantity)}`
+                : "No planned amount for this task."
+            }
             rules={[
               { required: true, message: "Enter how much work was done today" },
             ]}

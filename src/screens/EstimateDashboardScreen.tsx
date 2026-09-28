@@ -1,4 +1,5 @@
 import HIcon from '../components/HIcon'
+import HomeownerMobileMenu from '../components/HomeownerMobileMenu'
 import LogoHorizontal from '../components/LogoHorizontal'
 
 // ─── Sidebar Icons ─────────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ function NavItem({ icon, label, active, onClick }: {
 
 function Sidebar({ onNavigate }: { onNavigate: (s: string) => void }) {
   const navMain = [
-    { id: 'home', icon: <IcoHome />, label: 'Home', dest: 'dashboard-home' },
+    { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: 'dashboard-home' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
     { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
@@ -223,6 +224,7 @@ function MobileTopBar({ onNavigate }: { onNavigate: (s: string) => void }) {
   return (
     <div className="flex md:hidden h-14 items-center justify-between px-4 bg-white border-b border-[#E3DDD7] shrink-0">
       <div className="flex items-center gap-2.5">
+        <HomeownerMobileMenu active="estimates" onNavigate={onNavigate} />
         <button onClick={() => onNavigate('dashboard-home')} className="border-0 bg-transparent cursor-pointer p-0"><HIcon size={26} /></button>
         <span className="text-[15px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>Estimate</span>
       </div>

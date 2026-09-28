@@ -22,7 +22,7 @@ export function workerStatusColor(status: TaskStatus): string {
     case "assigned":
       return "purple"
     case "in-progress":
-      return "processing"
+      return "orange"
     case "submitted":
     case "review":
       return "warning"
@@ -55,3 +55,13 @@ export const reviewLabel: Record<DailyProgress["reviewStatus"], {
 
 export const formatQuantity = (quantity?: { value: number; unit: string }) =>
   quantity ? `${quantity.value} ${quantity.unit}` : "—"
+
+/** Plain progress on a task's quantity: "5 of 42 m3 done", or what's known when nothing is planned. */
+export function quantityProgress(
+  done?: { value: number; unit: string },
+  planned?: { value: number; unit: string },
+): string {
+  if (planned) return `${done?.value ?? 0} of ${formatQuantity(planned)} done`
+  if (done) return `${formatQuantity(done)} done so far`
+  return "No planned amount set"
+}

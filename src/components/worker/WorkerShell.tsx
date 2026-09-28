@@ -20,6 +20,7 @@ export default function WorkerShell({
         <Flex
           align="center"
           justify="space-between"
+          gap="middle"
           className="business-onboarding-header worker-app-header"
         >
           <LogoHorizontal height={24} />

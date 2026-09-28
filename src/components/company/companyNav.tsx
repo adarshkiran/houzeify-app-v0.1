@@ -7,8 +7,9 @@ import {
   CheckSquareOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
-  HomeOutlined,
+  DashboardOutlined,
   LineChartOutlined,
+  MessageOutlined,
   ProjectOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
@@ -51,6 +52,7 @@ export type ProjectNavKey =
   | "tasks"
   | "progress"
   | "issues"
+  | "messages"
   | "team"
   | "documents"
 
@@ -69,7 +71,7 @@ export interface NavItem<K extends string> {
 
 /** Order and labels follow DESIGN.md → "Navigation — Construction Management". */
 export const COMPANY_NAV: NavItem<CompanyNavKey>[] = [
-  { key: "home", label: "Home", icon: <HomeOutlined />, to: { screen: "company-dashboard" } },
+  { key: "home", label: "Dashboard", icon: <DashboardOutlined />, to: { screen: "company-dashboard" } },
   { key: "projects", label: "Projects", icon: <ProjectOutlined />, to: { screen: "company-projects" } },
   { key: "library", label: "Work Library", icon: <SnippetsOutlined />, to: { screen: "work-library" } },
   { key: "progress", label: "Progress", icon: <LineChartOutlined />, to: { screen: "daily-progress-review" } },
@@ -91,15 +93,16 @@ export function projectNav(projectId: string): NavItem<ProjectNavKey>[] {
     { key: "tasks", label: "Tasks", icon: <CheckSquareOutlined />, to: { screen: "tasks", params: p } },
     { key: "progress", label: "Progress", icon: <LineChartOutlined />, to: { screen: "daily-progress-review", params: p } },
     { key: "issues", label: "Issues", icon: <ExclamationCircleOutlined />, to: { screen: "issues", params: p } },
+    { key: "messages", label: "Messages", icon: <MessageOutlined />, to: { screen: "project-messages", params: p } },
     { key: "team", label: "Project Team", icon: <TeamOutlined />, to: { screen: "project-team", params: p } },
     { key: "documents", label: "Documents", icon: <FileTextOutlined /> },
   ]
 }
 
-/** "← Company home", pinned above the project menu. */
+/** "← Dashboard", pinned above the project menu. */
 export const BACK_TO_COMPANY = {
   key: "back-to-company",
-  label: "Company home",
+  label: "Dashboard",
   icon: <ArrowLeftOutlined />,
   to: { screen: "company-dashboard" } as NavTarget,
 }

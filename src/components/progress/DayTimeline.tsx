@@ -1,0 +1,371 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
+import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
+import type { DailyProgress, ISODate, Task } from "../../domain/models"
+import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack, slideWindow, type DayAudience, type DayNote } from "../../mock/dayStory"
+import { NoteCard } from "./UpdateNotes"
+
+const { Text } = Typography
+
+const asDate = (date: ISODate) => new Date(`${date}T00:00:00Z`)
+const fmt = (date: ISODate, options: Intl.DateTimeFormatOptions) =>
+  asDate(date).toLocaleDateString("en-IN", { timeZone: "UTC", ...options })
+const weekday = (date: ISODate) => fmt(date, { weekday: "short" })
+const longLabel = formatDay
+
+/** Coloured tags (dark text on a light fill + border) stay readable on the tinted Today card. */
+/** One slow ease-in-out glide for the date strip and the cards. */
+const GLIDE_MS = 750
+const GLIDE_EASE = "cubic-bezier(0.45, 0, 0.55, 1)"
+
+/** Space between the Yesterday / Today / Tomorrow cards. */
+const CARD_GAP = 16
+
+/** Width one day needs in the strip (48px button + breathing room). */
+const DAY_SLOT = 60
+
+const STORY_TAG = {
+  planned: { label: "Planned", color: "blue", icon: <ClockCircleOutlined /> },
+  scheduled: { label: "Scheduled tasks", color: "cyan", icon: <CalendarOutlined /> },
+} as const
+
+/** Month grid for jumping to any date (Monday first). */
+function MonthPicker({
+  selected,
+  today,
+  marked,
+  onPick,
+}: {
+  selected: ISODate
+  today: ISODate
+  marked: Set<ISODate>
+  onPick: (date: ISODate) => void
+}) {
+  const [month, setMonth] = useState(selected.slice(0, 7) + "-01")
+  const first = asDate(month)
+  const offset = (first.getUTCDay() + 6) % 7 // Monday = 0
+  const daysInMonth = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
+  const cells = [
+    ...Array.from({ length: offset }, () => undefined),
+    ...Array.from({ length: daysInMonth }, (_, i) => addDays(month, i)),
+  ]
+  const shiftMonth = (by: number) => {
+    const next = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + by, 1))
+    setMonth(next.toISOString().slice(0, 10))
+  }
+
+  return (
+    <div className="month-picker">
+      <Flex align="center" justify="space-between" className="mb-2">
+        <Button type="text" size="small" shape="circle" icon={<LeftOutlined />} aria-label="Previous month" onClick={() => shiftMonth(-1)} />
+        <Text strong>{fmt(month, { month: "long", year: "numeric" })}</Text>
+        <Button type="text" size="small" shape="circle" icon={<RightOutlined />} aria-label="Next month" onClick={() => shiftMonth(1)} />
+      </Flex>
+      <div className="month-picker-grid" role="grid" aria-label="Pick a date">
+        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
+          <span key={d} className="month-picker-head">{d}</span>
+        ))}
+        {cells.map((date, index) =>
+          date ? (
+            <button
+              key={date}
+              type="button"
+              className={[
+                "month-picker-day",
+                date === selected && "is-selected",
+                date === today && "is-today",
+                marked.has(date) && "has-update",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-label={longLabel(date)}
+              aria-pressed={date === selected}
+              onClick={() => onPick(date)}
+            >
+              {Number(date.slice(8))}
+            </button>
+          ) : (
+            <span key={`blank-${index}`} />
+          ),
+        )}
+      </div>
+      {selected !== today && (
+        <Button type="link" size="small" className="mt-2 p-0!" onClick={() => onPick(today)}>
+          Go to today
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Date strip (three days either side of the selected date, week arrows, month
+ * picker) above Yesterday / Today / Tomorrow cards for the selected date.
+ */
+export default function DayTimeline({
+  updates,
+  audience,
+  tasks,
+  noteMeta,
+}: {
+  /** Updates this viewer may see. */
+  updates: readonly DailyProgress[]
+  audience: DayAudience
+  /** Company only: open tasks fill days with no update. */
+  tasks?: readonly Task[]
+  /** Small line under a note, e.g. the work type and review status. */
+  noteMeta?: (note: DayNote) => ReactNode
+}) {
+  const today = localToday()
+  const [selected, setSelectedDate] = useState(today)
+  // Which way the last change went, so the strip and cards slide in from that side.
+  const [direction, setDirection] = useState<"forward" | "back">("forward")
+  // Show as many days either side as the strip has room for (1 on a phone, up to a week).
+  const stripRef = useRef<HTMLDivElement>(null)
+  const centerRef = useRef<HTMLDivElement>(null)
+  const [perSide, setPerSide] = useState(3)
+  useEffect(() => {
+    const strip = stripRef.current
+    if (!strip || typeof ResizeObserver === "undefined") return
+    const measure = () => {
+      const center = centerRef.current?.offsetWidth ?? 200
+      const chrome = 2 * 40 + 16 // arrow buttons and padding
+      const fit = Math.floor((strip.clientWidth - center - chrome) / 2 / DAY_SLOT)
+      setPerSide(Math.max(1, Math.min(7, fit)))
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(strip)
+    measure()
+    return () => observer.disconnect()
+  }, [])
+  // Cards row: on wide screens the three cards sit on a track that slides
+  // through every day between the old and new date (a carousel).
+  const cardsRef = useRef<HTMLDivElement>(null)
+  const [cardsWidth, setCardsWidth] = useState(0)
+  useEffect(() => {
+    const box = cardsRef.current
+    if (!box || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => setCardsWidth(box.clientWidth))
+    observer.observe(box)
+    setCardsWidth(box.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+  // Three cards across once each can be ~160px; below that they stack (phone).
+  const wide = cardsWidth >= 520
+  // One glide moves the strip's days and the cards together. Each row lays out
+  // every day between the old and new date, then slides to the new window.
+  type Window = ReturnType<typeof slideWindow>
+  const [motion, setMotion] = useState<{ left: Window; right: Window; cards?: Window; moving: boolean } | null>(null)
+  const motionTimer = useRef<number | undefined>(undefined)
+
+  const setSelected = (date: ISODate) => {
+    if (date === selected) return
+    setDirection(date > selected ? "forward" : "back")
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    window.clearTimeout(motionTimer.current)
+    if (reduceMotion) {
+      setMotion(null)
+    } else {
+      setMotion({
+        left: slideWindow(addDays(selected, -perSide), addDays(date, -perSide), perSide),
+        right: slideWindow(addDays(selected, 1), addDays(date, 1), perSide),
+        cards: wide ? slideTrack(selected, date) : undefined,
+        moving: false,
+      })
+      motionTimer.current = window.setTimeout(() => setMotion(null), GLIDE_MS + 60)
+    }
+    setSelectedDate(date)
+  }
+  useEffect(() => () => window.clearTimeout(motionTimer.current), [])
+  // Once the old + new days are laid out at the old position, flush layout and
+  // start the glide (no animation frame needed, so it also runs in background tabs).
+  useLayoutEffect(() => {
+    if (!motion || motion.moving) return
+    void stripRef.current?.offsetWidth
+    setMotion((m) => (m ? { ...m, moving: true } : m))
+  }, [motion])
+  const glide = motion?.moving ? `transform ${GLIDE_MS}ms ${GLIDE_EASE}` : "none"
+  const slide = `dt-slide dt-slide-${direction}`
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const marked = useMemo(() => datesWithUpdates(updates), [updates])
+  const onToday = selected === today
+  // Only the update written that day can report that day's blocker.
+  const blockerOn = (note: DayNote, date: ISODate) =>
+    updates.find((u) => u.id === note.progressId && u.date === date)?.blockerSummary
+
+  const sideRef = useRef<HTMLDivElement>(null)
+  const [sideWidth, setSideWidth] = useState(0)
+  useEffect(() => {
+    const side = sideRef.current
+    if (!side || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => setSideWidth(side.clientWidth))
+    observer.observe(side)
+    setSideWidth(side.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+  const slot = sideWidth / perSide
+
+  /** One side of the strip as a sliding row of day buttons. */
+  const stripSide = (which: "left" | "right") => {
+    const row = motion?.[which]
+    const start = which === "left" ? addDays(selected, -perSide) : addDays(selected, 1)
+    const dates = row?.dates ?? Array.from({ length: perSide }, (_, i) => addDays(start, i))
+    const index = row ? (motion!.moving ? row.toIndex : row.fromIndex) : 0
+    return (
+      <div ref={which === "left" ? sideRef : undefined} className="day-strip-side">
+        <div className="dt-strip-track" style={{ transform: `translateX(${-index * slot}px)`, transition: glide }}>
+          {dates.map((date) => (
+            <div key={date} className="dt-strip-cell" style={{ flex: `0 0 ${slot}px` }}>
+              {pill(date)}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const pill = (date: ISODate) => {
+    return (
+      <button
+        key={date}
+        type="button"
+        className={[
+          "day-strip-day",
+          date === today && "is-today",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        aria-label={`${longLabel(date)}${marked.has(date) ? ", has an update" : ""}`}
+        onClick={() => setSelected(date)}
+      >
+        <span className="day-strip-weekday">{weekday(date)}</span>
+        <span className="day-strip-number">{Number(date.slice(8))}</span>
+        <span className={`day-strip-dot${marked.has(date) ? " is-on" : ""}`} aria-hidden />
+      </button>
+    )
+  }
+
+  const stories = [-1, 0, 1].map((offset) => dayStory(addDays(selected, offset), updates, { today, audience, tasks }))
+  const allEmpty = stories.every((story) => story.kind === "empty")
+  const latest = latestUpdateDate(updates)
+
+  const labelFor = (date: ISODate) => {
+    const offset = dayDiff(selected, date)
+    if (offset === -1) return onToday ? "Yesterday" : "Day before"
+    if (offset === 0) return onToday ? "Today" : "Selected day"
+    if (offset === 1) return onToday ? "Tomorrow" : "Day after"
+    return date < today ? "Past day" : "Upcoming day" // only seen mid-slide
+  }
+
+  const renderCard = (date: ISODate) => {
+    const story = dayStory(date, updates, { today, audience, tasks })
+    return (
+      <NoteCard label={labelFor(date)} date={date}>
+            {story.kind === "empty" ? (
+              <div className="note-empty">
+                <span className="note-empty-dash" aria-hidden>—</span>
+                <Text type="secondary" className="note-empty-caption">{story.message}</Text>
+              </div>
+            ) : (
+              <Flex vertical gap="middle">
+                {story.kind !== "done" && (
+                  <Tag variant="outlined" color={STORY_TAG[story.kind].color} icon={STORY_TAG[story.kind].icon} className="m-0! self-start">
+                    {STORY_TAG[story.kind].label}
+                  </Tag>
+                )}
+                {story.notes.map((note, index) => (
+                  <Flex key={note.progressId ?? note.taskId ?? index} vertical gap={4}>
+                    <Text>{note.text}</Text>
+                    {noteMeta?.(note)}
+                    {story.kind === "done" && blockerOn(note, date) && (
+                      <Text type="warning" className="text-[13px]!">
+                        <WarningOutlined /> {blockerOn(note, date)}
+                      </Text>
+                    )}
+                  </Flex>
+                ))}
+              </Flex>
+            )}
+      </NoteCard>
+    )
+  }
+
+  const cards = motion?.cards
+  const trackDates = cards?.dates ?? [addDays(selected, -1), selected, addDays(selected, 1)]
+  const trackIndex = cards ? (motion!.moving ? cards.toIndex : cards.fromIndex) : 0
+  const cardWidth = (cardsWidth - 2 * CARD_GAP) / 3
+  const cardStep = cardWidth + CARD_GAP
+
+  return (
+    <Flex vertical gap="middle">
+      <div ref={stripRef} className="day-strip">
+        <Button type="text" shape="circle" icon={<LeftOutlined />} aria-label="Previous week" onClick={() => setSelected(addDays(selected, -7))} />
+        {stripSide("left")}
+        <Flex ref={centerRef} align="center" justify="center" gap={8} className="day-strip-center">
+          <span key={selected} className={`day-strip-selected ${slide}`} aria-live="polite">{longLabel(selected)}</span>
+          <Popover
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            trigger="click"
+            placement="bottom"
+            content={
+              <MonthPicker
+                key={selected}
+                selected={selected}
+                today={today}
+                marked={marked}
+                onPick={(date) => {
+                  setSelected(date)
+                  setPickerOpen(false)
+                }}
+              />
+            }
+          >
+            <Button type="text" shape="circle" icon={<CalendarOutlined />} aria-label="Pick a date" className="text-[18px]!" />
+          </Popover>
+        </Flex>
+        {stripSide("right")}
+        <Button type="text" shape="circle" icon={<RightOutlined />} aria-label="Next week" onClick={() => setSelected(addDays(selected, 7))} />
+      </div>
+
+      <div ref={cardsRef} className="dt-cards-viewport">
+        {wide ? (
+          <div
+            className="dt-cards-track"
+            style={{
+              gap: CARD_GAP,
+              transform: `translateX(${-trackIndex * cardStep}px)`,
+              transition: glide,
+            }}
+          >
+            {trackDates.map((date) => (
+              <div key={date} className="dt-cards-cell" style={{ flex: `0 0 ${cardWidth}px` }}>
+                {renderCard(date)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Row key={selected} gutter={[16, 16]} className={`dt-cards dt-slide-${direction}`}>
+            {[-1, 0, 1].map((offset) => (
+              <Col key={offset} xs={24} md={8}>
+                {renderCard(addDays(selected, offset))}
+              </Col>
+            ))}
+          </Row>
+        )}
+      </div>
+
+      {/* Three dashes in a row can read like a failed load, so say it and offer the way out. */}
+      {allEmpty && (
+        <Flex align="center" justify="center" gap={6} wrap className="text-center">
+          <Text type="secondary">{latest ? "No updates around this date." : "No updates yet."}</Text>
+          {latest && (
+            <Button type="link" size="small" className="p-0!" onClick={() => setSelected(latest)}>
+              Latest update: {formatDay(latest)} →
+            </Button>
+          )}
+        </Flex>
+      )}
+    </Flex>
+  )
+}

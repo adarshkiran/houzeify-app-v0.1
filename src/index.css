@@ -211,7 +211,8 @@ html, body, #root {
 
 .company-dashboard .company-eyebrow,
 .business-onboarding .company-eyebrow,
-.company-form-page .company-eyebrow {
+.company-form-page .company-eyebrow,
+.ant-modal .company-eyebrow {
   font-family: 'Sometype Mono:SemiBold', monospace;
   font-size: 10px;
   font-weight: 600;
@@ -590,18 +591,334 @@ html, body, #root {
 }
 
 .business-onboarding-note,
+/* The card dated today: the same soft sky-blue wash as the project hero. */
 .project-narrative-today {
-  background: var(--ant-color-primary-bg);
+  border-color: #e6f0fb !important;
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(70% 110% at 85% 60%, rgba(214, 233, 252, 0.95) 0%, rgba(214, 233, 252, 0) 72%),
+    radial-gradient(50% 80% at 100% 100%, rgba(222, 238, 253, 0.9) 0%, rgba(222, 238, 253, 0) 70%),
+    linear-gradient(160deg, #ffffff 0%, #fbfdff 35%, #f2f8fe 100%);
 }
 
+/* Table rows that open their record (projects, tasks, issues). */
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: -2px;
+}
+
+.clickable-row-arrow {
+  color: var(--ant-color-text-tertiary);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.clickable-row:hover .clickable-row-arrow,
+.clickable-row:focus-visible .clickable-row-arrow {
+  color: var(--ant-color-primary);
+  transform: translateX(2px);
+}
+
+/* Plain (uncoloured) tags are beige by default, which blends into the purple
+   tint of selected rows and the Today card. Make them white there. Coloured
+   tags keep their own colours. */
+.project-narrative-today .ant-tag,
+.progress-queue-item.is-active .ant-tag,
+.conversation-item.is-active .ant-tag,
+.company-dashboard .company-hozie-card .ant-tag {
+  /* Ant Design declares this on the tag itself, so set it there. */
+  --ant-tag-default-bg: var(--ant-color-bg-container);
+}
+
+/* Project hero: a single soft sky-blue wash fading to white (light at the
+   top-left where the title sits, deepest towards the right). */
 .project-overview-hero {
-  background:
-    linear-gradient(135deg, var(--ant-color-primary-bg) 0%, var(--ant-color-bg-container) 52%);
+  border-color: #e6f0fb;
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(55% 120% at 80% 55%, rgba(214, 233, 252, 0.95) 0%, rgba(214, 233, 252, 0) 70%),
+    radial-gradient(40% 90% at 100% 100%, rgba(222, 238, 253, 0.9) 0%, rgba(222, 238, 253, 0) 70%),
+    radial-gradient(35% 80% at 30% 90%, rgba(230, 242, 253, 0.7) 0%, rgba(230, 242, 253, 0) 70%),
+    linear-gradient(160deg, #ffffff 0%, #fbfdff 35%, #f2f8fe 100%);
+}
+
+/* The light-purple rail disappears on the blue wash; use white with a hairline. */
+.project-overview-hero .ant-progress-rail {
+  background-color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgba(114, 46, 209, 0.12);
 }
 
 .project-narrative-card {
   height: 100%;
+  min-height: 128px;
   box-shadow: none !important;
+}
+
+.project-narrative-card > .ant-card-body {
+  height: 100%;
+}
+
+/* An empty day: a light dash centred in the card, the reason as its footer. */
+.note-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.note-empty-dash {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-size: var(--ant-font-size-heading-3);
+  line-height: 1;
+  color: var(--ant-color-text-quaternary);
+}
+
+.note-empty-caption {
+  font-size: var(--ant-font-size-sm) !important;
+}
+
+/* Day timeline: date strip (three days each side of the selected date).
+   Radius and type follow the theme tokens: card radius (LG), control radius,
+   and the Ant Design type scale (SM 12 / LG 16 / heading-4 20). */
+.day-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-bg-container);
+}
+
+.day-strip-side {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  min-width: 0;
+}
+
+.day-strip-center {
+  flex: 0 0 auto;
+  padding-inline: 8px;
+}
+
+.day-strip-selected {
+  font-size: var(--ant-font-size-heading-4);
+  font-weight: 600;
+  line-height: var(--ant-line-height-heading-4);
+  color: var(--ant-color-text);
+  white-space: nowrap;
+}
+
+.day-strip-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 48px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--ant-border-radius);
+  background: transparent;
+  color: var(--ant-color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.day-strip-day:hover {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.day-strip-day:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+}
+
+.day-strip-weekday {
+  font-size: var(--ant-font-size-sm);
+  font-weight: 500;
+  line-height: var(--ant-line-height-sm);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.day-strip-number {
+  font-size: var(--ant-font-size-lg);
+  line-height: var(--ant-line-height-lg);
+  color: var(--ant-color-text);
+}
+
+.day-strip-day.is-today .day-strip-weekday,
+.day-strip-day.is-today .day-strip-number {
+  color: var(--ant-color-primary);
+  font-weight: 700;
+}
+
+.day-strip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.day-strip-dot.is-on {
+  background: var(--ant-color-primary);
+}
+
+@media (max-width: 575px) {
+  .day-strip {
+    padding: 8px 4px;
+  }
+
+  .day-strip-day {
+    min-width: 40px;
+    padding: 4px;
+  }
+
+  .day-strip-selected {
+    font-size: var(--ant-font-size-lg);
+    line-height: var(--ant-line-height-lg);
+  }
+
+  .day-strip-number {
+    font-size: var(--ant-font-size-lg);
+    line-height: var(--ant-line-height-lg);
+  }
+
+  .day-strip-center {
+    padding-inline: 2px;
+  }
+}
+
+/* Date strip sides: a row of day buttons that slides sideways. */
+.day-strip .day-strip-side {
+  display: block;
+  overflow: hidden;
+}
+
+.dt-strip-track {
+  display: flex;
+  will-change: transform;
+}
+
+.dt-strip-cell {
+  display: flex;
+  justify-content: center;
+}
+
+/* Day timeline cards carousel (wide screens): the track slides sideways. */
+.dt-cards-viewport {
+  overflow: hidden;
+  /* room for card borders at the clip edge */
+  padding-block: 1px;
+}
+
+.dt-cards-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+.dt-cards-cell > .project-narrative-card {
+  height: 100%;
+}
+
+/* Day timeline motion: on a date change the days, the big date and the
+   cards slide in from the side you moved towards, the cards slightly staggered. */
+/* Slow ease-in-out glide: starts gently, moves, settles gently. */
+@keyframes dt-in-forward {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes dt-in-back {
+  from { opacity: 0; transform: translateX(-40px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dt-slide.dt-slide-forward,
+.dt-cards.dt-slide-forward > .ant-col {
+  animation: dt-in-forward 650ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+.dt-slide.dt-slide-back,
+.dt-cards.dt-slide-back > .ant-col {
+  animation: dt-in-back 650ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+.dt-cards > .ant-col:nth-child(2) { animation-delay: 110ms; }
+.dt-cards > .ant-col:nth-child(3) { animation-delay: 220ms; }
+
+.day-strip-day {
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.day-strip-day:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-slide,
+  .dt-cards > .ant-col {
+    animation: none !important;
+  }
+}
+
+.month-picker {
+  width: 252px;
+}
+
+.month-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.month-picker-head {
+  padding: 4px 0;
+  font-size: var(--ant-font-size-sm);
+  text-align: center;
+  color: var(--ant-color-text-tertiary);
+}
+
+.month-picker-day {
+  position: relative;
+  height: 32px;
+  border: 0;
+  border-radius: var(--ant-border-radius-sm);
+  background: transparent;
+  color: var(--ant-color-text);
+  cursor: pointer;
+}
+
+.month-picker-day:hover {
+  background: var(--ant-color-fill-tertiary);
+}
+
+.month-picker-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--ant-color-primary);
+  color: var(--ant-color-primary);
+}
+
+.month-picker-day.is-selected {
+  background: var(--ant-color-primary);
+  color: #fff;
+}
+
+.month-picker-day.has-update::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
 }
 
 /* Worker app: one phone-width column, used on site. */
@@ -765,4 +1082,277 @@ html, body, #root {
 .progress-review-actions {
   padding-top: 16px;
   border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+/* Conversations — list: search on top, rows with avatar, time and unread pill. */
+.conversation-list {
+  min-height: 0;
+  height: 100%;
+}
+
+.conversation-search {
+  padding: 12px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+
+.conversation-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.conversation-item:hover {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.conversation-item.is-active {
+  background: var(--ant-color-primary-bg);
+  border-color: var(--ant-color-primary-border);
+}
+
+.conversation-item:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: 1px;
+}
+
+.conversation-unread {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ant-color-primary-bg-hover);
+  color: var(--ant-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* Conversations — chat: header, scrolling bubbles, one-box composer. */
+.thread-panel {
+  min-height: 0;
+  gap: 12px;
+}
+
+.thread-panel.is-fill {
+  height: 100%;
+  gap: 0;
+}
+
+.thread-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+
+.thread-search {
+  padding: 12px 20px 0;
+}
+
+.thread-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 4px 4px 4px 0;
+}
+
+.thread-panel.is-compact .thread-messages {
+  max-height: 320px;
+}
+
+.thread-panel.is-fill .thread-messages {
+  flex: 1;
+  max-height: none;
+  padding: 20px;
+}
+
+.thread-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ant-color-text-tertiary);
+  font-size: 12px;
+}
+
+.thread-day::before,
+.thread-day::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.thread-row {
+  gap: 4px;
+  max-width: 78%;
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.thread-row.is-mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.thread-row.is-dimmed {
+  opacity: 0.35;
+}
+
+.thread-author {
+  font-size: 12px !important;
+  padding-inline: 4px;
+}
+
+.thread-bubble {
+  padding: 10px 14px;
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+  background: var(--ant-color-fill-tertiary);
+  color: var(--ant-color-text);
+  line-height: 1.5;
+}
+
+.thread-row.is-mine .thread-bubble {
+  border-top-left-radius: 14px;
+  border-top-right-radius: 4px;
+  background: var(--ant-color-primary-bg-hover);
+}
+
+.thread-time {
+  font-size: 11px !important;
+  padding-inline: 4px;
+}
+
+.thread-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.thread-transcript {
+  color: var(--ant-color-text-secondary) !important;
+}
+
+.thread-highlight {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: var(--ant-color-warning-bg-hover);
+  color: inherit;
+}
+
+.thread-audio {
+  width: 100%;
+  min-width: 220px;
+  max-width: 320px;
+  height: 36px;
+}
+
+.thread-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--ant-color-border);
+  border-radius: 16px;
+  background: var(--ant-color-bg-container);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.thread-composer:focus-within {
+  border-color: var(--ant-color-primary);
+  box-shadow: 0 0 0 3px var(--ant-color-primary-bg);
+}
+
+.thread-composer .ant-input {
+  padding-inline: 0 !important;
+}
+
+/* The composer box shows focus; the field inside it doesn't need its own ring. */
+.thread-composer textarea:focus,
+.thread-composer textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.thread-panel.is-fill .thread-composer {
+  margin: 0 20px 20px;
+}
+
+/* Full chat pages: list and chat cards share one height; each scrolls inside. */
+.chat-card {
+  height: max(480px, calc(100dvh - 65px - 48px));
+  overflow: hidden;
+}
+
+.chat-card > .ant-card-body {
+  height: 100%;
+  padding: 0 !important;
+}
+
+@media (max-width: 991px) {
+  .chat-card.is-list {
+    height: auto;
+    max-height: 360px;
+  }
+
+  .chat-card.is-list .conversation-list {
+    max-height: 358px;
+  }
+
+  .chat-card:not(.is-list) {
+    height: 75dvh;
+  }
+}
+
+.worker-chat-card {
+  height: calc(100dvh - 132px);
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.worker-chat-card > .ant-card-body {
+  height: 100%;
+  padding: 0 !important;
+}
+
+@media (max-width: 575px) {
+  .thread-header {
+    padding: 12px;
+  }
+
+  .thread-header-extra {
+    display: none;
+  }
+
+  .thread-search {
+    padding: 12px 12px 0;
+  }
+
+  .thread-panel.is-fill .thread-messages {
+    padding: 12px;
+  }
+
+  .thread-panel.is-fill .thread-composer {
+    margin: 0 12px 12px;
+  }
+
+  .thread-row {
+    max-width: 88%;
+  }
 }

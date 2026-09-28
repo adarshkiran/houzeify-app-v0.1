@@ -1,18 +1,12 @@
 import { ArrowLeftOutlined } from "@ant-design/icons"
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Flex,
-  Progress,
-  Row,
-  Typography,
-} from "antd"
+import { Button, Card, Flex, Progress, Typography } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
+import ThreadPanel from "../components/conversations/ThreadPanel"
+import DayTimeline from "../components/progress/DayTimeline"
 import EvidenceGrid from "../components/progress/EvidenceGrid"
-import type { EntityId } from "../domain/models"
+import { findThread, readerMembership } from "../domain/conversations"
+import type { EntityId, Thread } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
@@ -21,30 +15,9 @@ import {
   getPublishedForCustomer,
   getWorkTypeName,
 } from "../mock/selectors"
+import { useSession } from "../session/SessionProvider"
 
 const { Paragraph, Text, Title } = Typography
-
-function Narrative({
-  label,
-  copy,
-  emphasis,
-}: {
-  label: string
-  copy: string
-  emphasis?: boolean
-}) {
-  return (
-    <Card
-      size="small"
-      className={emphasis ? "project-narrative-today" : "project-narrative-card"}
-    >
-      <Flex vertical gap="small">
-        <Text className="company-eyebrow">{label}</Text>
-        <Text>{copy}</Text>
-      </Flex>
-    </Card>
-  )
-}
 
 function CustomerUpdate({
   onNavigate,
@@ -54,18 +27,31 @@ function CustomerUpdate({
   projectId?: EntityId
 }) {
   const { state } = useConstructionData()
+  const { session } = useSession()
   const published = getPublishedForCustomer(state, projectId)
   const latest = published[0]
   const project = latest ? getProject(state, latest.projectId) : getProject(state, projectId ?? "")
   const evidence = latest ? getPublishedEvidence(state, latest) : []
   const progress = project?.progress ?? 0
+  // Only the homeowner gets a composer here; company staff use Messages.
+  const homeownerThread: Thread | undefined = project
+    ? findThread(state, project.id, "homeowner") ?? {
+        id: "draft",
+        projectId: project.id,
+        subject: "homeowner",
+        audience: "homeowner",
+        createdAt: "",
+      }
+    : undefined
+  const canMessageTeam =
+    homeownerThread !== undefined && readerMembership(state, session, homeownerThread)?.role === "homeowner"
 
   return (
     <Flex vertical className="company-form-page min-h-full">
       <Flex align="center" justify="space-between" className="business-onboarding-header">
         <LogoHorizontal height={24} />
         <Button icon={<ArrowLeftOutlined />} onClick={() => onNavigate("dashboard-home")}>
-          Home
+          Dashboard
         </Button>
       </Flex>
 
@@ -95,32 +81,21 @@ function CustomerUpdate({
               </Flex>
             </Card>
 
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={8}>
-                <Narrative
-                  label="Yesterday"
-                  copy={
-                    latest.yesterdaySummary ||
-                    "The previous day was not described in this update."
-                  }
-                />
-              </Col>
-              <Col xs={24} md={8}>
-                <Narrative label="Today" copy={latest.todaySummary} emphasis />
-              </Col>
-              <Col xs={24} md={8}>
-                <Narrative label="Tomorrow" copy={latest.tomorrowPlan} />
-              </Col>
-            </Row>
-
-            {latest.blockerSummary && (
-              <Alert type="warning" showIcon message={latest.blockerSummary} />
-            )}
+            <DayTimeline
+              updates={published}
+              audience="homeowner"
+              noteMeta={(note) => {
+                const update = published.find((item) => item.id === note.progressId)
+                return update ? (
+                  <Text type="secondary" className="text-[12px]!">{getWorkTypeName(state, update.workTypeId)}</Text>
+                ) : null
+              }}
+            />
 
             <Card
               title={
                 <Title level={5} className="company-heading! m-0!">
-                  Photos from site
+                  Latest photos from site
                 </Title>
               }
             >
@@ -132,6 +107,12 @@ function CustomerUpdate({
             <Paragraph className="m-0!">
               Nothing has been published for you yet. Your contractor’s update appears here after it is reviewed.
             </Paragraph>
+          </Card>
+        )}
+
+        {project && canMessageTeam && (
+          <Card title="Message your project team">
+            <ThreadPanel compact projectId={project.id} subject="homeowner" emptyText="Ask the project team anything about your home." />
           </Card>
         )}
       </Flex>

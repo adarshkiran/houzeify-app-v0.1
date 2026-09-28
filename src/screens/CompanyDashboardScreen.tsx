@@ -1,4 +1,6 @@
 import { type ReactNode } from "react"
+import KpiCard from "../components/company/KpiCard"
+import { addDays, localToday } from "../mock/dayStory"
 import {
   ArrowRightOutlined,
   BellOutlined,
@@ -22,7 +24,6 @@ import {
   Progress,
   Row,
   Space,
-  Statistic,
   Tag,
   Timeline,
   Typography,
@@ -52,9 +53,10 @@ function getStageTone(stageName: string) {
 
 function getDateLabel(value?: string) {
   if (!value) return "No update"
-  if (value === "2026-09-20") return "Today"
-  if (value === "2026-09-19") return "Yesterday"
-  if (value === "2026-09-18") return "2 days ago"
+  const today = localToday()
+  if (value === today) return "Today"
+  if (value === addDays(today, -1)) return "Yesterday"
+  if (value === addDays(today, -2)) return "2 days ago"
 
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(
     new Date(`${value}T00:00:00`),
@@ -96,43 +98,6 @@ function SectionAction({
 }
 
 /** One soft colour per summary card; the palettes live in index.css. */
-type KpiTone = "violet" | "amber" | "rose" | "green"
-
-function KpiCard({
-  label,
-  value,
-  description,
-  accent,
-  icon,
-  tone,
-}: {
-  label: string
-  value: number
-  description: string
-  /** Short lead-in shown in the card's colour, e.g. "1" before "high severity". */
-  accent?: string
-  icon: ReactNode
-  tone: KpiTone
-}) {
-  return (
-    <Card className={`company-kpi-card company-kpi-${tone} h-full`} variant="outlined">
-      <Flex vertical justify="space-between" gap="large" className="company-kpi-inner">
-        <Flex align="flex-start" justify="space-between" gap="small">
-          <Text className="company-kpi-label">{label}</Text>
-          <span className="company-kpi-icon">{icon}</span>
-        </Flex>
-        <Flex vertical gap={4}>
-          <Statistic value={value} classNames={{ content: "company-kpi-value" }} />
-          <Text type="secondary">
-            {accent && <span className="company-kpi-accent">{accent} </span>}
-            {description}
-          </Text>
-        </Flex>
-      </Flex>
-    </Card>
-  )
-}
-
 function ProjectRow({
   item,
   onNavigate,

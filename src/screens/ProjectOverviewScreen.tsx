@@ -7,6 +7,8 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
+import KpiCard from "../components/company/KpiCard"
+import DayTimeline from "../components/progress/DayTimeline"
 import {
   Avatar,
   Button,
@@ -17,14 +19,13 @@ import {
   Progress,
   Row,
   Space,
-  Statistic,
   Tag,
   Typography,
 } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import { reviewStatusLabel } from "../components/progress/progressLabels"
-import type { EntityId } from "../domain/models"
+import type { EntityId, ProjectUnit } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
@@ -36,10 +37,18 @@ import {
   getRecentProgress,
   getStageName,
   getTradeName,
+  getWorkTypeName,
 } from "../mock/selectors"
 import { useScopedData } from "../session/useScopedData"
 
 const { Paragraph, Text, Title } = Typography
+
+/** Unit status tags use the same colours as project statuses elsewhere. */
+const UNIT_STATUS: Record<ProjectUnit["status"], { text: string; color: string }> = {
+  planned: { text: "Planned", color: "processing" },
+  active: { text: "Active", color: "success" },
+  completed: { text: "Completed", color: "purple" },
+}
 
 function formatDate(value?: string) {
   if (!value) return "Not set"
@@ -85,7 +94,11 @@ function ProjectOverview({
   const openTasks = getOpenTasks(scoped, project.id)
   const openIssues = getOpenIssues(scoped, project.id)
   const progressRecords = getRecentProgress(scoped, project.id)
-  const latestProgress = progressRecords[0]
+  // Replaced or rejected versions don't describe the day any more.
+  const liveProgress = progressRecords.filter(
+    (item) => item.reviewStatus !== "superseded" && item.reviewStatus !== "rejected",
+  )
+  const projectTasks = scoped.tasks.filter((task) => task.projectId === project.id)
   const units = getProjectUnits(scoped, project.id)
   const memberships = getProjectMemberships(scoped, project.id)
   const stageName = getStageName(state, project.currentStageId)
@@ -154,88 +167,71 @@ function ProjectOverview({
           </Row>
         </Card>
 
+        {/* Same soft KPI cards as the dashboard, one colour each. */}
         <Row gutter={[16, 16]}>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Open tasks" value={openTasks.length} prefix={<CheckSquareOutlined />} />
-            </Card>
+            <KpiCard
+              label="Open Tasks"
+              value={openTasks.length}
+              description="Work requiring attention"
+              icon={<CheckSquareOutlined />}
+              tone="amber"
+            />
           </Col>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Open issues" value={openIssues.length} prefix={<ExclamationCircleOutlined />} />
-            </Card>
+            <KpiCard
+              label="Open Issues"
+              value={openIssues.length}
+              accent={String(openIssues.filter((issue) => issue.severity === "high" || issue.severity === "critical").length)}
+              description="high severity"
+              icon={<ExclamationCircleOutlined />}
+              tone="rose"
+            />
           </Col>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Locations" value={units.length} prefix={<ProjectOutlined />} />
-            </Card>
+            <KpiCard
+              label="Locations"
+              value={units.length}
+              description="Units and areas on site"
+              icon={<ProjectOutlined />}
+              tone="violet"
+            />
           </Col>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Project team" value={memberships.length} prefix={<TeamOutlined />} />
-            </Card>
+            <KpiCard
+              label="Project Team"
+              value={memberships.length}
+              description="People on this project"
+              icon={<TeamOutlined />}
+              tone="green"
+            />
           </Col>
         </Row>
 
         <Card
-          title={
-            <Title level={5} className="company-heading! m-0!">
-              Yesterday · Today · Tomorrow
-            </Title>
-          }
+          title={<Title level={5} className="company-heading! m-0!">Daily progress</Title>}
           extra={
-            <Space wrap>
-              {latestProgress && (
-                <Tag color={reviewStatusLabel[latestProgress.reviewStatus].color}>
-                  {reviewStatusLabel[latestProgress.reviewStatus].text}
-                </Tag>
-              )}
-              <Button
-                size="small"
-                onClick={() =>
-                  onNavigate("daily-progress-submit", { project_id: projectId })
-                }
-              >
-                Log today’s progress
-              </Button>
-            </Space>
+            <Button size="small" onClick={() => onNavigate("daily-progress-submit", { project_id: projectId })}>
+              Log today’s progress
+            </Button>
           }
         >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={8}>
-              <Card size="small" className="project-narrative-card">
-                <Flex vertical gap="small">
-                  <Text className="company-eyebrow">Yesterday</Text>
-                  <Text>
-                    {latestProgress?.yesterdaySummary ??
-                      "Previous work is available in the project timeline."}
-                  </Text>
-                </Flex>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card size="small" className="project-narrative-card project-narrative-today">
-                <Flex vertical gap="small">
-                  <Text className="company-eyebrow">Today</Text>
-                  <Text>
-                    {latestProgress?.todaySummary ??
-                      "No progress update has been submitted today."}
-                  </Text>
-                </Flex>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card size="small" className="project-narrative-card">
-                <Flex vertical gap="small">
-                  <Text className="company-eyebrow">Tomorrow</Text>
-                  <Text>
-                    {latestProgress?.tomorrowPlan ??
-                      "The next-day work plan has not been submitted."}
-                  </Text>
-                </Flex>
-              </Card>
-            </Col>
-          </Row>
+          <DayTimeline
+            updates={liveProgress}
+            audience="company"
+            tasks={projectTasks}
+            noteMeta={(note) => {
+              const update = liveProgress.find((item) => item.id === note.progressId)
+              if (!update) return null
+              const status = reviewStatusLabel[update.reviewStatus]
+              return (
+                <Space size={6} wrap>
+                  <Text type="secondary" className="text-[12px]!">{getWorkTypeName(state, update.workTypeId)}</Text>
+                  <Tag color={status.color} className="m-0!">{status.text}</Tag>
+                </Space>
+              )
+            }}
+          />
         </Card>
 
         <Row gutter={[24, 24]} align="top">
@@ -260,7 +256,7 @@ function ProjectOverview({
                         <Text type="secondary">Due {formatDate(task.dueDate)}</Text>
                       </Space>
                     </Flex>
-                    <Tag color={task.status === "blocked" ? "error" : "processing"}>
+                    <Tag color={task.status === "blocked" ? "error" : task.status === "in-progress" ? "orange" : "processing"}>
                       {task.status}
                     </Tag>
                   </Flex>
@@ -291,7 +287,7 @@ function ProjectOverview({
                           <Text type="secondary">{unit.kind}</Text>
                         </Flex>
                       </Flex>
-                      <Tag>{unit.status}</Tag>
+                      <Tag color={UNIT_STATUS[unit.status].color} className="m-0!">{UNIT_STATUS[unit.status].text}</Tag>
                     </Flex>
                   )}
                 />

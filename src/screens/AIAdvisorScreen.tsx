@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import HomeownerMobileMenu from '../components/HomeownerMobileMenu'
 import HIcon from '../components/HIcon'
 import LogoHorizontal from '../components/LogoHorizontal'
 
@@ -191,7 +192,7 @@ function NavItem({ icon, label, active, onClick }: {
 
 function Sidebar({ onNavigate }: { onNavigate: (s: string) => void }) {
   const navMain = [
-    { id: 'home', icon: <IcoHome />, label: 'Home', dest: 'dashboard-home' },
+    { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: 'dashboard-home' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: '' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
     { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
@@ -570,10 +571,11 @@ function RightContextPanel() {
 
 // ─── Mobile top bar ───────────────────────────────────────────────────────────
 
-function MobileTopBar({ onNew }: { onNew: () => void }) {
+function MobileTopBar({ onNew, onNavigate }: { onNew: () => void; onNavigate: (screen: string, data?: Record<string, string>) => void }) {
   return (
     <div className="flex md:hidden h-14 items-center justify-between px-4 bg-white border-b border-[#E3DDD7] shrink-0 z-10">
       <div className="flex items-center gap-2.5">
+        <HomeownerMobileMenu active="advisor" onNavigate={onNavigate} />
         <div className="w-8 h-8 rounded-[10px] bg-[#F3EAFF] flex items-center justify-center">
           <HIcon size={22} />
         </div>
@@ -702,7 +704,7 @@ export default function AIAdvisorScreen({ onNavigate }: { onNavigate: (s: string
       <AmbientBg />
 
       {/* Mobile top bar */}
-      <MobileTopBar onNew={handleNew} />
+      <MobileTopBar onNew={handleNew} onNavigate={onNavigate} />
 
       {/* Body */}
       <div className="flex flex-1 min-h-0 relative z-10">

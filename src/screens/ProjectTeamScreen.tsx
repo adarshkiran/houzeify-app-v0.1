@@ -1,5 +1,6 @@
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
+import { canMessageDirectly } from "../domain/conversations"
 import { useCan } from "../session/useCan"
 import { useSession } from "../session/SessionProvider"
 import { visibleMemberships } from "../domain/readScope"
@@ -8,6 +9,7 @@ import { useState } from "react"
 import {
   CheckCircleOutlined,
   MailOutlined,
+  MessageOutlined,
   PlusOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
@@ -62,7 +64,7 @@ function ProjectTeam({
   /** Reached from project setup: show the steps and the finish button. */
   setup: boolean
 }) {
-  const { state, inviteProjectMember } = useConstructionData()
+  const { state, inviteProjectMember, openDirectThread } = useConstructionData()
   const run = useCommand()
   const { session } = useSession()
   const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
@@ -76,6 +78,21 @@ function ProjectTeam({
     state.projectUnits,
     projectId,
   )
+  const myMemberships = state.memberships.filter(
+    (m) =>
+      m.projectId === projectId &&
+      m.status === "active" &&
+      m.principalType === "person" &&
+      m.principalId === session?.personId,
+  )
+  const canDm = (other: ProjectMembership) =>
+    other.status === "active" &&
+    other.principalType === "person" &&
+    myMemberships.some((m) => m.id !== other.id && canMessageDirectly(m.role, other.role))
+  const message = (other: ProjectMembership) => {
+    const outcome = run(() => openDirectThread(projectId, other.id))
+    if (outcome.ok) onNavigate("project-messages", { project_id: projectId, thread_id: outcome.value.id, from: "project-team" })
+  }
 
   const getPrincipalName = (membership: ProjectMembership) => {
     if (membership.principalType === "organization") {
@@ -94,8 +111,12 @@ function ProjectTeam({
         const name = getPrincipalName(membership) ?? "Unknown member"
         return (
           <Flex align="center" gap="small">
-            <Avatar>{name.charAt(0)}</Avatar>
-            <Text strong>{name}</Text>
+            <Avatar className="shrink-0">{name.charAt(0)}</Avatar>
+            <Flex vertical align="flex-start" gap={2}>
+              <Text strong>{name}</Text>
+              {/* On a phone the role column is hidden; show the role here instead. */}
+              <Tag className="m-0! sm:hidden!">{membership.role.replace(/-/g, " ")}</Tag>
+            </Flex>
           </Flex>
         )
       },
@@ -104,6 +125,7 @@ function ProjectTeam({
       title: "Project role",
       dataIndex: "role",
       key: "role",
+      responsive: ["sm"],
       render: (role: ProjectRole) => <Tag>{role.replace(/-/g, " ")}</Tag>,
     },
     {
@@ -113,7 +135,7 @@ function ProjectTeam({
       render: (_, membership) => (
         <Text type="secondary">
           {membership.scope.projectUnitIds.length
-            ? `${membership.scope.projectUnitIds.length} locations`
+            ? `${membership.scope.projectUnitIds.length} ${membership.scope.projectUnitIds.length === 1 ? "location" : "locations"}`
             : "Entire project"}
         </Text>
       ),
@@ -122,6 +144,7 @@ function ProjectTeam({
       title: "Status",
       dataIndex: "status",
       key: "status",
+      responsive: ["sm"],
       render: (status: ProjectMembership["status"]) => (
         <Tag color={status === "active" ? "success" : "processing"}>
           {status === "invited"
@@ -131,6 +154,16 @@ function ProjectTeam({
               : "Inactive"}
         </Tag>
       ),
+    },
+    {
+      key: "message",
+      title: "",
+      render: (_: unknown, member: ProjectMembership) =>
+        canDm(member) ? (
+          <Button size="small" icon={<MessageOutlined />} onClick={() => message(member)}>
+            Message
+          </Button>
+        ) : null,
     },
   ]
 
@@ -194,7 +227,6 @@ function ProjectTeam({
               columns={columns}
               dataSource={memberships}
               pagination={false}
-              scroll={{ x: 640 }}
             />
           ) : (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No members yet">

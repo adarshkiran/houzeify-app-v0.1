@@ -1,5 +1,4 @@
 import {
-  CalendarOutlined,
   EnvironmentOutlined,
   ProjectOutlined,
 } from "@ant-design/icons"
@@ -136,12 +135,12 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item label="Start date" name="startDate">
-                  <Input type="date" prefix={<CalendarOutlined />} />
+                  <Input type="date" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item label="Target completion" name="targetDate">
-                  <Input type="date" prefix={<CalendarOutlined />} />
+                  <Input type="date" />
                 </Form.Item>
               </Col>
             </Row>

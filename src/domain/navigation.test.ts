@@ -178,6 +178,7 @@ describe("resolveRoute", () => {
       "work-plan",
       "tasks",
       "issues",
+      "project-messages",
       "daily-progress-submit",
       "daily-progress-review",
       "customer-daily-update",

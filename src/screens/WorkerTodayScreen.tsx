@@ -3,8 +3,9 @@ import {
   CalendarOutlined,
   EnvironmentOutlined,
   LogoutOutlined,
+  MessageOutlined,
 } from "@ant-design/icons"
-import { Alert, Button, Card, Flex, Tag, Typography } from "antd"
+import { Alert, Badge, Button, Card, Flex, Tag, Typography } from "antd"
 import WorkerShell from "../components/worker/WorkerShell"
 import {
   priorityColor,
@@ -15,6 +16,7 @@ import type { Task } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { workerDay, workerNextAction } from "../domain/workerTasks"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
+import { getUnreadTotal } from "../mock/conversationSelectors"
 import {
   getChangesRequested,
   getMyMembershipIds,
@@ -294,12 +296,23 @@ export default function WorkerTodayScreen({
 }: {
   onNavigate: Navigate
 }) {
+  const { state } = useConstructionData()
+  const { session } = useSession()
+  const unread = getUnreadTotal(state, session)
   return (
     <WorkerShell
       headerAction={
-        <Button icon={<LogoutOutlined />} onClick={() => onNavigate("welcome")}>
-          Sign out
-        </Button>
+        <Flex gap="small">
+          <Badge count={unread} size="small">
+            <Button icon={<MessageOutlined />} onClick={() => onNavigate("worker-messages")}>
+              Messages
+            </Button>
+          </Badge>
+          {/* Icon only on a phone, so the header doesn't crowd the logo. */}
+          <Button icon={<LogoutOutlined />} aria-label="Sign out" onClick={() => onNavigate("welcome")}>
+            <span className="max-sm:hidden!">Sign out</span>
+          </Button>
+        </Flex>
       }
     >
       <Today onNavigate={onNavigate} />

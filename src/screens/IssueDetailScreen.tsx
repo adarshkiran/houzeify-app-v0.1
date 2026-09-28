@@ -3,6 +3,7 @@ import { Alert, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Space
 import { useState } from "react"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import ThreadPanel from "../components/conversations/ThreadPanel"
 import EvidenceThumb from "../components/EvidenceThumb"
 import Gated from "../components/Gated"
 import { issueActionLabel, issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
@@ -162,6 +163,17 @@ function IssueDetail({
                 )}
               </Card>
 
+              <Card title={<Title level={5} className="company-heading! m-0!">Discussion</Title>}>
+                <ThreadPanel
+                  key={issue.id}
+                  compact
+                  projectId={projectId}
+                  subject="issue"
+                  targetId={issue.id}
+                  emptyText="No messages about this issue yet."
+                />
+              </Card>
+
               {issue.resolutionNote ? (
                 <Card title={<Title level={5} className="company-heading! m-0!">Resolution</Title>}>
                   <Paragraph className="m-0!">{issue.resolutionNote}</Paragraph>
@@ -175,13 +187,13 @@ function IssueDetail({
               <Card title={<Title level={5} className="company-heading! m-0!">Details</Title>}>
                 <Flex vertical gap="small">
                   <Flex justify="space-between"><Text type="secondary">Location</Text><Text>{unit?.name ?? "Whole project"}</Text></Flex>
-                  <Flex justify="space-between" align="center">
-                    <Text type="secondary">Task</Text>
+                  <Flex justify="space-between" align="center" gap="middle">
+                    <Text type="secondary" className="shrink-0">Task</Text>
                     {issue.taskId ? (
                       task ? (
                         <Button
                           type="link"
-                          className="p-0!"
+                          className="p-0! h-auto! whitespace-normal! text-right!"
                           onClick={() => onNavigate("task-detail", { project_id: projectId, task_id: task.id })}
                         >
                           {task.title}

@@ -1,4 +1,6 @@
 import { ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
+import { clickableRow, stopRowClick } from "../components/company/clickableRow"
+import { countLabel } from "../components/countLabel"
 import { Button, Card, Flex, Input, Select, Table, Tag, Typography } from "antd"
 import type { TableProps } from "antd"
 import { useMemo, useState } from "react"
@@ -75,7 +77,8 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
       render: (_, issue) => (
         <Flex vertical gap={2}>
           <Text strong>{issue.title}</Text>
-          <Text type="secondary" ellipsis style={{ maxWidth: 360 }}>
+          {/* Two lines at most; wraps on a phone instead of forcing the table wider. */}
+          <Text type="secondary" className="line-clamp-2" style={{ maxWidth: 360 }}>
             {issue.description || "No details"}
           </Text>
         </Flex>
@@ -85,6 +88,7 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
       title: "Severity",
       dataIndex: "severity",
       key: "severity",
+      responsive: ["sm"],
       render: (value: Issue["severity"]) => <Tag color={issueSeverityColor(value)}>{value}</Tag>,
     },
     {
@@ -121,14 +125,8 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
     {
       key: "action",
       width: 48,
-      render: (_, issue) => (
-        <Button
-          type="text"
-          aria-label={`Open ${issue.title}`}
-          icon={<ArrowRightOutlined />}
-          onClick={() => onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })}
-        />
-      ),
+      // The whole row opens the issue; the arrow is just the hint.
+      render: () => <ArrowRightOutlined aria-hidden className="clickable-row-arrow" />,
     },
   ]
 
@@ -184,15 +182,20 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
 
         <Card
           title={<Title level={5} className="company-heading! m-0!">Issue register</Title>}
-          extra={<Text type="secondary">{issues.length} issues</Text>}
+          extra={<Text type="secondary">{countLabel(issues.length, "issue")}</Text>}
           classNames={{ body: "company-table-card-body" }}
         >
           <Table
             rowKey="id"
             columns={columns}
             dataSource={issues}
+            onRow={(issue) =>
+              clickableRow(
+                () => onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id }),
+                `Open ${issue.title}`,
+              )
+            }
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 780 }}
           />
         </Card>
       </Flex>
