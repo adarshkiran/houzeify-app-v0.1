@@ -627,18 +627,16 @@ html, body, #root {
   --ant-tag-default-bg: var(--ant-color-bg-container);
 }
 
-/* Project hero: soft pastel mesh (mint, peach, pink, lavender, sky) on warm
-   cream. Colours stay light where the title and text sit (left/middle). */
+/* Project hero: a single soft sky-blue wash fading to white (light at the
+   top-left where the title sits, deepest towards the right). */
 .project-overview-hero {
-  border-color: #f1e9f5;
-  background-color: #fffaf5;
+  border-color: #e6f0fb;
+  background-color: #ffffff;
   background-image:
-    radial-gradient(38% 85% at 100% 0%, rgba(196, 238, 228, 0.9) 0%, transparent 70%),
-    radial-gradient(30% 75% at 78% 58%, rgba(250, 200, 214, 0.75) 0%, transparent 70%),
-    radial-gradient(34% 90% at 100% 100%, rgba(176, 184, 250, 0.7) 0%, transparent 70%),
-    radial-gradient(42% 80% at 62% 120%, rgba(190, 232, 252, 0.8) 0%, transparent 70%),
-    radial-gradient(26% 90% at 0% 85%, rgba(206, 244, 234, 0.8) 0%, transparent 70%),
-    radial-gradient(45% 70% at 35% 15%, rgba(255, 246, 236, 1) 0%, transparent 75%);
+    radial-gradient(55% 120% at 80% 55%, rgba(214, 233, 252, 0.95) 0%, rgba(214, 233, 252, 0) 70%),
+    radial-gradient(40% 90% at 100% 100%, rgba(222, 238, 253, 0.9) 0%, rgba(222, 238, 253, 0) 70%),
+    radial-gradient(35% 80% at 30% 90%, rgba(230, 242, 253, 0.7) 0%, rgba(230, 242, 253, 0) 70%),
+    linear-gradient(160deg, #ffffff 0%, #fbfdff 35%, #f2f8fe 100%);
 }
 
 .project-narrative-card {
