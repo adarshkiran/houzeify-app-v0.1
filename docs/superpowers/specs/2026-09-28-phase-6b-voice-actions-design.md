@@ -33,7 +33,7 @@ interface VoiceContext {
   projectId: EntityId
   units: ProjectUnit[]            // the project's locations
   workTypes: WorkType[]           // Work Library
-  members: { membershipId: EntityId; name: string; role: ProjectRole }[]
+  people: { id: EntityId; name: string }[]   // the project's workers (assignable)
   tasks: Task[]                   // open tasks of the project (for issue links)
   currentTaskId?: EntityId        // when opened from a task / task thread
 }
@@ -52,7 +52,7 @@ interface VoiceDraft<T> {
 }
 ```
 
-The extractor is one function type, `(text, kind, context) => VoiceDraft`. The rules implementation lives in `src/domain/voice/` (pure, no React), split into small helpers per concern (dates, people, locations, work types, quantities, severity/priority, progress split, title cleanup). An AI extractor later implements the same type.
+The extractor is one function type, `(text, kind, context) => VoiceDraft`. The rules implementation lives in `src/domain/voice/` (pure, no React), split into small helpers per concern (dates, people, locations, work types, quantities, severity/priority, progress split, title cleanup). An AI extractor later implements the same type. Implemented as an object `VoiceExtractor` with `task` / `issue` / `progress` methods; screens use the exported `voiceExtractor` instance.
 
 ### Rules (English; speech recognised as en-IN)
 

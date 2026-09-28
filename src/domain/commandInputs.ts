@@ -4,6 +4,7 @@ import type {
   Evidence,
   Issue,
   EvidenceType,
+  MessageSource,
   Organization,
   ProjectKind,
   ProjectRole,
@@ -79,6 +80,8 @@ export interface CreateTaskInput {
   plannedQuantity?: Quantity
   plannedStart?: string
   dueDate?: string
+  /** Created from a conversation message (checked: exists, same project, readable). */
+  source?: MessageSource
 }
 
 export interface AddEvidenceInput {
@@ -196,4 +199,6 @@ export interface ReportIssueInput {
   description: string
   severity: Issue["severity"]
   evidence?: IssueEvidenceInput[]
+  /** Created from a conversation message (checked: exists, same project, readable). */
+  source?: MessageSource
 }

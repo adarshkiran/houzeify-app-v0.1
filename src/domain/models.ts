@@ -175,6 +175,12 @@ export interface TaskChecklistItem {
   completed: boolean
 }
 
+/** The conversation message a task or issue was created from (Phase 6B). */
+export interface MessageSource {
+  threadId: EntityId
+  messageId: EntityId
+}
+
 export interface Task {
   id: EntityId
   projectId: EntityId
@@ -191,6 +197,8 @@ export interface Task {
   plannedStart?: ISODate
   dueDate?: ISODate
   checklist: TaskChecklistItem[]
+  /** The conversation message this was created from, if any. */
+  source?: MessageSource
   createdByMembershipId: EntityId
   createdAt: ISODateTime
   updatedAt: ISODateTime
@@ -289,6 +297,8 @@ export interface Issue {
   taskId?: EntityId
   /** The daily progress record this was raised from, if any. */
   dailyProgressId?: EntityId
+  /** The conversation message this was created from, if any. */
+  source?: MessageSource
   title: string
   description: string
   severity: "low" | "medium" | "high" | "critical"
