@@ -610,21 +610,25 @@ html, body, #root {
   height: 100%;
 }
 
-/* An empty day: a light dash centred in the card, with a short caption under it. */
+/* An empty day: a light dash centred in the card, the reason as its footer. */
 .note-empty {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding-block: 4px;
 }
 
 .note-empty-dash {
+  flex: 1;
+  display: flex;
+  align-items: center;
   font-size: var(--ant-font-size-heading-3);
   line-height: 1;
   color: var(--ant-color-text-quaternary);
+}
+
+.note-empty-caption {
+  font-size: var(--ant-font-size-sm) !important;
 }
 
 /* Day timeline: date strip (three days each side of the selected date).

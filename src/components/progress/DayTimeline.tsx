@@ -189,7 +189,7 @@ export default function DayTimeline({
                 {story.kind === "empty" ? (
                   <div className="note-empty">
                     <span className="note-empty-dash" aria-hidden>—</span>
-                    <Text type="secondary" className="text-[12px]!">{story.message}</Text>
+                    <Text type="secondary" className="note-empty-caption">{story.message}</Text>
                   </div>
                 ) : (
                   <Flex vertical gap="middle">
