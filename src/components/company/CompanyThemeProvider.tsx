@@ -10,7 +10,8 @@ const houzeifyCompanyTheme = {
     colorWarning: "#D97706",
     colorError: "#DC2626",
     colorBgBase: "#FFFFFF",
-    colorBgLayout: "#FBF9F7",
+    // Page background: a light blue at the same lightness as the old warm grey.
+    colorBgLayout: "#F5F8FD",
     colorText: "#1C1917",
     colorTextSecondary: "#6B7280",
     colorBorder: "#E7E5E4",
@@ -26,7 +27,7 @@ const houzeifyCompanyTheme = {
       headerColor: "#1C1917",
       headerHeight: 64,
       headerPadding: "0 24px",
-      bodyBg: "#FBF9F7",
+      bodyBg: "#F5F8FD",
       lightSiderBg: "#FFFFFF",
       siderBg: "#FFFFFF",
     },
