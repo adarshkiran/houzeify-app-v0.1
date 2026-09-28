@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
 import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
 import type { DailyProgress, ISODate, Task } from "../../domain/models"
@@ -14,6 +14,9 @@ const weekday = (date: ISODate) => fmt(date, { weekday: "short" })
 const longLabel = formatDay
 
 /** Coloured tags (dark text on a light fill + border) stay readable on the tinted Today card. */
+/** Width one day needs in the strip (48px button + breathing room). */
+const DAY_SLOT = 60
+
 const STORY_TAG = {
   planned: { label: "Planned", color: "blue", icon: <ClockCircleOutlined /> },
   scheduled: { label: "Scheduled tasks", color: "cyan", icon: <CalendarOutlined /> },
@@ -115,6 +118,27 @@ export default function DayTimeline({
   const blockerOn = (note: DayNote, date: ISODate) =>
     updates.find((u) => u.id === note.progressId && u.date === date)?.blockerSummary
 
+  // Show as many days either side as the strip has room for (1 on a phone, up to a week).
+  const stripRef = useRef<HTMLDivElement>(null)
+  const centerRef = useRef<HTMLDivElement>(null)
+  const [perSide, setPerSide] = useState(3)
+  useEffect(() => {
+    const strip = stripRef.current
+    if (!strip || typeof ResizeObserver === "undefined") return
+    const measure = () => {
+      const center = centerRef.current?.offsetWidth ?? 200
+      const chrome = 2 * 40 + 16 // arrow buttons and padding
+      const fit = Math.floor((strip.clientWidth - center - chrome) / 2 / DAY_SLOT)
+      setPerSide(Math.max(1, Math.min(7, fit)))
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(strip)
+    measure()
+    return () => observer.disconnect()
+  }, [])
+  const before = Array.from({ length: perSide }, (_, i) => i - perSide)
+  const after = Array.from({ length: perSide }, (_, i) => i + 1)
+
   const pill = (offset: number) => {
     const date = addDays(selected, offset)
     return (
@@ -123,7 +147,6 @@ export default function DayTimeline({
         type="button"
         className={[
           "day-strip-day",
-          Math.abs(offset) > 1 && "is-far",
           date === today && "is-today",
         ]
           .filter(Boolean)
@@ -150,10 +173,10 @@ export default function DayTimeline({
 
   return (
     <Flex vertical gap="middle">
-      <div className="day-strip">
+      <div ref={stripRef} className="day-strip">
         <Button type="text" shape="circle" icon={<LeftOutlined />} aria-label="Previous week" onClick={() => setSelected(addDays(selected, -7))} />
-        <div className="day-strip-side">{[-3, -2, -1].map(pill)}</div>
-        <Flex align="center" justify="center" gap={8} className="day-strip-center">
+        <div className="day-strip-side">{before.map(pill)}</div>
+        <Flex ref={centerRef} align="center" justify="center" gap={8} className="day-strip-center">
           <span className="day-strip-selected" aria-live="polite">{longLabel(selected)}</span>
           <Popover
             open={pickerOpen}
@@ -176,7 +199,7 @@ export default function DayTimeline({
             <Button type="text" shape="circle" icon={<CalendarOutlined />} aria-label="Pick a date" className="text-[18px]!" />
           </Popover>
         </Flex>
-        <div className="day-strip-side">{[1, 2, 3].map(pill)}</div>
+        <div className="day-strip-side">{after.map(pill)}</div>
         <Button type="text" shape="circle" icon={<RightOutlined />} aria-label="Next week" onClick={() => setSelected(addDays(selected, 7))} />
       </div>
 

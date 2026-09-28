@@ -733,10 +733,6 @@ html, body, #root {
     padding: 8px 4px;
   }
 
-  .day-strip-day.is-far {
-    display: none;
-  }
-
   .day-strip-day {
     min-width: 40px;
     padding: 4px;
