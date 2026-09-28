@@ -203,11 +203,11 @@ export const logCall =
   (state, ctx) => {
     const thread = state.threads.find((item) => item.id === input.threadId)
     if (!thread) throw new PermissionError(Permissions.PROJECT_READ)
+    const me = readerMembership(state, ctx.actor, thread)
+    if (!me) throw new PermissionError(Permissions.PROJECT_READ, thread.projectId)
     if (thread.subject !== "direct") {
       throw new IntegrityError(`Thread ${thread.id} is not a direct thread`)
     }
-    const me = readerMembership(state, ctx.actor, thread)
-    if (!me) throw new PermissionError(Permissions.PROJECT_READ, thread.projectId)
     const otherId = thread.participantMembershipIds?.find((id) => id !== me.id)
     if (!otherId) throw new IntegrityError(`Direct thread ${thread.id} has no other participant`)
 

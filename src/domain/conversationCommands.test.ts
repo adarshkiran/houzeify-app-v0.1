@@ -198,6 +198,10 @@ describe("logCall", () => {
     expect(() => run(seed, arjun, logCall({ ...input, threadId: "thread-sharma-project" }))).toThrow(IntegrityError)
   })
 
+  it("authorizes before checking thread kind: an unauthorized caller gets PermissionError, not IntegrityError", () => {
+    expect(() => run(seed, homeowner, logCall({ ...input, threadId: "thread-sharma-project" }))).toThrow(PermissionError)
+  })
+
   it("refuses a missing or negative duration", () => {
     expect(() => run(seed, arjun, logCall({ ...input, durationMinutes: -1 }))).toThrow(ConflictError)
     // @ts-expect-error -- exercising the runtime guard for missing input
