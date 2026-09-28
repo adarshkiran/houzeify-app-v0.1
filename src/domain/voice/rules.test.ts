@@ -76,6 +76,12 @@ describe("findPerson", () => {
   it("reports an unknown name after assign/ask/tell", () => {
     expect(findPerson("assign to Mahesh", people)).toMatchObject({ kind: "unknown", name: "Mahesh" })
   })
+  it("catches a lowercase unknown name after assign/ask/tell", () => {
+    expect(findPerson("assign to mahesh", people)).toMatchObject({ kind: "unknown", name: "Mahesh" })
+  })
+  it("ignores non-name words after assign/ask/tell", () => {
+    expect(findPerson("ask them to check the lintel", people)).toBeUndefined()
+  })
   it("returns nothing when no one is named", () => {
     expect(findPerson("pour the columns tomorrow", people)).toBeUndefined()
   })

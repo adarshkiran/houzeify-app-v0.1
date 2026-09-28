@@ -88,6 +88,11 @@ export function findQuantity(text: string) {
   return undefined
 }
 
+const NON_NAME_WORDS = new Set([
+  "them", "him", "her", "someone", "somebody", "everyone", "anyone",
+  "the", "a", "an", "team", "worker", "workers", "supervisor", "contractor", "it", "me", "us", "to",
+])
+
 export function findPerson(text: string, people: VoicePerson[]) {
   const lower = text.toLowerCase()
   const full = people.filter((p) => new RegExp(`\\b${escape(p.name.toLowerCase())}\\b`).test(lower))
@@ -105,8 +110,15 @@ export function findPerson(text: string, people: VoicePerson[]) {
       ? { kind: "one" as const, person: group[0]!, matched }
       : { kind: "many" as const, options: group, matched }
   }
-  const unknown = text.match(/\b(?:assign(?:ed)? (?:it )?to|ask|tell)\s+([A-Z][a-z]+)/)
-  if (unknown) return { kind: "unknown" as const, name: unknown[1]!, matched: unknown[1]! }
+  const unknown = text.match(/\b(?:assign(?:ed)? (?:it )?to|ask|tell)\s+([a-z]+)/i)
+  if (unknown && !NON_NAME_WORDS.has(unknown[1]!.toLowerCase())) {
+    const name = unknown[1]!
+    return {
+      kind: "unknown" as const,
+      name: name[0]!.toUpperCase() + name.slice(1).toLowerCase(),
+      matched: unknown[1]!,
+    }
+  }
   return undefined
 }
 
