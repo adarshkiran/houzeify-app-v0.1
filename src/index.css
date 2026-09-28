@@ -595,6 +595,17 @@ html, body, #root {
   background: var(--ant-color-primary-bg);
 }
 
+/* Plain (uncoloured) tags are beige by default, which blends into the purple
+   tint of selected rows and the Today card. Make them white there. Coloured
+   tags keep their own colours. */
+.project-narrative-today .ant-tag,
+.progress-queue-item.is-active .ant-tag,
+.conversation-item.is-active .ant-tag,
+.company-dashboard .company-hozie-card .ant-tag {
+  /* Ant Design declares this on the tag itself, so set it there. */
+  --ant-tag-default-bg: var(--ant-color-bg-container);
+}
+
 .project-overview-hero {
   background:
     linear-gradient(135deg, var(--ant-color-primary-bg) 0%, var(--ant-color-bg-container) 52%);
