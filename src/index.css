@@ -607,7 +607,7 @@ html, body, #root {
 
 /* Day timeline: date strip (three days each side of the selected date).
    Radius and type follow the theme tokens: card radius (LG), control radius,
-   and the Ant Design type scale (SM 12 / LG 16 / heading-3 24). */
+   and the Ant Design type scale (SM 12 / LG 16 / heading-4 20). */
 .day-strip {
   display: flex;
   align-items: center;
@@ -631,9 +631,9 @@ html, body, #root {
 }
 
 .day-strip-selected {
-  font-size: var(--ant-font-size-heading-3);
+  font-size: var(--ant-font-size-heading-4);
   font-weight: 600;
-  line-height: var(--ant-line-height-heading-3);
+  line-height: var(--ant-line-height-heading-4);
   color: var(--ant-color-text);
   white-space: nowrap;
 }
