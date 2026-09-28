@@ -1,5 +1,6 @@
 import { readerMembership, unreadCount } from "../domain/conversations"
 import type {
+  CallLog,
   ConstructionDataState,
   EntityId,
   Message,
@@ -101,4 +102,21 @@ export function threadTitle(
       return getMembershipName(state, otherId) ?? "Direct message"
     }
   }
+}
+
+export type TimelineEntry =
+  | { kind: "message"; at: string; message: Message }
+  | { kind: "call"; at: string; call: CallLog }
+
+/** A direct thread's messages and logged calls, oldest → newest. */
+export function getThreadTimeline(state: ConstructionDataState, threadId: EntityId): TimelineEntry[] {
+  const messages: TimelineEntry[] = getThreadMessages(state, threadId).map((message) => ({
+    kind: "message",
+    at: message.createdAt,
+    message,
+  }))
+  const calls: TimelineEntry[] = state.callLogs
+    .filter((call) => call.threadId === threadId)
+    .map((call) => ({ kind: "call", at: call.startedAt, call }))
+  return [...messages, ...calls].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 }
