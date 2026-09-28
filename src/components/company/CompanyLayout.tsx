@@ -109,7 +109,7 @@ export default function CompanyLayout({
   let heading: { title: string; subtitle: string }
   if (nav.menu === "company") {
     heading = {
-      title: title ?? COMPANY_NAV.find((item) => item.key === nav.active)?.label ?? "Home",
+      title: title ?? COMPANY_NAV.find((item) => item.key === nav.active)?.label ?? "Dashboard",
       subtitle: description ?? "Company workspace",
     }
     const projectCount = session?.organizationId
