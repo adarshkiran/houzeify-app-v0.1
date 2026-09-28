@@ -1356,3 +1356,14 @@ html, body, #root {
     max-width: 88%;
   }
 }
+
+/* "You said: …" above a voice-filled form. */
+.voice-draft-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-fill-quaternary);
+}
