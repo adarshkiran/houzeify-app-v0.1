@@ -9,9 +9,10 @@ import {
 } from "react"
 import type * as Inputs from "../domain/commandInputs"
 import * as conversationCommands from "../domain/conversationCommands"
-import type { PostMessageInput } from "../domain/conversationCommands"
+import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
 import * as commands from "../domain/constructionCommands"
 import type {
+  CallLog,
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
@@ -130,6 +131,7 @@ interface ConstructionDataContextValue {
     items: Inputs.IssueEvidenceInput[],
   ) => Evidence[]
   postMessage: (input: PostMessageInput) => Message
+  logCall: (input: LogCallInput) => CallLog
   openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
   markThreadRead: (threadId: EntityId) => void
   markThreadUnread: (threadId: EntityId) => void
@@ -228,6 +230,7 @@ export default function ConstructionDataProvider({
       addIssueEvidence: (id, items) =>
         run(commands.addIssueEvidence(id, items)),
       postMessage: (input) => run(conversationCommands.postMessage(input)),
+      logCall: (input) => run(conversationCommands.logCall(input)),
       openDirectThread: (projectId, otherId) =>
         run(conversationCommands.openDirectThread(projectId, otherId)),
       markThreadRead: (threadId) =>
