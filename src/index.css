@@ -591,8 +591,14 @@ html, body, #root {
 }
 
 .business-onboarding-note,
+/* The card dated today: the same soft sky-blue wash as the project hero. */
 .project-narrative-today {
-  background: var(--ant-color-primary-bg);
+  border-color: #e6f0fb !important;
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(70% 110% at 85% 60%, rgba(214, 233, 252, 0.95) 0%, rgba(214, 233, 252, 0) 72%),
+    radial-gradient(50% 80% at 100% 100%, rgba(222, 238, 253, 0.9) 0%, rgba(222, 238, 253, 0) 70%),
+    linear-gradient(160deg, #ffffff 0%, #fbfdff 35%, #f2f8fe 100%);
 }
 
 /* Table rows that open their record (projects, tasks, issues). */
