@@ -7,6 +7,7 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
+import KpiCard from "../components/company/KpiCard"
 import DayTimeline from "../components/progress/DayTimeline"
 import {
   Avatar,
@@ -18,7 +19,6 @@ import {
   Progress,
   Row,
   Space,
-  Statistic,
   Tag,
   Typography,
 } from "antd"
@@ -160,26 +160,44 @@ function ProjectOverview({
           </Row>
         </Card>
 
+        {/* Same soft KPI cards as the dashboard, one colour each. */}
         <Row gutter={[16, 16]}>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Open tasks" value={openTasks.length} prefix={<CheckSquareOutlined />} />
-            </Card>
+            <KpiCard
+              label="Open Tasks"
+              value={openTasks.length}
+              description="Work requiring attention"
+              icon={<CheckSquareOutlined />}
+              tone="amber"
+            />
           </Col>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Open issues" value={openIssues.length} prefix={<ExclamationCircleOutlined />} />
-            </Card>
+            <KpiCard
+              label="Open Issues"
+              value={openIssues.length}
+              accent={String(openIssues.filter((issue) => issue.severity === "high" || issue.severity === "critical").length)}
+              description="high severity"
+              icon={<ExclamationCircleOutlined />}
+              tone="rose"
+            />
           </Col>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Locations" value={units.length} prefix={<ProjectOutlined />} />
-            </Card>
+            <KpiCard
+              label="Locations"
+              value={units.length}
+              description="Units and areas on site"
+              icon={<ProjectOutlined />}
+              tone="violet"
+            />
           </Col>
           <Col xs={12} lg={6}>
-            <Card>
-              <Statistic title="Project team" value={memberships.length} prefix={<TeamOutlined />} />
-            </Card>
+            <KpiCard
+              label="Project Team"
+              value={memberships.length}
+              description="People on this project"
+              icon={<TeamOutlined />}
+              tone="green"
+            />
           </Col>
         </Row>
 
