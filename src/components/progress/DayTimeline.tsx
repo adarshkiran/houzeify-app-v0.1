@@ -209,7 +209,7 @@ export default function DayTimeline({
           const story = stories[index]!
           return (
             <Col key={offset} xs={24} md={8}>
-              <NoteCard label={label} date={date} emphasis={offset === 0}>
+              <NoteCard label={label} date={date}>
                 {story.kind === "empty" ? (
                   <div className="note-empty">
                     <span className="note-empty-dash" aria-hidden>—</span>

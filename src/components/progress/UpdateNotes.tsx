@@ -1,24 +1,26 @@
 import type { ReactNode } from "react"
 import { Card, Col, Flex, Row, Typography } from "antd"
 import type { DailyProgress } from "../../domain/models"
-import { addDays, formatDay } from "../../mock/dayStory"
+import { addDays, formatDay, localToday } from "../../mock/dayStory"
 
 const { Text } = Typography
 
-/** One Yesterday / Today / Tomorrow card: label left, calendar date right. */
+/**
+ * One Yesterday / Today / Tomorrow card: label left, calendar date right.
+ * Only the card for the real current date is tinted, wherever it sits.
+ */
 export function NoteCard({
   label,
   date,
-  emphasis,
   children,
 }: {
   label: string
   date: string
-  emphasis?: boolean
   children: ReactNode
 }) {
+  const isToday = date === localToday()
   return (
-    <Card size="small" className={emphasis ? "project-narrative-card project-narrative-today" : "project-narrative-card"}>
+    <Card size="small" className={isToday ? "project-narrative-card project-narrative-today" : "project-narrative-card"}>
       <Flex vertical gap="small" className="h-full">
         <Flex align="baseline" justify="space-between" gap="small">
           <Text className="company-eyebrow">{label}</Text>
@@ -51,7 +53,7 @@ export default function UpdateNotes({
           empty: "No previous-day note was included.",
         }]
       : []),
-    { label: "Today", date: progress.date, text: progress.todaySummary, empty: "No note.", emphasis: true },
+    { label: "Today", date: progress.date, text: progress.todaySummary, empty: "No note." },
     { label: "Tomorrow", date: addDays(progress.date, 1), text: progress.tomorrowPlan, empty: "No plan was included." },
   ]
   const span = 24 / notes.length
@@ -60,7 +62,7 @@ export default function UpdateNotes({
     <Row gutter={[12, 12]}>
       {notes.map((note) => (
         <Col key={note.label} xs={24} md={span}>
-          <NoteCard label={note.label} date={note.date} emphasis={note.emphasis}>
+          <NoteCard label={note.label} date={note.date}>
             {note.text?.trim() ? <Text>{note.text}</Text> : <Text type="secondary">{note.empty}</Text>}
           </NoteCard>
         </Col>
