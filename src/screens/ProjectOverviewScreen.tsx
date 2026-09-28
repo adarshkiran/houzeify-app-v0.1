@@ -25,7 +25,7 @@ import {
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import { reviewStatusLabel } from "../components/progress/progressLabels"
-import type { EntityId } from "../domain/models"
+import type { EntityId, ProjectUnit } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
@@ -42,6 +42,13 @@ import {
 import { useScopedData } from "../session/useScopedData"
 
 const { Paragraph, Text, Title } = Typography
+
+/** Unit status tags use the same colours as project statuses elsewhere. */
+const UNIT_STATUS: Record<ProjectUnit["status"], { text: string; color: string }> = {
+  planned: { text: "Planned", color: "processing" },
+  active: { text: "Active", color: "success" },
+  completed: { text: "Completed", color: "purple" },
+}
 
 function formatDate(value?: string) {
   if (!value) return "Not set"
@@ -280,7 +287,7 @@ function ProjectOverview({
                           <Text type="secondary">{unit.kind}</Text>
                         </Flex>
                       </Flex>
-                      <Tag>{unit.status}</Tag>
+                      <Tag color={UNIT_STATUS[unit.status].color} className="m-0!">{UNIT_STATUS[unit.status].text}</Tag>
                     </Flex>
                   )}
                 />
