@@ -10,8 +10,7 @@ const houzeifyCompanyTheme = {
     colorWarning: "#D97706",
     colorError: "#DC2626",
     colorBgBase: "#FFFFFF",
-    // Page background: soft light blue, deep enough for white cards to stand out.
-    colorBgLayout: "#F1F5FB",
+    colorBgLayout: "#FBF9F7",
     colorText: "#1C1917",
     colorTextSecondary: "#6B7280",
     colorBorder: "#E7E5E4",
@@ -27,7 +26,7 @@ const houzeifyCompanyTheme = {
       headerColor: "#1C1917",
       headerHeight: 64,
       headerPadding: "0 24px",
-      bodyBg: "#F1F5FB",
+      bodyBg: "#FBF9F7",
       lightSiderBg: "#FFFFFF",
       siderBg: "#FFFFFF",
     },
