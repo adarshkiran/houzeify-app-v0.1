@@ -1,4 +1,5 @@
 import { ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
+import { countLabel } from "../components/countLabel"
 import { Button, Card, Flex, Input, Select, Table, Tag, Typography } from "antd"
 import type { TableProps } from "antd"
 import { useMemo, useState } from "react"
@@ -75,7 +76,8 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
       render: (_, issue) => (
         <Flex vertical gap={2}>
           <Text strong>{issue.title}</Text>
-          <Text type="secondary" ellipsis style={{ maxWidth: 360 }}>
+          {/* Two lines at most; wraps on a phone instead of forcing the table wider. */}
+          <Text type="secondary" className="line-clamp-2" style={{ maxWidth: 360 }}>
             {issue.description || "No details"}
           </Text>
         </Flex>
@@ -85,6 +87,7 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
       title: "Severity",
       dataIndex: "severity",
       key: "severity",
+      responsive: ["sm"],
       render: (value: Issue["severity"]) => <Tag color={issueSeverityColor(value)}>{value}</Tag>,
     },
     {
@@ -184,7 +187,7 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
 
         <Card
           title={<Title level={5} className="company-heading! m-0!">Issue register</Title>}
-          extra={<Text type="secondary">{issues.length} issues</Text>}
+          extra={<Text type="secondary">{countLabel(issues.length, "issue")}</Text>}
           classNames={{ body: "company-table-card-body" }}
         >
           <Table
@@ -192,7 +195,6 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
             columns={columns}
             dataSource={issues}
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 780 }}
           />
         </Card>
       </Flex>

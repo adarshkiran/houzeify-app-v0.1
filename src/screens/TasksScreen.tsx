@@ -1,4 +1,5 @@
 import Gated from "../components/Gated"
+import { countLabel } from "../components/countLabel"
 import { Permissions } from "../domain/permissions"
 import { useAccess, useActableUnits } from "../session/useCan"
 import { useScopedLibrary } from "../session/useScopedLibrary"
@@ -156,6 +157,7 @@ function Tasks({
       title: "Priority",
       dataIndex: "priority",
       key: "priority",
+      responsive: ["sm"],
       render: (priority: Task["priority"]) => (
         <Tag color={priority === "high" || priority === "critical" ? "error" : "default"}>
           {priority}
@@ -274,7 +276,7 @@ function Tasks({
               Task register
             </Title>
           }
-          extra={<Text type="secondary">{filteredTasks.length} tasks</Text>}
+          extra={<Text type="secondary">{countLabel(filteredTasks.length, "task")}</Text>}
           classNames={{ body: "company-table-card-body" }}
         >
           <Table
@@ -282,7 +284,6 @@ function Tasks({
             columns={columns}
             dataSource={filteredTasks}
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 780 }}
           />
         </Card>
       </Flex>

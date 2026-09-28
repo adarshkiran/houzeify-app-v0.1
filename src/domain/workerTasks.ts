@@ -4,6 +4,7 @@ import type {
   EvidenceType,
   Task,
   TaskAssignment,
+  TaskChecklistItem,
   TaskStatus,
   TaskTemplate,
   Worker,
@@ -180,6 +181,19 @@ export function templateForTask(
     state.taskTemplates.find((item) => item.id === task.templateId) ??
     state.taskTemplates.find((item) => item.workTypeId === task.workTypeId)
   )
+}
+
+/**
+ * The task's own checklist, or else its standard template's checks (unticked),
+ * so company and worker screens show the same list.
+ */
+export function taskChecklist(state: ConstructionDataState, task: Task): TaskChecklistItem[] {
+  if (task.checklist.length) return task.checklist
+  return (templateForTask(state, task)?.checklist ?? []).map((label, index) => ({
+    id: `template-${index}`,
+    label,
+    completed: false,
+  }))
 }
 
 /**

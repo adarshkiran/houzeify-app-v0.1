@@ -11,6 +11,7 @@ import { parseStoredSession, PermissionError, type Session } from "./session"
 import {
   findWorkerByPhone,
   pathToInProgress,
+  taskChecklist,
   workerDay,
   workerForSession,
   workerNextAction,
@@ -402,5 +403,20 @@ describe("assigning sign-in-capable workers", () => {
       projectId: "project-reddy",
     })(seed, ctxFor(manager))
     expect(state.memberships).toHaveLength(seed.memberships.length)
+  })
+})
+
+describe("taskChecklist", () => {
+  const task4 = seedConstructionData.tasks.find((task) => task.id === "task-4")!
+
+  it("falls back to the work type's standard template, unticked", () => {
+    const items = taskChecklist(seedConstructionData, task4)
+    expect(items.length).toBeGreaterThan(0)
+    expect(items.every((item) => !item.completed)).toBe(true)
+  })
+
+  it("prefers the task's own checklist", () => {
+    const own = { ...task4, checklist: [{ id: "c1", label: "Own check", completed: true }] }
+    expect(taskChecklist(seedConstructionData, own)).toEqual(own.checklist)
   })
 })

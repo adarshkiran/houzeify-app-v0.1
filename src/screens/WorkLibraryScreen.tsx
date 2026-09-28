@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { countLabel } from "../components/countLabel"
 import {
   PlusOutlined,
   SearchOutlined,
@@ -143,7 +144,7 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
     {
       title: "Trade",
       key: "trade",
-      render: (_, item) => <Text>{getTradeName(state, item.tradeId)}</Text>,
+      render: (_, item) => <Text className="whitespace-nowrap">{getTradeName(state, item.tradeId)}</Text>,
     },
     {
       title: "Default unit",
@@ -155,15 +156,18 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
     {
       title: "Template",
       key: "template",
-      responsive: ["md"],
+      width: 110,
+      // The templates panel beside the table has the details; show this only when there's room.
+      responsive: ["xxl"],
       render: (_, item) => {
         const template = state.taskTemplates.find(
           (entry) => entry.workTypeId === item.id,
         )
-        return (
-          <Text type="secondary">
-            {template ? template.name.replace(" — Standard", "") : "Missing"}
-          </Text>
+        // The template list on the right has the details; here, just whether one exists.
+        return template ? (
+          <Tag color="green" className="m-0!">{template.name.split(" — ").pop()}</Tag>
+        ) : (
+          <Tag color="orange" className="m-0!">Missing</Tag>
         )
       },
     },
@@ -242,7 +246,7 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
               }
               extra={
                 <Space size="small">
-                  <Text type="secondary">{workTypes.length} records</Text>
+                  <Text type="secondary">{countLabel(workTypes.length, "record")}</Text>
                   <Button
                     size="small"
                     type="link"
@@ -261,7 +265,6 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
                 columns={columns}
                 dataSource={workTypes}
                 pagination={{ pageSize: 12, showSizeChanger: false }}
-                scroll={{ x: 720 }}
               />
             </Card>
           </Col>
@@ -276,7 +279,7 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
                 </Title>
               }
               extra={
-                <Text type="secondary">{templates.length} templates</Text>
+                <Text type="secondary">{countLabel(templates.length, "template")}</Text>
               }
               classNames={{
                 body: "company-scroll-card-body-fill",
@@ -291,7 +294,7 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
                     <Text strong>{template.name}</Text>
                     <Text type="secondary" className="text-[13px]!">
                       {getWorkTypeName(state, template.workTypeId)} ·{" "}
-                      {template.checklist.length} checks ·{" "}
+                      {countLabel(template.checklist.length, "check")} ·{" "}
                       {template.requiredEvidence.join(", ")}
                     </Text>
                   </Flex>

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { taskChecklist, templateForTask } from "../domain/workerTasks"
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
@@ -128,6 +129,9 @@ function TaskDetail({
     if (outcome.ok) setAssigneeId(undefined)
   }
 
+  const checklist = taskChecklist(state, task)
+  const requiredEvidence = templateForTask(state, task)?.requiredEvidence ?? []
+
   return (
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "tasks" }}
@@ -246,9 +250,9 @@ function TaskDetail({
                   <Title level={5} className="company-heading! m-0!">Checklist</Title>
                 }
               >
-                {task.checklist.length ? (
+                {checklist.length ? (
                   <Flex vertical gap="middle">
-                    {task.checklist.map((item) => (
+                    {checklist.map((item) => (
                       <Checkbox key={item.id} checked={item.completed} disabled>
                         {item.label}
                       </Checkbox>
@@ -407,11 +411,15 @@ function TaskDetail({
                 }
               >
                 <Flex vertical gap="small">
-                  {state.taskTemplates
-                    .find((template) => template.id === task.templateId)
-                    ?.requiredEvidence.map((type) => (
-                      <Tag key={type} icon={<CheckSquareOutlined />}>{type}</Tag>
-                    )) ?? <Text type="secondary">No evidence rule configured.</Text>}
+                  {requiredEvidence.length ? (
+                    <Space wrap>
+                      {requiredEvidence.map((type) => (
+                        <Tag key={type} icon={<CheckSquareOutlined />}>{type}</Tag>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Text type="secondary">No evidence rule configured.</Text>
+                  )}
                 </Flex>
               </Card>
             </Flex>

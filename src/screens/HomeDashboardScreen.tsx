@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import HomeownerMobileMenu from '../components/HomeownerMobileMenu'
 import HIcon from '../components/HIcon'
 import LogoHorizontal from '../components/LogoHorizontal'
 
@@ -266,10 +267,11 @@ function Sidebar({
 
 // ─── Mobile Top Bar ────────────────────────────────────────────────────────────
 
-function MobileTopBar() {
+function MobileTopBar({ onNavigate }: { onNavigate: (screen: string, data?: Record<string, string>) => void }) {
   return (
     <div className="flex md:hidden h-14 items-center justify-between px-4 bg-white border-b border-[#E3DDD7] shrink-0 z-10">
       <div className="flex items-center gap-2.5">
+        <HomeownerMobileMenu active="home" onNavigate={onNavigate} />
         <HIcon size={26} />
         <span className="text-[16px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
           Home
@@ -324,11 +326,12 @@ function QuickAction({ label, icon, onClick }: { label: string; icon: React.Reac
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 h-[44px] px-3.5 rounded-[12px] border border-[#E3DDD7] bg-[#FBF9F7] text-[#242326] text-[13px] cursor-pointer transition-all duration-150 hover:bg-[#F3EAFF] hover:border-[#722ED1] hover:text-[#722ED1] whitespace-nowrap w-full justify-center sm:justify-start"
+      className="flex items-center gap-1.5 sm:gap-2 h-[44px] px-2.5 sm:px-3.5 min-w-0 rounded-[12px] border border-[#E3DDD7] bg-[#FBF9F7] text-[#242326] text-[13px] cursor-pointer transition-all duration-150 hover:bg-[#F3EAFF] hover:border-[#722ED1] hover:text-[#722ED1] whitespace-nowrap w-full justify-center sm:justify-start"
       style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
     >
-      <span className="text-[#9A949D] group-hover:text-[#722ED1]">{icon}</span>
-      {label}
+      {/* On a phone the chip is too narrow for icon + label, so the label wins. */}
+      <span className="shrink-0 max-sm:hidden text-[#9A949D] group-hover:text-[#722ED1]">{icon}</span>
+      <span className="truncate max-sm:text-[12.5px]">{label}</span>
     </button>
   )
 }
@@ -784,7 +787,7 @@ export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: st
       <AmbientBackground />
 
       {/* Mobile top bar */}
-      <MobileTopBar />
+      <MobileTopBar onNavigate={onNavigate} />
 
       {/* Body: sidebar + main */}
       <div className="flex flex-1 min-h-0 relative z-10">

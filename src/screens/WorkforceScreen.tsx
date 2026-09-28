@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { countLabel } from "../components/countLabel"
 import {
   PlusOutlined,
   SearchOutlined,
@@ -372,7 +373,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
             </Title>
           }
           extra={
-            <Text type="secondary">{filteredWorkers.length} workers</Text>
+            <Text type="secondary">{countLabel(filteredWorkers.length, "worker")}</Text>
           }
           classNames={{ body: "company-table-card-body-inset" }}
         >

@@ -111,8 +111,12 @@ function ProjectTeam({
         const name = getPrincipalName(membership) ?? "Unknown member"
         return (
           <Flex align="center" gap="small">
-            <Avatar>{name.charAt(0)}</Avatar>
-            <Text strong>{name}</Text>
+            <Avatar className="shrink-0">{name.charAt(0)}</Avatar>
+            <Flex vertical align="flex-start" gap={2}>
+              <Text strong>{name}</Text>
+              {/* On a phone the role column is hidden; show the role here instead. */}
+              <Tag className="m-0! sm:hidden!">{membership.role.replace(/-/g, " ")}</Tag>
+            </Flex>
           </Flex>
         )
       },
@@ -121,6 +125,7 @@ function ProjectTeam({
       title: "Project role",
       dataIndex: "role",
       key: "role",
+      responsive: ["sm"],
       render: (role: ProjectRole) => <Tag>{role.replace(/-/g, " ")}</Tag>,
     },
     {
@@ -130,7 +135,7 @@ function ProjectTeam({
       render: (_, membership) => (
         <Text type="secondary">
           {membership.scope.projectUnitIds.length
-            ? `${membership.scope.projectUnitIds.length} locations`
+            ? `${membership.scope.projectUnitIds.length} ${membership.scope.projectUnitIds.length === 1 ? "location" : "locations"}`
             : "Entire project"}
         </Text>
       ),
@@ -139,6 +144,7 @@ function ProjectTeam({
       title: "Status",
       dataIndex: "status",
       key: "status",
+      responsive: ["sm"],
       render: (status: ProjectMembership["status"]) => (
         <Tag color={status === "active" ? "success" : "processing"}>
           {status === "invited"
@@ -152,7 +158,6 @@ function ProjectTeam({
     {
       key: "message",
       title: "",
-      width: 110,
       render: (_: unknown, member: ProjectMembership) =>
         canDm(member) ? (
           <Button size="small" icon={<MessageOutlined />} onClick={() => message(member)}>
@@ -222,7 +227,6 @@ function ProjectTeam({
               columns={columns}
               dataSource={memberships}
               pagination={false}
-              scroll={{ x: 640 }}
             />
           ) : (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No members yet">

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import LogoHorizontal from '../components/LogoHorizontal'
+import PublicBackButton from '../components/PublicBackButton'
 import { DEMO_IDENTITIES, useSession } from '../session/SessionProvider'
 
 // ─── Ambient background ───────────────────────────────────────────────────────
@@ -221,9 +222,11 @@ export default function HomeownerOnboardingScreen({
       >
         <div className="flex items-center justify-between h-14 lg:h-[64px] px-5 sm:px-8 lg:px-12">
           <LogoHorizontal height={28} />
+          <div className="flex items-center gap-3">
+          <PublicBackButton onClick={() => onNavigate('role')} />
           <div className="flex items-center gap-2.5">
             <span
-              className="text-[10px] tracking-[0.08em] text-[#9A949D]"
+              className="max-sm:hidden text-[10px] tracking-[0.08em] text-[#9A949D]"
               style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}
             >
               Step 2 of 2
@@ -232,6 +235,7 @@ export default function HomeownerOnboardingScreen({
               <div className="w-5 h-[3px] rounded-full bg-[#722ED1]" />
               <div className="w-5 h-[3px] rounded-full bg-[#722ED1]" />
             </div>
+          </div>
           </div>
         </div>
         {/* Full progress bar */}

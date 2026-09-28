@@ -308,8 +308,9 @@ export default function WorkerTodayScreen({
               Messages
             </Button>
           </Badge>
-          <Button icon={<LogoutOutlined />} onClick={() => onNavigate("welcome")}>
-            Sign out
+          {/* Icon only on a phone, so the header doesn't crowd the logo. */}
+          <Button icon={<LogoutOutlined />} aria-label="Sign out" onClick={() => onNavigate("welcome")}>
+            <span className="max-sm:hidden!">Sign out</span>
           </Button>
         </Flex>
       }

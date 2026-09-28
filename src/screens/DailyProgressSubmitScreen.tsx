@@ -249,9 +249,9 @@ function SubmitProgress({
                   </Col>
                   <Col xs={24} md={12}>
                     <Form.Item
-                      label="Your estimate of project progress (%)"
+                      label="Your progress estimate (%)"
                       name="progressAfter"
-                      extra="The official figure is calculated from approved task quantities."
+                      extra="The project’s official % is calculated from approved task quantities."
                       rules={[
                         {
                           required: true,
