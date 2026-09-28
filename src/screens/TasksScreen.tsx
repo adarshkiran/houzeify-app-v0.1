@@ -3,24 +3,18 @@ import { clickableRow, stopRowClick } from "../components/company/clickableRow"
 import { countLabel } from "../components/countLabel"
 import { Permissions } from "../domain/permissions"
 import { useAccess, useActableUnits } from "../session/useCan"
-import { useScopedLibrary } from "../session/useScopedLibrary"
-import { useCommand } from "../session/useCommand"
 import { useMemo, useState } from "react"
 import {
   ArrowRightOutlined,
+  AudioOutlined,
   PlusOutlined,
   SearchOutlined,
 } from "@ant-design/icons"
 import {
   Button,
   Card,
-  Col,
   Flex,
-  Form,
   Input,
-  InputNumber,
-  Modal,
-  Row,
   Select,
   Space,
   Table,
@@ -30,22 +24,18 @@ import {
 import type { TableProps } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import WorkTypeCascadeFields from "../components/WorkTypeCascadeFields"
+import CreateTaskModal from "../components/tasks/CreateTaskModal"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
 import type {
   EntityId,
-  QuantityUnit,
   Task,
   TaskStatus,
 } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
-import {
-  QUANTITY_UNITS,
-  quantityUnitLabel,
-} from "../domain/workLibrary"
-import {
-  useConstructionData,
-  type CreateTaskInput,
-} from "../mock/ConstructionDataProvider"
+import type { TaskDraftValues, VoiceDraft } from "../domain/voice/types"
+import { voiceExtractor } from "../domain/voice/extract"
+import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getProjectUnits,
   getStageName,
@@ -54,19 +44,6 @@ import {
 } from "../mock/selectors"
 
 const { Text, Title } = Typography
-
-interface TaskFormValues {
-  projectUnitId: EntityId
-  stageId: EntityId
-  tradeId: EntityId
-  workTypeId: EntityId
-  title: string
-  priority: Task["priority"]
-  plannedValue?: number
-  unit?: QuantityUnit
-  plannedStart?: string
-  dueDate?: string
-}
 
 const statusOptions: Array<{ value: TaskStatus | "all"; label: string }> = [
   { value: "all", label: "All statuses" },
@@ -97,17 +74,17 @@ function Tasks({
   onNavigate: Navigate
   projectId: EntityId
 }) {
-  const { state, createTask } = useConstructionData()
-  const run = useCommand()
+  const { state } = useConstructionData()
   const can = useAccess()
   const creatableUnits = useActableUnits(Permissions.TASK_MANAGE, projectId)
-  const creatableLibrary = useScopedLibrary(Permissions.TASK_MANAGE, projectId)
   const canManage = creatableUnits.length > 0
+  const voiceContext = useVoiceContext(projectId)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<TaskStatus | "all">("all")
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
   const [modalOpen, setModalOpen] = useState(false)
-  const [form] = Form.useForm<TaskFormValues>()
+  const [capturing, setCapturing] = useState(false)
+  const [draft, setDraft] = useState<VoiceDraft<TaskDraftValues>>()
   // Reading follows scope too: a scoped member sees only their own tasks/locations.
   const units = getProjectUnits(state, projectId).filter((unit) =>
     can(Permissions.PROJECT_READ, projectId, { projectUnitId: unit.id }),
@@ -187,46 +164,22 @@ function Tasks({
     },
   ]
 
-  const handleCreate = (values: TaskFormValues) => {
-    const workType = state.workTypes.find((item) => item.id === values.workTypeId)
-    if (!workType) return
-    const template = state.taskTemplates.find(
-      (item) => item.workTypeId === workType.id,
-    )
-    const input: CreateTaskInput = {
-      projectId,
-      projectUnitId: values.projectUnitId,
-      stageId: workType.stageId,
-      tradeId: workType.tradeId,
-      workTypeId: workType.id,
-      templateId: template?.id,
-      title: values.title,
-      priority: values.priority,
-      plannedQuantity:
-        values.plannedValue != null && values.unit
-          ? { value: values.plannedValue, unit: values.unit }
-          : undefined,
-      plannedStart: values.plannedStart,
-      dueDate: values.dueDate,
-    }
-    const outcome = run(() => createTask(input), { success: "Task created" })
-    if (!outcome.ok) return
-    form.resetFields()
-    setModalOpen(false)
-    onNavigate("task-detail", { project_id: projectId, task_id: outcome.value.id })
-  }
-
   return (
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "tasks" }}
       onNavigate={onNavigate}
       description="Work across locations, trades and teams"
       actions={
-        <Gated allowed={canManage}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            Create task
-          </Button>
-        </Gated>
+        <Space>
+          <Gated allowed={canManage}>
+            <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>Speak a task</Button>
+          </Gated>
+          <Gated allowed={canManage}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              Create task
+            </Button>
+          </Gated>
+        </Space>
       }
     >
       <Flex vertical gap="large" className="company-content">
@@ -283,69 +236,31 @@ function Tasks({
         </Card>
       </Flex>
 
-      <Modal
-        title="Create structured task"
+      <CreateTaskModal
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        footer={null}
-        destroyOnHidden
-      >
-        <Form<TaskFormValues>
-          form={form}
-          layout="vertical"
-          requiredMark={false}
-          initialValues={{ priority: "medium" }}
-          onFinish={handleCreate}
-        >
-          <Form.Item label="Project location" name="projectUnitId" rules={[{ required: true }]}>
-            <Select options={creatableUnits.map((unit) => ({ value: unit.id, label: unit.name }))} />
-          </Form.Item>
-          <WorkTypeCascadeFields state={creatableLibrary} form={form} includeTitle />
-          <Form.Item label="Priority" name="priority">
-            <Select
-              options={["low", "medium", "high", "critical"].map((value) => ({
-                value,
-                label: value,
-              }))}
-            />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={14}>
-              <Form.Item label="Planned quantity" name="plannedValue">
-                <InputNumber min={0} className="w-full" />
-              </Form.Item>
-            </Col>
-            <Col span={10}>
-              <Form.Item label="Unit" name="unit">
-                <Select
-                  options={QUANTITY_UNITS.map((value) => ({
-                    value,
-                    label: quantityUnitLabel(value),
-                  }))}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="Planned start" name="plannedStart">
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Due date" name="dueDate">
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Flex justify="flex-end">
-            <Space>
-              <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit">Create task</Button>
-            </Space>
-          </Flex>
-        </Form>
-      </Modal>
+        onClose={() => {
+          setModalOpen(false)
+          setDraft(undefined)
+        }}
+        projectId={projectId}
+        draft={draft}
+        onCreated={(task) => {
+          setDraft(undefined)
+          onNavigate("task-detail", { project_id: projectId, task_id: task.id })
+        }}
+      />
+
+      <VoiceCapture
+        open={capturing}
+        title="Speak a task"
+        placeholder="e.g. Ravi, pour the Block B columns tomorrow, urgent"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          setDraft(voiceExtractor.task(text, voiceContext))
+          setModalOpen(true)
+        }}
+      />
     </CompanyLayout>
   )
 }

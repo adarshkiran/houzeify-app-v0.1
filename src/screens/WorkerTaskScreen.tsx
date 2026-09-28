@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import {
   ArrowLeftOutlined,
+  AudioOutlined,
   CheckCircleFilled,
   EnvironmentOutlined,
   SoundOutlined,
@@ -9,6 +10,10 @@ import { Alert, Button, Card, Descriptions, Flex, Tag, Typography } from "antd"
 import Gated from "../components/Gated"
 import ThreadPanel from "../components/conversations/ThreadPanel"
 import ReportIssueModal from "../components/ReportIssueModal"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
+import type { IssueDraftValues, VoiceDraft } from "../domain/voice/types"
+import { voiceExtractor } from "../domain/voice/extract"
 import WorkerShell from "../components/worker/WorkerShell"
 import {
   formatQuantity,
@@ -86,6 +91,9 @@ function WorkerTask({
   const worker = useSignedInWorker()
   const run = useCommand()
   const [reportOpen, setReportOpen] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [draft, setDraft] = useState<VoiceDraft<IssueDraftValues>>()
+  const voiceContext = useVoiceContext(projectId, taskId)
 
   const found = state.tasks.find(
     (item) => item.id === taskId && item.projectId === projectId,
@@ -246,6 +254,7 @@ function WorkerTask({
               I'm blocked
             </Button>
           )}
+        <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>Speak an issue</Button>
         <Button onClick={() => setReportOpen(true)}>Report a problem</Button>
       </Flex>
 
@@ -347,14 +356,43 @@ function WorkerTask({
       </Card>
 
       <Card size="small" title="Discussion">
-        <ThreadPanel key={task.id} compact projectId={task.projectId} subject="task" targetId={task.id} emptyText="Ask your supervisor about this task." />
+        <ThreadPanel
+          key={task.id}
+          compact
+          projectId={task.projectId}
+          subject="task"
+          targetId={task.id}
+          emptyText="Ask your supervisor about this task."
+          // Workers open tasks from a message's chips; issue chips stay plain text.
+          openableKinds={["task"]}
+          onOpenRecord={(kind, id) => {
+            if (kind === "task") onNavigate("worker-task", { project_id: task.projectId, task_id: id })
+          }}
+        />
       </Card>
 
       <ReportIssueModal
         open={reportOpen}
-        onClose={() => setReportOpen(false)}
+        onClose={() => {
+          setReportOpen(false)
+          setDraft(undefined)
+        }}
         projectId={task.projectId}
         taskId={task.id}
+        draft={draft}
+        onReported={() => setDraft(undefined)}
+      />
+
+      <VoiceCapture
+        open={capturing}
+        title="Speak an issue"
+        placeholder="e.g. Water leak in the Block B basement, pump stopped"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          setDraft(voiceExtractor.issue(text, voiceContext))
+          setReportOpen(true)
+        }}
       />
     </>
   )

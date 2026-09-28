@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeftOutlined } from "@ant-design/icons"
+import { ArrowLeftOutlined, AudioOutlined } from "@ant-design/icons"
 import {
   Alert,
   Button,
@@ -19,6 +19,11 @@ import EvidenceCapture, { type DraftEvidence } from "../components/EvidenceCaptu
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import VoiceTextArea from "../components/VoiceTextArea"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { VoiceDraftBanner, voiceLabel } from "../components/voice/VoiceFieldMark"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
+import { voiceExtractor } from "../domain/voice/extract"
+import type { ProgressDraftValues, VoiceDraft } from "../domain/voice/types"
 import type { EntityId } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { Permissions } from "../domain/permissions"
@@ -66,6 +71,8 @@ function SubmitProgress({
   // update is never applied to another.
   const [keptChoice, setKeptChoice] = useState<{ forId: EntityId; ids: string[] } | null>(null)
   const [form] = Form.useForm<ProgressFormValues>()
+  const [capturing, setCapturing] = useState(false)
+  const [progressDraft, setProgressDraft] = useState<VoiceDraft<ProgressDraftValues>>()
   const project = getProject(state, projectId)
   // Only tasks the person may submit progress on (their own scope).
   const tasks = state.tasks.filter(
@@ -75,6 +82,7 @@ function SubmitProgress({
   )
   const selectedTaskId = Form.useWatch("taskId", form) ?? taskId
   const task = tasks.find((item) => item.id === selectedTaskId)
+  const voiceContext = useVoiceContext(projectId, task?.id)
   const unit = getProjectUnits(state, projectId).find(
     (item) => item.id === task?.projectUnitId,
   )
@@ -95,7 +103,13 @@ function SubmitProgress({
       ? keptChoice.ids
       : sentBack?.evidenceIds ?? []
 
+  // A voice draft's markers/banner belong to the task they were made for.
   useEffect(() => {
+    setProgressDraft(undefined)
+  }, [task?.id])
+
+  useEffect(() => {
+    setProgressDraft(undefined)
     if (!sentBack) {
       // Switched to a task with nothing sent back: drop the pre-filled text so
       // it can't be submitted as a new update. The chosen task stays.
@@ -195,6 +209,8 @@ function SubmitProgress({
           />
         )}
 
+        {progressDraft && <VoiceDraftBanner transcript={progressDraft.transcript} />}
+
         <Form<ProgressFormValues>
           form={form}
           layout="vertical"
@@ -211,7 +227,14 @@ function SubmitProgress({
         >
           <Row gutter={[24, 24]} align="top">
             <Col xs={24} xl={14}>
-              <Card title={<Title level={5} className="company-heading! m-0!">Today’s work</Title>}>
+              <Card
+                title={<Title level={5} className="company-heading! m-0!">Today’s work</Title>}
+                extra={
+                  <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>
+                    Fill from voice
+                  </Button>
+                }
+              >
                 <Row gutter={[16, 0]}>
                   <Col span={24}>
                     <Form.Item
@@ -235,7 +258,7 @@ function SubmitProgress({
                   </Col>
                   <Col xs={24} md={12}>
                     <Form.Item
-                      label="Workers on site"
+                      label={voiceLabel("Workers on site", progressDraft?.fields.workersPresent)}
                       name="workersPresent"
                       rules={[
                         {
@@ -264,7 +287,7 @@ function SubmitProgress({
                   </Col>
                   <Col span={24}>
                     <Form.Item
-                      label="What was done today"
+                      label={voiceLabel("What was done today", progressDraft?.fields.todaySummary)}
                       name="todaySummary"
                       rules={[
                         {
@@ -278,7 +301,7 @@ function SubmitProgress({
                   </Col>
                   <Col span={24}>
                     <Form.Item
-                      label="Plan for tomorrow"
+                      label={voiceLabel("Plan for tomorrow", progressDraft?.fields.tomorrowPlan)}
                       name="tomorrowPlan"
                       rules={[{ required: true, message: "Describe tomorrow’s plan" }]}
                     >
@@ -286,7 +309,10 @@ function SubmitProgress({
                     </Form.Item>
                   </Col>
                   <Col span={24}>
-                    <Form.Item label="Blocker, if any" name="blockerSummary">
+                    <Form.Item
+                      label={voiceLabel("Blocker, if any", progressDraft?.fields.blockerSummary)}
+                      name="blockerSummary"
+                    >
                       <Input placeholder="Leave blank if nothing is blocking the work" />
                     </Form.Item>
                   </Col>
@@ -349,6 +375,21 @@ function SubmitProgress({
           </Flex>
         </Form>
       </Flex>
+
+      <VoiceCapture
+        open={capturing}
+        title="Fill from voice"
+        placeholder="e.g. Laid 200 blocks, 5 of us. Tomorrow the lintel. Waiting for cement"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          const draft = voiceExtractor.progress(text, voiceContext)
+          // The company screen has no quantity field.
+          const { completedQuantity: _completedQuantity, unit: _unit, ...values } = draft.values
+          form.setFieldsValue(values)
+          setProgressDraft(draft)
+        }}
+      />
     </CompanyLayout>
   )
 }

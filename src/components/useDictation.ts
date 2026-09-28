@@ -96,6 +96,20 @@ export function useDictation(value: string, onText: (next: string) => void) {
 
   const toggle = () => (listening ? stop() : start())
   const clearStatus = () => setStatus(undefined)
+  /** Stop listening and drop any words still on the way (e.g. when a dialog is cancelled). */
+  const cancel = () => {
+    const recognition = recognitionRef.current
+    if (recognition) {
+      // Detach first so the abort's late result/error events can't touch the text or status.
+      recognition.onresult = null
+      recognition.onerror = null
+      recognition.onend = null
+      recognition.abort()
+    }
+    recognitionRef.current = null
+    setListening(false)
+    setStatus(undefined)
+  }
 
-  return { supported, listening, status, toggle, clearStatus }
+  return { supported, listening, status, toggle, clearStatus, cancel }
 }

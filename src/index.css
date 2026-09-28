@@ -1240,6 +1240,36 @@ html, body, #root {
   padding-inline: 4px;
 }
 
+/* Per-message actions (Turn into task / issue): shown on hover or focus; always on touch screens. */
+.thread-message-action {
+  opacity: 0;
+}
+
+.thread-row:hover .thread-message-action,
+.thread-message-action:focus-visible,
+.thread-message-action.ant-dropdown-open {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .thread-message-action {
+    opacity: 1;
+  }
+}
+
+/* "→ Task: …" / "→ Issue: …" under a message a record was made from. */
+.thread-link-chip {
+  margin: 2px 0 0 !important;
+  max-width: 100%;
+  white-space: normal;
+  text-transform: none !important;
+  cursor: default;
+}
+
+.thread-link-chip.is-link {
+  cursor: pointer;
+}
+
 .thread-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1355,4 +1385,15 @@ html, body, #root {
   .thread-row {
     max-width: 88%;
   }
+}
+
+/* "You said: …" above a voice-filled form. */
+.voice-draft-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-fill-quaternary);
 }

@@ -60,6 +60,7 @@ function Messages({ onNavigate, projectId, threadId, from }: Props) {
                       : <Tag className="m-0!">Internal</Tag>
                   }
                   onOpenTarget={() => openTarget(selected.thread.subject, selected.thread.targetId)}
+                  onOpenRecord={openTarget}
                 />
               ) : (
                 // No conversations yet: the first message starts the project chat.

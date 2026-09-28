@@ -10,7 +10,7 @@ import { useAccess, useActableUnits } from "./useCan"
  * stage and trade. Feed it to the stage → trade → work-type pickers.
  */
 export function useScopedLibrary(
-  permission: Permission,
+  permission: Permission | readonly Permission[],
   projectId: EntityId | undefined,
 ): ConstructionDataState {
   const { state } = useConstructionData()

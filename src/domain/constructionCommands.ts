@@ -1,4 +1,5 @@
 import { ConflictError, IntegrityError } from "./errors"
+import { readerMembership } from "./conversations"
 import type {
   AddEvidenceInput,
   AddLibraryStageInput,
@@ -25,6 +26,7 @@ import type {
   Evidence,
   EvidenceType,
   Issue,
+  MessageSource,
   Person,
   Project,
   ProjectMembership,
@@ -222,6 +224,27 @@ function assertWorkTypeMatches(
     throw new IntegrityError(
       `Work type ${ref.workTypeId} does not match stage ${ref.stageId} / trade ${ref.tradeId}`,
     )
+  }
+}
+
+/** A source message must exist, sit in its thread, belong to the project, and be readable by the caller. */
+function assertSourceMessage(
+  state: ConstructionDataState,
+  ctx: CommandContext,
+  projectId: EntityId,
+  source?: MessageSource,
+) {
+  if (!source) return
+  const thread = state.threads.find((item) => item.id === source.threadId)
+  const message = state.messages.find((item) => item.id === source.messageId)
+  if (!thread || !message || message.threadId !== thread.id) {
+    throw new IntegrityError("The conversation message for this record wasn't found.")
+  }
+  if (thread.projectId !== projectId) {
+    throw new IntegrityError(`Message ${message.id} is not in project ${projectId}`)
+  }
+  if (!readerMembership(state, ctx.actor, thread)) {
+    throw new PermissionError(Permissions.PROJECT_READ, projectId)
   }
 }
 
@@ -466,6 +489,7 @@ export const createTask =
     const creator = authorizeProject(state, ctx, input.projectId, [Permissions.TASK_MANAGE], input)
     assertUnitInProject(state, input.projectId, input.projectUnitId)
     assertWorkTypeMatches(state, input)
+    assertSourceMessage(state, ctx, input.projectId, input.source)
     const template = state.taskTemplates.find(
       (item) => item.id === input.templateId,
     )
@@ -1464,6 +1488,7 @@ export const reportIssue =
     if (task && input.projectUnitId && input.projectUnitId !== task.projectUnitId) {
       throw new IntegrityError(`Task ${task.id} is not at unit ${input.projectUnitId}`)
     }
+    assertSourceMessage(state, ctx, input.projectId, input.source)
 
     const id = ctx.ids.next("issue")
     // Issue photos stay private and are not tied to the daily-progress record,
@@ -1492,6 +1517,7 @@ export const reportIssue =
       tradeId: target.tradeId,
       taskId: input.taskId,
       dailyProgressId: input.dailyProgressId,
+      source: input.source,
       title,
       description: input.description.trim(),
       severity: input.severity,

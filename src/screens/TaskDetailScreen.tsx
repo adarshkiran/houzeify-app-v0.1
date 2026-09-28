@@ -1,10 +1,13 @@
 import { useState } from "react"
 import { taskChecklist, templateForTask } from "../domain/workerTasks"
+import { readerMembership } from "../domain/conversations"
 import {
   ArrowLeftOutlined,
+  AudioOutlined,
   CalendarOutlined,
   CheckSquareOutlined,
   EnvironmentOutlined,
+  MessageOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
 import {
@@ -36,6 +39,10 @@ import { useScopedData } from "../session/useScopedData"
 import { useSession } from "../session/SessionProvider"
 import ReportIssueModal from "../components/ReportIssueModal"
 import { issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
+import type { IssueDraftValues, VoiceDraft } from "../domain/voice/types"
+import { voiceExtractor } from "../domain/voice/extract"
 import { useCommand } from "../session/useCommand"
 import {
   getAllowedTaskTransitions,
@@ -77,6 +84,9 @@ function TaskDetail({
   const mine = getMyMembershipIds(state, session?.personId)
   const [assigneeId, setAssigneeId] = useState<EntityId>()
   const [reportOpen, setReportOpen] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [draft, setDraft] = useState<VoiceDraft<IssueDraftValues>>()
+  const voiceContext = useVoiceContext(projectId, taskId)
   const scoped = useScopedData()
   // A task outside the viewer's scope is treated as not available.
   const found = state.tasks.find((item) => item.id === taskId)
@@ -131,6 +141,9 @@ function TaskDetail({
   }
 
   const checklist = taskChecklist(state, task)
+  // The conversation this task was made from, when the viewer can read it.
+  const sourceThread = task.source && state.threads.find((t) => t.id === task.source!.threadId)
+  const fromThreadId = sourceThread && readerMembership(state, session, sourceThread) ? sourceThread.id : undefined
   const requiredEvidence = templateForTask(state, task)?.requiredEvidence ?? []
 
   return (
@@ -154,11 +167,25 @@ function TaskDetail({
               <Tag>{task.priority} priority</Tag>
             </Space>
             <Title level={2} className="company-heading! m-0!">{task.title}</Title>
+            {fromThreadId && (
+              <Button
+                type="link"
+                size="small"
+                icon={<MessageOutlined />}
+                className="p-0! self-start"
+                onClick={() => onNavigate("project-messages", { project_id: projectId, thread_id: fromThreadId })}
+              >
+                From conversation
+              </Button>
+            )}
             <Text type="secondary">
               {project?.name} · {unit?.name ?? "Project location"}
             </Text>
           </Flex>
           <Space wrap>
+            <Gated allowed={canReportIssue} reason="You can't report issues on this task.">
+              <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>Speak an issue</Button>
+            </Gated>
             <Gated allowed={canReportIssue} reason="You can't report issues on this task.">
               <Button onClick={() => setReportOpen(true)}>Report issue</Button>
             </Gated>
@@ -318,6 +345,12 @@ function TaskDetail({
                   subject="task"
                   targetId={task.id}
                   emptyText="No messages about this task yet."
+                  onOpenRecord={(kind, id) =>
+                    onNavigate(kind === "task" ? "task-detail" : "issue-detail", {
+                      project_id: projectId,
+                      [kind === "task" ? "task_id" : "issue_id"]: id,
+                    })
+                  }
                 />
               </Card>
             </Flex>
@@ -429,12 +462,29 @@ function TaskDetail({
       </Flex>
       <ReportIssueModal
         open={reportOpen}
-        onClose={() => setReportOpen(false)}
+        onClose={() => {
+          setReportOpen(false)
+          setDraft(undefined)
+        }}
         projectId={projectId}
         taskId={task.id}
-        onReported={(issue) =>
+        draft={draft}
+        onReported={(issue) => {
+          setDraft(undefined)
           onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })
-        }
+        }}
+      />
+
+      <VoiceCapture
+        open={capturing}
+        title="Speak an issue"
+        placeholder="e.g. Water leak in the Block B basement, pump stopped"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          setDraft(voiceExtractor.issue(text, voiceContext))
+          setReportOpen(true)
+        }}
       />
     </CompanyLayout>
   )
