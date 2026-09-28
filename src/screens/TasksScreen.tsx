@@ -6,6 +6,7 @@ import { useAccess, useActableUnits } from "../session/useCan"
 import { useMemo, useState } from "react"
 import {
   ArrowRightOutlined,
+  AudioOutlined,
   PlusOutlined,
   SearchOutlined,
 } from "@ant-design/icons"
@@ -15,6 +16,7 @@ import {
   Flex,
   Input,
   Select,
+  Space,
   Table,
   Tag,
   Typography,
@@ -23,12 +25,16 @@ import type { TableProps } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import CreateTaskModal from "../components/tasks/CreateTaskModal"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
 import type {
   EntityId,
   Task,
   TaskStatus,
 } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import type { TaskDraftValues, VoiceDraft } from "../domain/voice/types"
+import { voiceExtractor } from "../domain/voice/extract"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getProjectUnits,
@@ -72,10 +78,13 @@ function Tasks({
   const can = useAccess()
   const creatableUnits = useActableUnits(Permissions.TASK_MANAGE, projectId)
   const canManage = creatableUnits.length > 0
+  const voiceContext = useVoiceContext(projectId)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<TaskStatus | "all">("all")
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
   const [modalOpen, setModalOpen] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [draft, setDraft] = useState<VoiceDraft<TaskDraftValues>>()
   // Reading follows scope too: a scoped member sees only their own tasks/locations.
   const units = getProjectUnits(state, projectId).filter((unit) =>
     can(Permissions.PROJECT_READ, projectId, { projectUnitId: unit.id }),
@@ -162,9 +171,12 @@ function Tasks({
       description="Work across locations, trades and teams"
       actions={
         <Gated allowed={canManage}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            Create task
-          </Button>
+          <Space>
+            <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>Speak a task</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              Create task
+            </Button>
+          </Space>
         </Gated>
       }
     >
@@ -224,9 +236,28 @@ function Tasks({
 
       <CreateTaskModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false)
+          setDraft(undefined)
+        }}
         projectId={projectId}
-        onCreated={(task) => onNavigate("task-detail", { project_id: projectId, task_id: task.id })}
+        draft={draft}
+        onCreated={(task) => {
+          setDraft(undefined)
+          onNavigate("task-detail", { project_id: projectId, task_id: task.id })
+        }}
+      />
+
+      <VoiceCapture
+        open={capturing}
+        title="Speak a task"
+        placeholder="e.g. Ravi, pour the Block B columns tomorrow, urgent"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          setDraft(voiceExtractor.task(text, voiceContext))
+          setModalOpen(true)
+        }}
       />
     </CompanyLayout>
   )

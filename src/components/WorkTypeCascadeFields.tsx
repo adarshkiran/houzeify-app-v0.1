@@ -1,4 +1,5 @@
-import { Form, Input, Select } from "antd"
+import type { ReactNode } from "react"
+import { Flex, Form, Input, Select } from "antd"
 import type { FormInstance } from "antd"
 import type {
   ConstructionDataState,
@@ -24,11 +25,17 @@ export default function WorkTypeCascadeFields({
   state,
   form,
   includeTitle = false,
+  workTypeMark,
+  titleMark,
 }: {
   state: ConstructionDataState
   // Parent screens pass richer form value types that include these cascade fields.
   form: FormInstance
   includeTitle?: boolean
+  /** Voice marker rendered next to the Work type label. */
+  workTypeMark?: ReactNode
+  /** Voice marker rendered next to the Task title label. */
+  titleMark?: ReactNode
 }) {
   const stageId = Form.useWatch("stageId", form)
   const tradeId = Form.useWatch("tradeId", form)
@@ -92,7 +99,7 @@ export default function WorkTypeCascadeFields({
         />
       </Form.Item>
       <Form.Item
-        label="Work type"
+        label={workTypeMark ? <Flex align="center" gap={6}>Work type{workTypeMark}</Flex> : "Work type"}
         name="workTypeId"
         rules={[{ required: true, message: "Choose a standard work type" }]}
       >
@@ -110,7 +117,7 @@ export default function WorkTypeCascadeFields({
       </Form.Item>
       {includeTitle ? (
         <Form.Item
-          label="Task title"
+          label={titleMark ? <Flex align="center" gap={6}>Task title{titleMark}</Flex> : "Task title"}
           name="title"
           extra="Prefills from the library template. Override only if needed."
           rules={[{ required: true, message: "Task title is required" }]}
