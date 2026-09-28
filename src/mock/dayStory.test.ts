@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { DailyProgress, Task } from "../domain/models"
 import { seedConstructionData as seed } from "./seed"
-import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack } from "./dayStory"
+import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack, slideWindow } from "./dayStory"
 
 const base = seed.dailyProgress.find((p) => p.id === "progress-sharma-2009")!
 const update = (over: Partial<DailyProgress>): DailyProgress => ({ ...base, ...over })
@@ -109,5 +109,16 @@ describe("slideTrack", () => {
       toIndex: 3,
     })
     expect(slideTrack("2026-09-28", "2026-06-01", 14).fromIndex).toBe(3)
+  })
+})
+
+describe("slideWindow", () => {
+  it("slides a row of any length through the days in between", () => {
+    // Left side of the strip, 3 days, moving from 28 Sept to 30 Sept.
+    expect(slideWindow("2026-09-25", "2026-09-27", 3)).toEqual({
+      dates: ["2026-09-25", "2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29"],
+      fromIndex: 0,
+      toIndex: 2,
+    })
   })
 })

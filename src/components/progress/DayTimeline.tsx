@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
 import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
 import type { DailyProgress, ISODate, Task } from "../../domain/models"
-import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack, type DayAudience, type DayNote } from "../../mock/dayStory"
+import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack, slideWindow, type DayAudience, type DayNote } from "../../mock/dayStory"
 import { NoteCard } from "./UpdateNotes"
 
 const { Text } = Typography
@@ -14,6 +14,10 @@ const weekday = (date: ISODate) => fmt(date, { weekday: "short" })
 const longLabel = formatDay
 
 /** Coloured tags (dark text on a light fill + border) stay readable on the tinted Today card. */
+/** One slow ease-in-out glide for the date strip and the cards. */
+const GLIDE_MS = 750
+const GLIDE_EASE = "cubic-bezier(0.45, 0, 0.55, 1)"
+
 /** Space between the Yesterday / Today / Tomorrow cards. */
 const CARD_GAP = 16
 
@@ -116,41 +120,6 @@ export default function DayTimeline({
   const [selected, setSelectedDate] = useState(today)
   // Which way the last change went, so the strip and cards slide in from that side.
   const [direction, setDirection] = useState<"forward" | "back">("forward")
-  // Cards row: on wide screens the three cards sit on a track that slides
-  // through every day between the old and new date (a carousel).
-  const cardsRef = useRef<HTMLDivElement>(null)
-  const [cardsWidth, setCardsWidth] = useState(0)
-  useEffect(() => {
-    const box = cardsRef.current
-    if (!box || typeof ResizeObserver === "undefined") return
-    const observer = new ResizeObserver(() => setCardsWidth(box.clientWidth))
-    observer.observe(box)
-    setCardsWidth(box.clientWidth)
-    return () => observer.disconnect()
-  }, [])
-  // Three cards across once each can be ~160px; below that they stack (phone).
-  const wide = cardsWidth >= 520
-  const [track, setTrack] = useState<(ReturnType<typeof slideTrack> & { moving: boolean }) | null>(null)
-
-  const setSelected = (date: ISODate) => {
-    if (date === selected) return
-    setDirection(date > selected ? "forward" : "back")
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    if (wide && !reduceMotion) {
-      // Lay out old + new days, then glide from the old window to the new one.
-      setTrack({ ...slideTrack(selected, date), moving: false })
-      requestAnimationFrame(() => requestAnimationFrame(() => setTrack((t) => (t ? { ...t, moving: true } : t))))
-    }
-    setSelectedDate(date)
-  }
-  const slide = `dt-slide dt-slide-${direction}`
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const marked = useMemo(() => datesWithUpdates(updates), [updates])
-  const onToday = selected === today
-  // Only the update written that day can report that day's blocker.
-  const blockerOn = (note: DayNote, date: ISODate) =>
-    updates.find((u) => u.id === note.progressId && u.date === date)?.blockerSummary
-
   // Show as many days either side as the strip has room for (1 on a phone, up to a week).
   const stripRef = useRef<HTMLDivElement>(null)
   const centerRef = useRef<HTMLDivElement>(null)
@@ -169,14 +138,96 @@ export default function DayTimeline({
     measure()
     return () => observer.disconnect()
   }, [])
-  const before = Array.from({ length: perSide }, (_, i) => i - perSide)
-  const after = Array.from({ length: perSide }, (_, i) => i + 1)
+  // Cards row: on wide screens the three cards sit on a track that slides
+  // through every day between the old and new date (a carousel).
+  const cardsRef = useRef<HTMLDivElement>(null)
+  const [cardsWidth, setCardsWidth] = useState(0)
+  useEffect(() => {
+    const box = cardsRef.current
+    if (!box || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => setCardsWidth(box.clientWidth))
+    observer.observe(box)
+    setCardsWidth(box.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+  // Three cards across once each can be ~160px; below that they stack (phone).
+  const wide = cardsWidth >= 520
+  // One glide moves the strip's days and the cards together. Each row lays out
+  // every day between the old and new date, then slides to the new window.
+  type Window = ReturnType<typeof slideWindow>
+  const [motion, setMotion] = useState<{ left: Window; right: Window; cards?: Window; moving: boolean } | null>(null)
+  const motionTimer = useRef<number | undefined>(undefined)
 
-  const pill = (offset: number) => {
-    const date = addDays(selected, offset)
+  const setSelected = (date: ISODate) => {
+    if (date === selected) return
+    setDirection(date > selected ? "forward" : "back")
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    window.clearTimeout(motionTimer.current)
+    if (reduceMotion) {
+      setMotion(null)
+    } else {
+      setMotion({
+        left: slideWindow(addDays(selected, -perSide), addDays(date, -perSide), perSide),
+        right: slideWindow(addDays(selected, 1), addDays(date, 1), perSide),
+        cards: wide ? slideTrack(selected, date) : undefined,
+        moving: false,
+      })
+      motionTimer.current = window.setTimeout(() => setMotion(null), GLIDE_MS + 60)
+    }
+    setSelectedDate(date)
+  }
+  useEffect(() => () => window.clearTimeout(motionTimer.current), [])
+  // Once the old + new days are laid out at the old position, flush layout and
+  // start the glide (no animation frame needed, so it also runs in background tabs).
+  useLayoutEffect(() => {
+    if (!motion || motion.moving) return
+    void stripRef.current?.offsetWidth
+    setMotion((m) => (m ? { ...m, moving: true } : m))
+  }, [motion])
+  const glide = motion?.moving ? `transform ${GLIDE_MS}ms ${GLIDE_EASE}` : "none"
+  const slide = `dt-slide dt-slide-${direction}`
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const marked = useMemo(() => datesWithUpdates(updates), [updates])
+  const onToday = selected === today
+  // Only the update written that day can report that day's blocker.
+  const blockerOn = (note: DayNote, date: ISODate) =>
+    updates.find((u) => u.id === note.progressId && u.date === date)?.blockerSummary
+
+  const sideRef = useRef<HTMLDivElement>(null)
+  const [sideWidth, setSideWidth] = useState(0)
+  useEffect(() => {
+    const side = sideRef.current
+    if (!side || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => setSideWidth(side.clientWidth))
+    observer.observe(side)
+    setSideWidth(side.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+  const slot = sideWidth / perSide
+
+  /** One side of the strip as a sliding row of day buttons. */
+  const stripSide = (which: "left" | "right") => {
+    const row = motion?.[which]
+    const start = which === "left" ? addDays(selected, -perSide) : addDays(selected, 1)
+    const dates = row?.dates ?? Array.from({ length: perSide }, (_, i) => addDays(start, i))
+    const index = row ? (motion!.moving ? row.toIndex : row.fromIndex) : 0
+    return (
+      <div ref={which === "left" ? sideRef : undefined} className="day-strip-side">
+        <div className="dt-strip-track" style={{ transform: `translateX(${-index * slot}px)`, transition: glide }}>
+          {dates.map((date) => (
+            <div key={date} className="dt-strip-cell" style={{ flex: `0 0 ${slot}px` }}>
+              {pill(date)}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const pill = (date: ISODate) => {
     return (
       <button
-        key={offset}
+        key={date}
         type="button"
         className={[
           "day-strip-day",
@@ -239,8 +290,9 @@ export default function DayTimeline({
     )
   }
 
-  const trackDates = track?.dates ?? [addDays(selected, -1), selected, addDays(selected, 1)]
-  const trackIndex = track ? (track.moving ? track.toIndex : track.fromIndex) : 0
+  const cards = motion?.cards
+  const trackDates = cards?.dates ?? [addDays(selected, -1), selected, addDays(selected, 1)]
+  const trackIndex = cards ? (motion!.moving ? cards.toIndex : cards.fromIndex) : 0
   const cardWidth = (cardsWidth - 2 * CARD_GAP) / 3
   const cardStep = cardWidth + CARD_GAP
 
@@ -248,7 +300,7 @@ export default function DayTimeline({
     <Flex vertical gap="middle">
       <div ref={stripRef} className="day-strip">
         <Button type="text" shape="circle" icon={<LeftOutlined />} aria-label="Previous week" onClick={() => setSelected(addDays(selected, -7))} />
-        <div key={`before-${selected}`} className={`day-strip-side ${slide}`}>{before.map(pill)}</div>
+        {stripSide("left")}
         <Flex ref={centerRef} align="center" justify="center" gap={8} className="day-strip-center">
           <span key={selected} className={`day-strip-selected ${slide}`} aria-live="polite">{longLabel(selected)}</span>
           <Popover
@@ -272,7 +324,7 @@ export default function DayTimeline({
             <Button type="text" shape="circle" icon={<CalendarOutlined />} aria-label="Pick a date" className="text-[18px]!" />
           </Popover>
         </Flex>
-        <div key={`after-${selected}`} className={`day-strip-side ${slide}`}>{after.map(pill)}</div>
+        {stripSide("right")}
         <Button type="text" shape="circle" icon={<RightOutlined />} aria-label="Next week" onClick={() => setSelected(addDays(selected, 7))} />
       </div>
 
@@ -283,10 +335,7 @@ export default function DayTimeline({
             style={{
               gap: CARD_GAP,
               transform: `translateX(${-trackIndex * cardStep}px)`,
-              transition: track?.moving ? "transform 750ms cubic-bezier(0.45, 0, 0.55, 1)" : "none",
-            }}
-            onTransitionEnd={(event) => {
-              if (event.target === event.currentTarget && event.propertyName === "transform") setTrack(null)
+              transition: glide,
             }}
           >
             {trackDates.map((date) => (

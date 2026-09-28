@@ -793,6 +793,22 @@ html, body, #root {
   }
 }
 
+/* Date strip sides: a row of day buttons that slides sideways. */
+.day-strip .day-strip-side {
+  display: block;
+  overflow: hidden;
+}
+
+.dt-strip-track {
+  display: flex;
+  will-change: transform;
+}
+
+.dt-strip-cell {
+  display: flex;
+  justify-content: center;
+}
+
 /* Day timeline cards carousel (wide screens): the track slides sideways. */
 .dt-cards-viewport {
   overflow: hidden;

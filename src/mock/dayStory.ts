@@ -33,26 +33,33 @@ export function dayDiff(from: ISODate, to: ISODate): number {
 }
 
 /**
- * Cards to lay out in a row for sliding from one selected date to another:
- * every day between the two three-card windows, so the row travels the real
- * distance. Big jumps put the two windows side by side instead.
- * `fromIndex` / `toIndex` are where each window starts in `dates`.
+ * Days to lay out in a row for sliding from one window of `length` days
+ * (starting at `fromStart`) to another (starting at `toStart`): every day
+ * between them, so the row travels the real distance. Far jumps put the two
+ * windows side by side instead. `fromIndex` / `toIndex` are where each
+ * window starts in `dates`.
  */
-export function slideTrack(
-  from: ISODate,
-  to: ISODate,
+export function slideWindow(
+  fromStart: ISODate,
+  toStart: ISODate,
+  length: number,
   maxSpan = 14,
 ): { dates: ISODate[]; fromIndex: number; toIndex: number } {
-  const window = (center: ISODate) => [addDays(center, -1), center, addDays(center, 1)]
-  const diff = dayDiff(from, to)
+  const days = (start: ISODate) => Array.from({ length }, (_, i) => addDays(start, i))
+  const diff = dayDiff(fromStart, toStart)
   if (Math.abs(diff) > maxSpan) {
     return diff > 0
-      ? { dates: [...window(from), ...window(to)], fromIndex: 0, toIndex: 3 }
-      : { dates: [...window(to), ...window(from)], fromIndex: 3, toIndex: 0 }
+      ? { dates: [...days(fromStart), ...days(toStart)], fromIndex: 0, toIndex: length }
+      : { dates: [...days(toStart), ...days(fromStart)], fromIndex: length, toIndex: 0 }
   }
-  const start = diff > 0 ? addDays(from, -1) : addDays(to, -1)
-  const dates = Array.from({ length: Math.abs(diff) + 3 }, (_, i) => addDays(start, i))
+  const first = diff > 0 ? fromStart : toStart
+  const dates = Array.from({ length: Math.abs(diff) + length }, (_, i) => addDays(first, i))
   return diff > 0 ? { dates, fromIndex: 0, toIndex: diff } : { dates, fromIndex: -diff, toIndex: 0 }
+}
+
+/** The three cards (day before, the date, day after) sliding from one date to another. */
+export function slideTrack(from: ISODate, to: ISODate, maxSpan = 14) {
+  return slideWindow(addDays(from, -1), addDays(to, -1), 3, maxSpan)
 }
 
 /** Today's date on this device as `YYYY-MM-DD`. */
