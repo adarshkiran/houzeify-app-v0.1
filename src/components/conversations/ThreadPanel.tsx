@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import {
   ArrowUpOutlined,
   AudioMutedOutlined,
@@ -10,15 +10,24 @@ import {
   SearchOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons"
-import { Button, Dropdown, Empty, Flex, Input, Tooltip, Typography, type MenuProps } from "antd"
+import { Button, Dropdown, Empty, Flex, Input, Tag, Tooltip, Typography, type MenuProps } from "antd"
 import { findThread, readerMembership, unreadCount } from "../../domain/conversations"
-import type { EntityId, Thread, ThreadSubject } from "../../domain/models"
+import type { EntityId, Message, MessageSource, Thread, ThreadSubject } from "../../domain/models"
+import { ISSUE_REPORT_PERMISSIONS, Permissions } from "../../domain/permissions"
+import { voiceExtractor } from "../../domain/voice/extract"
+import type { IssueDraftValues, TaskDraftValues, VoiceDraft } from "../../domain/voice/types"
 import { useConstructionData } from "../../mock/ConstructionDataProvider"
 import { getThreadMessages, roleLabel, threadTitle } from "../../mock/conversationSelectors"
+import { messageLinks, type MessageLink } from "../../mock/messageLinks"
 import { getMembershipName } from "../../mock/selectors"
 import { useSession } from "../../session/SessionProvider"
+import { useAccess } from "../../session/useCan"
 import { useCommand } from "../../session/useCommand"
+import { useScopedData } from "../../session/useScopedData"
+import ReportIssueModal from "../ReportIssueModal"
+import CreateTaskModal from "../tasks/CreateTaskModal"
 import { useDictation } from "../useDictation"
+import { useVoiceContext } from "../voice/useVoiceContext"
 import { clockTime, dayLabel, sameDay } from "./chatTime"
 import { ThreadAvatar, threadSubtitle } from "./threadVisuals"
 
@@ -40,7 +49,14 @@ type PanelProps = PanelTarget & {
   headerExtra?: ReactNode
   /** Opens the task or issue a conversation is about (⋮ menu). */
   onOpenTarget?: () => void
+  /** Opens a task or issue made from a message (the chips under it). Chips are plain text without it. */
+  onOpenRecord?: (kind: "task" | "issue", id: EntityId) => void
 }
+
+const FROM_TASK_THREAD = "From this task's conversation"
+
+/** What a message says: its text, or a voice note's transcript. */
+const messageText = (message: Message) => (message.body ?? message.voice?.transcript ?? "").trim()
 
 const MAX_LENGTH = 2000
 const CALLS_SOON = "Calls are coming in the calls update"
@@ -68,6 +84,11 @@ export default function ThreadPanel(props: PanelProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState("")
   const dictation = useDictation(body, setBody)
+  const scoped = useScopedData()
+  const can = useAccess()
+  const [taskDraft, setTaskDraft] = useState<VoiceDraft<TaskDraftValues>>()
+  const [issueDraft, setIssueDraft] = useState<VoiceDraft<IssueDraftValues>>()
+  const [source, setSource] = useState<MessageSource>()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const thread: Thread | undefined =
@@ -87,6 +108,11 @@ export default function ThreadPanel(props: PanelProps) {
           createdAt: "",
         })
   const me = probe ? readerMembership(state, session, probe) : undefined
+  // The task this conversation is about, if any (pre-fills location, work and the issue's task).
+  const threadTask =
+    probe?.subject === "task" ? state.tasks.find((t) => t.id === probe.targetId) : undefined
+  // Called unconditionally (hooks rule); an empty project only happens when there is no thread to act on.
+  const voiceContext = useVoiceContext(probe?.projectId ?? "", threadTask?.id)
   const messages = useMemo(() => (thread ? getThreadMessages(state, thread.id) : []), [state, thread])
   const needle = searchOpen ? query.trim() : ""
   const matches = needle
@@ -124,6 +150,41 @@ export default function ThreadPanel(props: PanelProps) {
   }
 
   const group = probe.subject !== "direct"
+  const links = thread ? messageLinks(thread.id, scoped.tasks, scoped.issues) : new Map<EntityId, MessageLink[]>()
+  // Project-wide checks, as in the brief and controller ruling: a worker who may only report on
+  // their own task keeps using Report issue there, and sees no per-message actions here.
+  const canTask = !!thread && can([Permissions.TASK_MANAGE], probe.projectId)
+  const canIssue = !!thread && can(ISSUE_REPORT_PERMISSIONS, probe.projectId)
+
+  // Turn a message into a draft; nothing is created until the form is submitted.
+  const turnInto = (kind: "task" | "issue", message: Message) => {
+    if (!thread) return
+    const text = messageText(message)
+    setSource({ threadId: thread.id, messageId: message.id })
+    if (kind === "issue") {
+      setIssueDraft(voiceExtractor.issue(text, voiceContext))
+      return
+    }
+    const draft = voiceExtractor.task(text, voiceContext)
+    if (threadTask) {
+      const values = { ...draft.values }
+      const fields = { ...draft.fields }
+      const guessed = { state: "guessed" as const, reason: FROM_TASK_THREAD }
+      if (!values.projectUnitId) {
+        values.projectUnitId = threadTask.projectUnitId
+        fields.projectUnitId = guessed
+      }
+      if (!values.workTypeId) {
+        values.workTypeId = threadTask.workTypeId
+        fields.workTypeId = guessed
+      }
+      setTaskDraft({ ...draft, values, fields })
+    } else setTaskDraft(draft)
+  }
+  const messageActions: MenuProps["items"] = [
+    ...(canTask ? [{ key: "task", label: "Turn into task" }] : []),
+    ...(canIssue ? [{ key: "issue", label: "Turn into issue" }] : []),
+  ]
   const menuItems: MenuProps["items"] = [
     {
       key: "unread",
@@ -248,7 +309,47 @@ export default function ThreadPanel(props: PanelProps) {
                     )}
                     {message.body && <span className="thread-body">{highlight(message.body, needle)}</span>}
                   </div>
-                  <Text type="secondary" className="thread-time">{clockTime(message.createdAt)}</Text>
+                  {links.get(message.id)?.map((link) => {
+                    const open = props.onOpenRecord ? () => props.onOpenRecord!(link.kind, link.id) : undefined
+                    return (
+                      <Tag
+                        key={`${link.kind}-${link.id}`}
+                        color={link.kind === "task" ? "blue" : "orange"}
+                        className={`thread-link-chip${open ? " is-link" : ""}`}
+                        {...(open && {
+                          role: "button",
+                          tabIndex: 0,
+                          onClick: open,
+                          onKeyDown: (event: KeyboardEvent) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault()
+                              open()
+                            }
+                          },
+                        })}
+                      >
+                        → {link.kind === "task" ? "Task" : "Issue"}: {link.title}
+                      </Tag>
+                    )
+                  })}
+                  <Flex align="center" gap={2}>
+                    <Text type="secondary" className="thread-time">{clockTime(message.createdAt)}</Text>
+                    {messageActions.length > 0 && messageText(message) && (
+                      <Dropdown
+                        menu={{ items: messageActions, onClick: ({ key }) => turnInto(key as "task" | "issue", message) }}
+                        trigger={["click"]}
+                        placement={mine ? "bottomRight" : "bottomLeft"}
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<MoreOutlined />}
+                          aria-label="Message actions"
+                          className="thread-message-action"
+                        />
+                      </Dropdown>
+                    )}
+                  </Flex>
                 </Flex>
               </Fragment>
             )
@@ -310,6 +411,26 @@ export default function ThreadPanel(props: PanelProps) {
           </Flex>
         </Flex>
       </div>
+
+      {canTask && (
+        <CreateTaskModal
+          open={!!taskDraft}
+          onClose={() => setTaskDraft(undefined)}
+          projectId={probe.projectId}
+          draft={taskDraft}
+          source={source}
+        />
+      )}
+      {canIssue && (
+        <ReportIssueModal
+          open={!!issueDraft}
+          onClose={() => setIssueDraft(undefined)}
+          projectId={probe.projectId}
+          taskId={threadTask?.id}
+          draft={issueDraft}
+          source={source}
+        />
+      )}
     </Flex>
   )
 }

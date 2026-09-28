@@ -1,11 +1,13 @@
 import { useState } from "react"
 import { taskChecklist, templateForTask } from "../domain/workerTasks"
+import { readerMembership } from "../domain/conversations"
 import {
   ArrowLeftOutlined,
   AudioOutlined,
   CalendarOutlined,
   CheckSquareOutlined,
   EnvironmentOutlined,
+  MessageOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
 import {
@@ -139,6 +141,9 @@ function TaskDetail({
   }
 
   const checklist = taskChecklist(state, task)
+  // The conversation this task was made from, when the viewer can read it.
+  const sourceThread = task.source && state.threads.find((t) => t.id === task.source!.threadId)
+  const fromThreadId = sourceThread && readerMembership(state, session, sourceThread) ? sourceThread.id : undefined
   const requiredEvidence = templateForTask(state, task)?.requiredEvidence ?? []
 
   return (
@@ -162,6 +167,17 @@ function TaskDetail({
               <Tag>{task.priority} priority</Tag>
             </Space>
             <Title level={2} className="company-heading! m-0!">{task.title}</Title>
+            {fromThreadId && (
+              <Button
+                type="link"
+                size="small"
+                icon={<MessageOutlined />}
+                className="p-0! self-start"
+                onClick={() => onNavigate("project-messages", { project_id: projectId, thread_id: fromThreadId })}
+              >
+                From conversation
+              </Button>
+            )}
             <Text type="secondary">
               {project?.name} · {unit?.name ?? "Project location"}
             </Text>
@@ -329,6 +345,12 @@ function TaskDetail({
                   subject="task"
                   targetId={task.id}
                   emptyText="No messages about this task yet."
+                  onOpenRecord={(kind, id) =>
+                    onNavigate(kind === "task" ? "task-detail" : "issue-detail", {
+                      project_id: projectId,
+                      [kind === "task" ? "task_id" : "issue_id"]: id,
+                    })
+                  }
                 />
               </Card>
             </Flex>

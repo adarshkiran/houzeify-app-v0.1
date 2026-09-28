@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, CameraOutlined } from "@ant-design/icons"
+import { ArrowLeftOutlined, CameraOutlined, MessageOutlined } from "@ant-design/icons"
 import { Alert, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Space, Tag, Timeline, Typography, Upload } from "antd"
 import { useState } from "react"
 import CompanyLayout from "../components/company/CompanyLayout"
@@ -7,6 +7,7 @@ import ThreadPanel from "../components/conversations/ThreadPanel"
 import EvidenceThumb from "../components/EvidenceThumb"
 import Gated from "../components/Gated"
 import { issueActionLabel, issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
+import { readerMembership } from "../domain/conversations"
 import { getAllowedIssueTransitions } from "../domain/issueTransitions"
 import type { EntityId, Issue } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -82,6 +83,10 @@ function IssueDetail({
     if (outcome.ok) setResolveOpen(false)
   }
 
+  // The conversation this issue was raised from, when the viewer can read it.
+  const sourceThread = issue.source && state.threads.find((t) => t.id === issue.source!.threadId)
+  const fromThreadId = sourceThread && readerMembership(state, session, sourceThread) ? sourceThread.id : undefined
+
   return (
     <CompanyLayout
       nav={{ menu: "project", projectId, active: "issues" }}
@@ -96,6 +101,17 @@ function IssueDetail({
         <Flex align="flex-start" justify="space-between" gap="middle" wrap>
           <Flex vertical gap="small">
             <Title level={2} className="company-heading! m-0!">{issue.title}</Title>
+            {fromThreadId && (
+              <Button
+                type="link"
+                size="small"
+                icon={<MessageOutlined />}
+                className="p-0! self-start"
+                onClick={() => onNavigate("project-messages", { project_id: projectId, thread_id: fromThreadId })}
+              >
+                From conversation
+              </Button>
+            )}
             <Space>
               <Tag color={issueStatusColor(issue.status)}>{issueStatusLabel[issue.status]}</Tag>
               <Tag color={issueSeverityColor(issue.severity)}>{issue.severity} severity</Tag>
@@ -171,6 +187,12 @@ function IssueDetail({
                   subject="issue"
                   targetId={issue.id}
                   emptyText="No messages about this issue yet."
+                  onOpenRecord={(kind, id) =>
+                    onNavigate(kind === "task" ? "task-detail" : "issue-detail", {
+                      project_id: projectId,
+                      [kind === "task" ? "task_id" : "issue_id"]: id,
+                    })
+                  }
                 />
               </Card>
 
