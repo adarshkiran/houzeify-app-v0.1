@@ -604,6 +604,165 @@ html, body, #root {
   box-shadow: none !important;
 }
 
+/* Day timeline: date strip (three days each side of the selected date). */
+.day-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 16px;
+  background: var(--ant-color-bg-container);
+}
+
+.day-strip-side {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  min-width: 0;
+}
+
+.day-strip-center {
+  flex: 0 0 auto;
+  padding-inline: 8px;
+}
+
+.day-strip-selected {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ant-color-text);
+  white-space: nowrap;
+}
+
+.day-strip-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 48px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ant-color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.day-strip-day:hover {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.day-strip-day:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+}
+
+.day-strip-weekday {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.day-strip-number {
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--ant-color-text);
+}
+
+.day-strip-day.is-today .day-strip-weekday,
+.day-strip-day.is-today .day-strip-number {
+  color: var(--ant-color-primary);
+  font-weight: 700;
+}
+
+.day-strip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.day-strip-dot.is-on {
+  background: var(--ant-color-primary);
+}
+
+@media (max-width: 575px) {
+  .day-strip {
+    padding: 8px 4px;
+  }
+
+  .day-strip-day.is-far {
+    display: none;
+  }
+
+  .day-strip-day {
+    min-width: 40px;
+    padding: 4px;
+  }
+
+  .day-strip-selected {
+    font-size: 16px;
+  }
+
+  .day-strip-center {
+    padding-inline: 2px;
+  }
+}
+
+.month-picker {
+  width: 252px;
+}
+
+.month-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.month-picker-head {
+  padding: 4px 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ant-color-text-tertiary);
+}
+
+.month-picker-day {
+  position: relative;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ant-color-text);
+  cursor: pointer;
+}
+
+.month-picker-day:hover {
+  background: var(--ant-color-fill-tertiary);
+}
+
+.month-picker-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--ant-color-primary);
+  color: var(--ant-color-primary);
+}
+
+.month-picker-day.is-selected {
+  background: var(--ant-color-primary);
+  color: #fff;
+}
+
+.month-picker-day.has-update::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+}
+
 /* Worker app: one phone-width column, used on site. */
 .worker-app-header {
   padding-inline: 16px;

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import LogoHorizontal from '../components/LogoHorizontal'
-import PublicBackButton from '../components/PublicBackButton'
 
 // ─── Ambient background ───────────────────────────────────────────────────────
 
@@ -201,18 +200,15 @@ export default function ChooseRoleScreen({
       >
         <div className="flex items-center justify-between h-14 lg:h-[64px] px-5 sm:px-8 lg:px-12">
           <LogoHorizontal height={28} />
-          <div className="flex items-center gap-3">
-          <PublicBackButton onClick={() => onNavigate('login')} />
           <div
             className="flex items-center gap-2"
             style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}
           >
-            <span className="max-sm:hidden text-[10px] tracking-[0.08em] text-[#9A949D]">Step 1 of 2</span>
+            <span className="text-[10px] tracking-[0.08em] text-[#9A949D]">Step 1 of 2</span>
             <div className="flex gap-1">
               <div className="w-5 h-[3px] rounded-full bg-[#722ED1]" />
               <div className="w-5 h-[3px] rounded-full bg-[#E3DDD7]" />
             </div>
-          </div>
           </div>
         </div>
         {/* Progress bar */}

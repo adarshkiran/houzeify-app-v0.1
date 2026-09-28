@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import PublicBackButton from '../components/PublicBackButton'
 import LogoHorizontal from '../components/LogoHorizontal'
 import HIcon from '../components/HIcon'
 
@@ -540,7 +539,20 @@ export default function LoginScreen({ onNavigate }: { onNavigate: (screen: strin
         style={{ animation: 'welcomeFadeDown 0.4s ease-out 0.1s both' }}
       >
         <LogoHorizontal height={28} />
-        <PublicBackButton onClick={() => onNavigate('welcome')} />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span
+            className="hidden sm:block text-[13px] text-[#68636D]"
+            style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+          >
+            Already have an account?
+          </span>
+          <button
+            className="h-9 px-4 border border-[#E3DDD7] rounded-[10px] bg-transparent text-[13px] font-medium text-[#242326] cursor-pointer transition-all duration-200 hover:border-[#722ED1] hover:bg-[#F3EAFF]"
+            style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+          >
+            Log in
+          </button>
+        </div>
       </header>
 
       {/* ── Two-column body ── */}

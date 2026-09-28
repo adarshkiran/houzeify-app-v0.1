@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import PublicBackButton from '../components/PublicBackButton'
 import HIcon from '../components/HIcon'
 
 // ─── Ambient background (same language as OTP screen) ─────────────────────────
@@ -215,10 +214,6 @@ export default function CreateAccountScreen({
           animation: 'welcomeFadeUp 0.45s ease-out both',
         }}
       >
-        <div className="mb-2">
-          <PublicBackButton onClick={() => onNavigate('login')} />
-        </div>
-
         {/* H icon */}
         <div className="flex justify-center mb-5">
           <HIcon size={48} />

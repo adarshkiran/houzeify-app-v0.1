@@ -7,6 +7,7 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
+import DayTimeline from "../components/progress/DayTimeline"
 import {
   Avatar,
   Button,
@@ -36,6 +37,7 @@ import {
   getRecentProgress,
   getStageName,
   getTradeName,
+  getWorkTypeName,
 } from "../mock/selectors"
 import { useScopedData } from "../session/useScopedData"
 
@@ -85,7 +87,11 @@ function ProjectOverview({
   const openTasks = getOpenTasks(scoped, project.id)
   const openIssues = getOpenIssues(scoped, project.id)
   const progressRecords = getRecentProgress(scoped, project.id)
-  const latestProgress = progressRecords[0]
+  // Replaced or rejected versions don't describe the day any more.
+  const liveProgress = progressRecords.filter(
+    (item) => item.reviewStatus !== "superseded" && item.reviewStatus !== "rejected",
+  )
+  const projectTasks = scoped.tasks.filter((task) => task.projectId === project.id)
   const units = getProjectUnits(scoped, project.id)
   const memberships = getProjectMemberships(scoped, project.id)
   const stageName = getStageName(state, project.currentStageId)
@@ -178,64 +184,29 @@ function ProjectOverview({
         </Row>
 
         <Card
-          title={
-            <Title level={5} className="company-heading! m-0!">
-              Yesterday · Today · Tomorrow
-            </Title>
-          }
+          title={<Title level={5} className="company-heading! m-0!">Daily progress</Title>}
           extra={
-            <Space wrap>
-              {latestProgress && (
-                <Tag color={reviewStatusLabel[latestProgress.reviewStatus].color}>
-                  {reviewStatusLabel[latestProgress.reviewStatus].text}
-                </Tag>
-              )}
-              <Button
-                size="small"
-                onClick={() =>
-                  onNavigate("daily-progress-submit", { project_id: projectId })
-                }
-              >
-                Log today’s progress
-              </Button>
-            </Space>
+            <Button size="small" onClick={() => onNavigate("daily-progress-submit", { project_id: projectId })}>
+              Log today’s progress
+            </Button>
           }
         >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={8}>
-              <Card size="small" className="project-narrative-card">
-                <Flex vertical gap="small">
-                  <Text className="company-eyebrow">Yesterday</Text>
-                  <Text>
-                    {latestProgress?.yesterdaySummary ??
-                      "Previous work is available in the project timeline."}
-                  </Text>
-                </Flex>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card size="small" className="project-narrative-card project-narrative-today">
-                <Flex vertical gap="small">
-                  <Text className="company-eyebrow">Today</Text>
-                  <Text>
-                    {latestProgress?.todaySummary ??
-                      "No progress update has been submitted today."}
-                  </Text>
-                </Flex>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card size="small" className="project-narrative-card">
-                <Flex vertical gap="small">
-                  <Text className="company-eyebrow">Tomorrow</Text>
-                  <Text>
-                    {latestProgress?.tomorrowPlan ??
-                      "The next-day work plan has not been submitted."}
-                  </Text>
-                </Flex>
-              </Card>
-            </Col>
-          </Row>
+          <DayTimeline
+            updates={liveProgress}
+            audience="company"
+            tasks={projectTasks}
+            noteMeta={(note) => {
+              const update = liveProgress.find((item) => item.id === note.progressId)
+              if (!update) return null
+              const status = reviewStatusLabel[update.reviewStatus]
+              return (
+                <Space size={6} wrap>
+                  <Text type="secondary" className="text-[12px]!">{getWorkTypeName(state, update.workTypeId)}</Text>
+                  <Tag color={status.color} className="m-0!">{status.text}</Tag>
+                </Space>
+              )
+            }}
+          />
         </Card>
 
         <Row gutter={[24, 24]} align="top">

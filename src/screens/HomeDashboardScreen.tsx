@@ -461,7 +461,7 @@ function HozieAICard({
 
       {/* Quick Actions — only shown when idle */}
       {aiState !== 'thinking' && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 2xl:grid-cols-4 gap-2">
           {quickActions.map(action => (
             <QuickAction
               key={action.label}

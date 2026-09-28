@@ -1,17 +1,9 @@
 import { ArrowLeftOutlined } from "@ant-design/icons"
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Flex,
-  Progress,
-  Row,
-  Typography,
-} from "antd"
+import { Button, Card, Flex, Progress, Typography } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import ThreadPanel from "../components/conversations/ThreadPanel"
+import DayTimeline from "../components/progress/DayTimeline"
 import EvidenceGrid from "../components/progress/EvidenceGrid"
 import { findThread, readerMembership } from "../domain/conversations"
 import type { EntityId, Thread } from "../domain/models"
@@ -26,28 +18,6 @@ import {
 import { useSession } from "../session/SessionProvider"
 
 const { Paragraph, Text, Title } = Typography
-
-function Narrative({
-  label,
-  copy,
-  emphasis,
-}: {
-  label: string
-  copy: string
-  emphasis?: boolean
-}) {
-  return (
-    <Card
-      size="small"
-      className={emphasis ? "project-narrative-today" : "project-narrative-card"}
-    >
-      <Flex vertical gap="small">
-        <Text className="company-eyebrow">{label}</Text>
-        <Text>{copy}</Text>
-      </Flex>
-    </Card>
-  )
-}
 
 function CustomerUpdate({
   onNavigate,
@@ -111,32 +81,21 @@ function CustomerUpdate({
               </Flex>
             </Card>
 
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={8}>
-                <Narrative
-                  label="Yesterday"
-                  copy={
-                    latest.yesterdaySummary ||
-                    "The previous day was not described in this update."
-                  }
-                />
-              </Col>
-              <Col xs={24} md={8}>
-                <Narrative label="Today" copy={latest.todaySummary} emphasis />
-              </Col>
-              <Col xs={24} md={8}>
-                <Narrative label="Tomorrow" copy={latest.tomorrowPlan} />
-              </Col>
-            </Row>
-
-            {latest.blockerSummary && (
-              <Alert type="warning" showIcon message={latest.blockerSummary} />
-            )}
+            <DayTimeline
+              updates={published}
+              audience="homeowner"
+              noteMeta={(note) => {
+                const update = published.find((item) => item.id === note.progressId)
+                return update ? (
+                  <Text type="secondary" className="text-[12px]!">{getWorkTypeName(state, update.workTypeId)}</Text>
+                ) : null
+              }}
+            />
 
             <Card
               title={
                 <Title level={5} className="company-heading! m-0!">
-                  Photos from site
+                  Latest photos from site
                 </Title>
               }
             >
