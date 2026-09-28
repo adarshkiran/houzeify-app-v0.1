@@ -110,7 +110,15 @@ export default function DayTimeline({
   noteMeta?: (note: DayNote) => ReactNode
 }) {
   const today = localToday()
-  const [selected, setSelected] = useState(today)
+  const [selected, setSelectedDate] = useState(today)
+  // Which way the last change went, so the strip and cards slide in from that side.
+  const [direction, setDirection] = useState<"forward" | "back">("forward")
+  const setSelected = (date: ISODate) => {
+    if (date === selected) return
+    setDirection(date > selected ? "forward" : "back")
+    setSelectedDate(date)
+  }
+  const slide = `dt-slide dt-slide-${direction}`
   const [pickerOpen, setPickerOpen] = useState(false)
   const marked = useMemo(() => datesWithUpdates(updates), [updates])
   const onToday = selected === today
@@ -175,9 +183,9 @@ export default function DayTimeline({
     <Flex vertical gap="middle">
       <div ref={stripRef} className="day-strip">
         <Button type="text" shape="circle" icon={<LeftOutlined />} aria-label="Previous week" onClick={() => setSelected(addDays(selected, -7))} />
-        <div className="day-strip-side">{before.map(pill)}</div>
+        <div key={`before-${selected}`} className={`day-strip-side ${slide}`}>{before.map(pill)}</div>
         <Flex ref={centerRef} align="center" justify="center" gap={8} className="day-strip-center">
-          <span className="day-strip-selected" aria-live="polite">{longLabel(selected)}</span>
+          <span key={selected} className={`day-strip-selected ${slide}`} aria-live="polite">{longLabel(selected)}</span>
           <Popover
             open={pickerOpen}
             onOpenChange={setPickerOpen}
@@ -199,11 +207,11 @@ export default function DayTimeline({
             <Button type="text" shape="circle" icon={<CalendarOutlined />} aria-label="Pick a date" className="text-[18px]!" />
           </Popover>
         </Flex>
-        <div className="day-strip-side">{after.map(pill)}</div>
+        <div key={`after-${selected}`} className={`day-strip-side ${slide}`}>{after.map(pill)}</div>
         <Button type="text" shape="circle" icon={<RightOutlined />} aria-label="Next week" onClick={() => setSelected(addDays(selected, 7))} />
       </div>
 
-      <Row gutter={[16, 16]}>
+      <Row key={selected} gutter={[16, 16]} className={`dt-cards dt-slide-${direction}`}>
         {columns.map(({ offset, label }, index) => {
           const date = addDays(selected, offset)
           const story = stories[index]!

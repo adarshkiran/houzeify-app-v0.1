@@ -793,6 +793,46 @@ html, body, #root {
   }
 }
 
+/* Day timeline motion: on a date change the days, the big date and the
+   cards slide in from the side you moved towards, the cards slightly staggered. */
+@keyframes dt-in-forward {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes dt-in-back {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dt-slide.dt-slide-forward,
+.dt-cards.dt-slide-forward > .ant-col {
+  animation: dt-in-forward 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dt-slide.dt-slide-back,
+.dt-cards.dt-slide-back > .ant-col {
+  animation: dt-in-back 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dt-cards > .ant-col:nth-child(2) { animation-delay: 40ms; }
+.dt-cards > .ant-col:nth-child(3) { animation-delay: 80ms; }
+
+.day-strip-day {
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.day-strip-day:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-slide,
+  .dt-cards > .ant-col {
+    animation: none !important;
+  }
+}
+
 .month-picker {
   width: 252px;
 }
