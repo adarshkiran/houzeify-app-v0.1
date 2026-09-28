@@ -1,4 +1,5 @@
 import { type ReactNode } from "react"
+import { addDays, localToday } from "../mock/dayStory"
 import {
   ArrowRightOutlined,
   BellOutlined,
@@ -52,9 +53,10 @@ function getStageTone(stageName: string) {
 
 function getDateLabel(value?: string) {
   if (!value) return "No update"
-  if (value === "2026-09-20") return "Today"
-  if (value === "2026-09-19") return "Yesterday"
-  if (value === "2026-09-18") return "2 days ago"
+  const today = localToday()
+  if (value === today) return "Today"
+  if (value === addDays(today, -1)) return "Yesterday"
+  if (value === addDays(today, -2)) return "2 days ago"
 
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(
     new Date(`${value}T00:00:00`),
