@@ -52,12 +52,15 @@ describe("task drafts", () => {
     const d = x.task("Start Main House slab casting on Friday, 42 cubic metres", ctx)
     expect(d.values).toMatchObject({ plannedStart: "2026-10-02", plannedValue: 42, unit: "m3", workTypeId: "work-slab-casting" })
     expect(d.values.dueDate).toBeUndefined()
+    expect(d.fields.unit).toEqual({ state: "heard" })
   })
 
   it("defaults priority to medium as a guess, and the unit from the work type", () => {
     const d = x.task("Main House curing for 3", ctx)
     expect(d.values.priority).toBe("medium")
     expect(d.fields.priority?.state).toBe("guessed")
+    expect(d.values.unit).toBe("day")
+    expect(d.fields.unit).toEqual({ state: "guessed", reason: "The work type's usual unit" })
   })
 })
 

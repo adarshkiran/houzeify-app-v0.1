@@ -60,9 +60,11 @@ function task(text: string, ctx: VoiceContext): VoiceDraft<TaskDraftValues> {
     values.plannedValue = quantity.value
     values.unit = quantity.unit
     fields.plannedValue = quantity.converted ? guessed(quantity.converted) : heard
+    fields.unit = quantity.converted ? guessed(quantity.converted) : heard
     remove.push(quantity.matched)
   } else if (workType) {
     values.unit = workType.workType.defaultUnit
+    fields.unit = guessed("The work type's usual unit")
   }
 
   remove.push("assign to", "assign it to", "ask", "tell", "start", "starting")
