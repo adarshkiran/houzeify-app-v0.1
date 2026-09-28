@@ -8,7 +8,7 @@ type Item = { id: string; label: string; go?: (onNavigate: Navigate) => void }
 
 /** Where each homeowner menu item leads; items without `go` aren't built yet. */
 const MAIN: Item[] = [
-  { id: 'home', label: 'Home', go: (nav) => nav('dashboard-home') },
+  { id: 'home', label: 'Dashboard', go: (nav) => nav('dashboard-home') },
   { id: 'advisor', label: 'AI Advisor', go: (nav) => nav('ai-advisor') },
   { id: 'site-update', label: 'Site update', go: (nav) => nav('customer-daily-update', { project_id: 'project-sharma' }) },
   { id: 'estimates', label: 'Estimates', go: (nav) => nav('estimate-dashboard') },

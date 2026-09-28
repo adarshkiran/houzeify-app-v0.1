@@ -192,7 +192,7 @@ function NavItem({ icon, label, active, onClick }: {
 
 function Sidebar({ onNavigate }: { onNavigate: (s: string) => void }) {
   const navMain = [
-    { id: 'home', icon: <IcoHome />, label: 'Home', dest: 'dashboard-home' },
+    { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: 'dashboard-home' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: '' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
     { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },

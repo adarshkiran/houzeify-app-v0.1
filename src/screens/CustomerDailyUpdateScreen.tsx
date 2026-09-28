@@ -51,7 +51,7 @@ function CustomerUpdate({
       <Flex align="center" justify="space-between" className="business-onboarding-header">
         <LogoHorizontal height={24} />
         <Button icon={<ArrowLeftOutlined />} onClick={() => onNavigate("dashboard-home")}>
-          Home
+          Dashboard
         </Button>
       </Flex>
 

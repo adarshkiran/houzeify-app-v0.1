@@ -178,7 +178,7 @@ function Sidebar({
   onNavigate: (screen: string, data?: Record<string, string>) => void
 }) {
   const navMain = [
-    { id: 'home', icon: <IcoHome />, label: 'Home', dest: '' },
+    { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: '' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
     { id: 'site-update', icon: <IcoPlan />, label: 'Site update', dest: 'customer-daily-update' },
@@ -274,7 +274,7 @@ function MobileTopBar({ onNavigate }: { onNavigate: (screen: string, data?: Reco
         <HomeownerMobileMenu active="home" onNavigate={onNavigate} />
         <HIcon size={26} />
         <span className="text-[16px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-          Home
+          Dashboard
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -298,7 +298,7 @@ function TopHeader() {
         className="text-[20px] font-semibold text-[#242326] m-0"
         style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
       >
-        Home
+        Dashboard
       </h1>
       <div className="flex items-center gap-2">
         <button className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[#68636D] hover:bg-[#F4F0EC] hover:text-[#242326] transition-all">
