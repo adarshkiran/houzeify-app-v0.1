@@ -1,4 +1,5 @@
 import type {
+  CallLog,
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
@@ -1141,6 +1142,8 @@ const threadReads: ThreadRead[] = [
   { threadId: "thread-sharma-direct-arjun-ravi", membershipId: "membership-manager-1", lastReadAt: "2026-09-27T08:30:00+05:30" },
 ]
 
+const callLogs: CallLog[] = []
+
 export const seedConstructionData: ConstructionDataState = {
   organizations: [
     {
@@ -1404,4 +1407,5 @@ export const seedConstructionData: ConstructionDataState = {
   threads,
   messages,
   threadReads,
+  callLogs,
 }
