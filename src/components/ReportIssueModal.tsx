@@ -2,13 +2,15 @@ import { CameraOutlined } from "@ant-design/icons"
 import { Button, Flex, Form, Input, Modal, Select, Space, Typography, Upload } from "antd"
 import type { UploadFile } from "antd"
 import { useState } from "react"
-import type { EntityId, Issue } from "../domain/models"
+import type { EntityId, Issue, MessageSource } from "../domain/models"
 import { ISSUE_REPORT_PERMISSIONS } from "../domain/permissions"
+import type { IssueDraftValues, VoiceDraft } from "../domain/voice/types"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useAccess, useActableUnits } from "../session/useCan"
 import { useCommand } from "../session/useCommand"
 import { useScopedData } from "../session/useScopedData"
 import { filesToEvidence } from "./issueEvidence"
+import { voiceLabel, VoiceDraftBanner } from "./voice/VoiceFieldMark"
 
 const { Text } = Typography
 
@@ -39,6 +41,8 @@ export default function ReportIssueModal({
   projectId,
   taskId,
   dailyProgressId,
+  draft,
+  source,
   onReported,
 }: {
   open: boolean
@@ -47,6 +51,8 @@ export default function ReportIssueModal({
   /** Fixes the task (and so the location), e.g. when opened from Task Detail. */
   taskId?: EntityId
   dailyProgressId?: EntityId
+  draft?: VoiceDraft<IssueDraftValues>
+  source?: MessageSource
   onReported?: (issue: Issue) => void
 }) {
   const { state, reportIssue } = useConstructionData()
@@ -80,6 +86,7 @@ export default function ReportIssueModal({
           description: values.description ?? "",
           severity: values.severity,
           evidence: filesToEvidence(files),
+          source,
         }),
       { success: "Issue reported" },
     )
@@ -102,20 +109,29 @@ export default function ReportIssueModal({
         form={form}
         layout="vertical"
         requiredMark={false}
-        initialValues={{ severity: "medium", taskId }}
+        initialValues={{
+          severity: "medium",
+          ...draft?.values,
+          taskId: taskId ?? draft?.values.taskId,
+        }}
         onFinish={handleFinish}
       >
+        {draft ? <VoiceDraftBanner transcript={draft.transcript} /> : null}
         <Form.Item
-          label="What is the problem?"
+          label={voiceLabel("What is the problem?", draft?.fields.title)}
           name="title"
           rules={[{ required: true, message: "Give the issue a short title" }]}
         >
           <Input placeholder="e.g. Cracked lintel above the east window" />
         </Form.Item>
-        <Form.Item label="Details" name="description">
+        <Form.Item label={voiceLabel("Details", draft?.fields.description)} name="description">
           <Input.TextArea rows={3} placeholder="What you saw, and what needs to happen" />
         </Form.Item>
-        <Form.Item label="Severity" name="severity" rules={[{ required: true }]}>
+        <Form.Item
+          label={voiceLabel("Severity", draft?.fields.severity)}
+          name="severity"
+          rules={[{ required: true }]}
+        >
           <Select options={severityOptions} />
         </Form.Item>
         {taskId ? (
@@ -123,7 +139,7 @@ export default function ReportIssueModal({
             Linked to task: {task?.title ?? "Task"}
           </Text>
         ) : (
-          <Form.Item label="Linked task (optional)" name="taskId">
+          <Form.Item label={voiceLabel("Linked task (optional)", draft?.fields.taskId)} name="taskId">
             <Select
               allowClear
               showSearch
@@ -139,7 +155,7 @@ export default function ReportIssueModal({
           </Text>
         ) : (
           <Form.Item
-            label="Location"
+            label={voiceLabel("Location", draft?.fields.projectUnitId)}
             name="projectUnitId"
             rules={[{ required: !canWholeProject, message: "Choose where the problem is" }]}
           >

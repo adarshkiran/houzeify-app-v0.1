@@ -1,7 +1,7 @@
-import { ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
+import { ArrowRightOutlined, AudioOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
 import { clickableRow, stopRowClick } from "../components/company/clickableRow"
 import { countLabel } from "../components/countLabel"
-import { Button, Card, Flex, Input, Select, Table, Tag, Typography } from "antd"
+import { Button, Card, Flex, Input, Select, Space, Table, Tag, Typography } from "antd"
 import type { TableProps } from "antd"
 import { useMemo, useState } from "react"
 import CompanyLayout from "../components/company/CompanyLayout"
@@ -9,9 +9,13 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import Gated from "../components/Gated"
 import { issueSeverityColor, issueStatusColor, issueStatusLabel } from "../components/issueLabels"
 import ReportIssueModal from "../components/ReportIssueModal"
+import VoiceCapture from "../components/voice/VoiceCapture"
+import { useVoiceContext } from "../components/voice/useVoiceContext"
 import type { EntityId, Issue } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { ISSUE_REPORT_PERMISSIONS } from "../domain/permissions"
+import type { IssueDraftValues, VoiceDraft } from "../domain/voice/types"
+import { voiceExtractor } from "../domain/voice/extract"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getMembershipName } from "../mock/selectors"
 import { useAccess, useActableUnits } from "../session/useCan"
@@ -38,11 +42,14 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
   const can = useAccess()
   const reportableUnits = useActableUnits(ISSUE_REPORT_PERMISSIONS, projectId)
   const canReport = reportableUnits.length > 0 || can(ISSUE_REPORT_PERMISSIONS, projectId)
+  const voiceContext = useVoiceContext(projectId)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<StatusFilter>("active")
   const [severity, setSeverity] = useState<Issue["severity"] | "all">("all")
   const [unitId, setUnitId] = useState<EntityId | "all">("all")
   const [reportOpen, setReportOpen] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [draft, setDraft] = useState<VoiceDraft<IssueDraftValues>>()
 
   const units = scoped.projectUnits.filter((unit) => unit.projectId === projectId)
   const issues = useMemo(
@@ -136,11 +143,16 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
       onNavigate={onNavigate}
       description="Site problems, owners and how they were closed"
       actions={
-        <Gated allowed={canReport} reason="You can't report issues on this project.">
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setReportOpen(true)}>
-            Report issue
-          </Button>
-        </Gated>
+        <Space>
+          <Gated allowed={canReport} reason="You can't report issues on this project.">
+            <Button icon={<AudioOutlined />} onClick={() => setCapturing(true)}>Speak an issue</Button>
+          </Gated>
+          <Gated allowed={canReport} reason="You can't report issues on this project.">
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setReportOpen(true)}>
+              Report issue
+            </Button>
+          </Gated>
+        </Space>
       }
     >
       <Flex vertical gap="large" className="company-content">
@@ -202,11 +214,28 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
 
       <ReportIssueModal
         open={reportOpen}
-        onClose={() => setReportOpen(false)}
+        onClose={() => {
+          setReportOpen(false)
+          setDraft(undefined)
+        }}
         projectId={projectId}
-        onReported={(issue) =>
+        draft={draft}
+        onReported={(issue) => {
+          setDraft(undefined)
           onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })
-        }
+        }}
+      />
+
+      <VoiceCapture
+        open={capturing}
+        title="Speak an issue"
+        placeholder="e.g. Water leak in the Block B basement, pump stopped"
+        onCancel={() => setCapturing(false)}
+        onDraft={(text) => {
+          setCapturing(false)
+          setDraft(voiceExtractor.issue(text, voiceContext))
+          setReportOpen(true)
+        }}
       />
     </CompanyLayout>
   )
