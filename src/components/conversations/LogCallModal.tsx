@@ -46,8 +46,23 @@ export default function LogCallModal({
   const [form] = Form.useForm<CallFormValues>()
 
   useEffect(() => {
-    if (!open) form.resetFields()
-  }, [open, form])
+    if (!open) {
+      form.resetFields()
+      return
+    }
+    // The Form store instance persists across opens (ThreadPanel keeps this
+    // component mounted and only toggles `open`), so re-seed every field
+    // explicitly here rather than relying on `initialValues`, which only
+    // applies on the form's true first mount.
+    const { date: seedDate, time: seedTime } = nowParts()
+    form.setFieldsValue({
+      type: initialType,
+      callDate: seedDate,
+      callTime: seedTime,
+      durationMinutes: undefined,
+      note: undefined,
+    })
+  }, [open, initialType, form])
 
   const handleFinish = (values: CallFormValues) => {
     // Build the ISO timestamp from the two plain inputs (local time).
@@ -76,7 +91,6 @@ export default function LogCallModal({
         form={form}
         layout="vertical"
         requiredMark={false}
-        initialValues={{ type: initialType, callDate: date, callTime: time, durationMinutes: undefined }}
         onFinish={handleFinish}
       >
         <Form.Item label="Type" name="type" rules={[{ required: true }]}>

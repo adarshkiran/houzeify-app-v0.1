@@ -139,7 +139,7 @@ export default function ThreadPanel(props: PanelProps) {
     if (!box) return
     if (needle) box.querySelector(".thread-highlight")?.scrollIntoView({ block: "center" })
     else box.scrollTop = box.scrollHeight
-  }, [messages.length, needle])
+  }, [timeline.length, needle])
 
   if (!probe || !me) return <Text type="secondary">You can't see this conversation.</Text>
 
