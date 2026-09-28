@@ -793,6 +793,23 @@ html, body, #root {
   }
 }
 
+/* Day timeline cards carousel (wide screens): the track slides sideways. */
+.dt-cards-viewport {
+  overflow: hidden;
+  /* room for card borders at the clip edge */
+  padding-block: 1px;
+}
+
+.dt-cards-track {
+  display: flex;
+  align-items: stretch;
+  will-change: transform;
+}
+
+.dt-cards-cell > .project-narrative-card {
+  height: 100%;
+}
+
 /* Day timeline motion: on a date change the days, the big date and the
    cards slide in from the side you moved towards, the cards slightly staggered. */
 /* Slow ease-in-out glide: starts gently, moves, settles gently. */

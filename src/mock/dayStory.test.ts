@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { DailyProgress, Task } from "../domain/models"
 import { seedConstructionData as seed } from "./seed"
-import { addDays, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday } from "./dayStory"
+import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack } from "./dayStory"
 
 const base = seed.dailyProgress.find((p) => p.id === "progress-sharma-2009")!
 const update = (over: Partial<DailyProgress>): DailyProgress => ({ ...base, ...over })
@@ -77,5 +77,37 @@ describe("dayStory", () => {
     expect(dayStory("2026-09-10", [], { today, audience: "company" })).toEqual({ kind: "empty", message: "No update submitted" })
     expect(dayStory("2026-10-05", [], { today, audience: "homeowner" })).toEqual({ kind: "empty", message: "Nothing planned yet" })
     expect(dayStory("2026-09-10", [], { today, audience: "homeowner" })).toEqual({ kind: "empty", message: "No update shared" })
+  })
+})
+
+describe("slideTrack", () => {
+  it("counts days between dates", () => {
+    expect(dayDiff("2026-09-28", "2026-10-05")).toBe(7)
+    expect(dayDiff("2026-09-28", "2026-09-26")).toBe(-2)
+  })
+
+  it("lays out every day between the windows when moving forward", () => {
+    expect(slideTrack("2026-09-28", "2026-09-30")).toEqual({
+      dates: ["2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"],
+      fromIndex: 0,
+      toIndex: 2,
+    })
+  })
+
+  it("and when moving back", () => {
+    expect(slideTrack("2026-09-28", "2026-09-27")).toEqual({
+      dates: ["2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29"],
+      fromIndex: 1,
+      toIndex: 0,
+    })
+  })
+
+  it("puts far-apart windows side by side", () => {
+    expect(slideTrack("2026-09-28", "2026-12-01", 14)).toEqual({
+      dates: ["2026-09-27", "2026-09-28", "2026-09-29", "2026-11-30", "2026-12-01", "2026-12-02"],
+      fromIndex: 0,
+      toIndex: 3,
+    })
+    expect(slideTrack("2026-09-28", "2026-06-01", 14).fromIndex).toBe(3)
   })
 })

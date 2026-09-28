@@ -27,6 +27,34 @@ export function addDays(date: ISODate, days: number): ISODate {
   return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10)
 }
 
+/** Whole days from `from` to `to` (negative when `to` is earlier). */
+export function dayDiff(from: ISODate, to: ISODate): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
+/**
+ * Cards to lay out in a row for sliding from one selected date to another:
+ * every day between the two three-card windows, so the row travels the real
+ * distance. Big jumps put the two windows side by side instead.
+ * `fromIndex` / `toIndex` are where each window starts in `dates`.
+ */
+export function slideTrack(
+  from: ISODate,
+  to: ISODate,
+  maxSpan = 14,
+): { dates: ISODate[]; fromIndex: number; toIndex: number } {
+  const window = (center: ISODate) => [addDays(center, -1), center, addDays(center, 1)]
+  const diff = dayDiff(from, to)
+  if (Math.abs(diff) > maxSpan) {
+    return diff > 0
+      ? { dates: [...window(from), ...window(to)], fromIndex: 0, toIndex: 3 }
+      : { dates: [...window(to), ...window(from)], fromIndex: 3, toIndex: 0 }
+  }
+  const start = diff > 0 ? addDays(from, -1) : addDays(to, -1)
+  const dates = Array.from({ length: Math.abs(diff) + 3 }, (_, i) => addDays(start, i))
+  return diff > 0 ? { dates, fromIndex: 0, toIndex: diff } : { dates, fromIndex: -diff, toIndex: 0 }
+}
+
 /** Today's date on this device as `YYYY-MM-DD`. */
 export function localToday(now = new Date()): ISODate {
   const pad = (n: number) => String(n).padStart(2, "0")

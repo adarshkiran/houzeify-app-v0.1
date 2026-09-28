@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
 import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
 import type { DailyProgress, ISODate, Task } from "../../domain/models"
-import { addDays, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, type DayAudience, type DayNote } from "../../mock/dayStory"
+import { addDays, dayDiff, datesWithUpdates, dayStory, formatDay, latestUpdateDate, localToday, slideTrack, type DayAudience, type DayNote } from "../../mock/dayStory"
 import { NoteCard } from "./UpdateNotes"
 
 const { Text } = Typography
@@ -14,6 +14,9 @@ const weekday = (date: ISODate) => fmt(date, { weekday: "short" })
 const longLabel = formatDay
 
 /** Coloured tags (dark text on a light fill + border) stay readable on the tinted Today card. */
+/** Space between the Yesterday / Today / Tomorrow cards. */
+const CARD_GAP = 16
+
 /** Width one day needs in the strip (48px button + breathing room). */
 const DAY_SLOT = 60
 
@@ -113,9 +116,31 @@ export default function DayTimeline({
   const [selected, setSelectedDate] = useState(today)
   // Which way the last change went, so the strip and cards slide in from that side.
   const [direction, setDirection] = useState<"forward" | "back">("forward")
+  // Cards row: on wide screens the three cards sit on a track that slides
+  // through every day between the old and new date (a carousel).
+  const cardsRef = useRef<HTMLDivElement>(null)
+  const [cardsWidth, setCardsWidth] = useState(0)
+  useEffect(() => {
+    const box = cardsRef.current
+    if (!box || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => setCardsWidth(box.clientWidth))
+    observer.observe(box)
+    setCardsWidth(box.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+  // Three cards across once each can be ~160px; below that they stack (phone).
+  const wide = cardsWidth >= 520
+  const [track, setTrack] = useState<(ReturnType<typeof slideTrack> & { moving: boolean }) | null>(null)
+
   const setSelected = (date: ISODate) => {
     if (date === selected) return
     setDirection(date > selected ? "forward" : "back")
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    if (wide && !reduceMotion) {
+      // Lay out old + new days, then glide from the old window to the new one.
+      setTrack({ ...slideTrack(selected, date), moving: false })
+      requestAnimationFrame(() => requestAnimationFrame(() => setTrack((t) => (t ? { ...t, moving: true } : t))))
+    }
     setSelectedDate(date)
   }
   const slide = `dt-slide dt-slide-${direction}`
@@ -173,11 +198,51 @@ export default function DayTimeline({
   const allEmpty = stories.every((story) => story.kind === "empty")
   const latest = latestUpdateDate(updates)
 
-  const columns = [
-    { offset: -1, label: onToday ? "Yesterday" : "Day before" },
-    { offset: 0, label: onToday ? "Today" : "Selected day" },
-    { offset: 1, label: onToday ? "Tomorrow" : "Day after" },
-  ]
+  const labelFor = (date: ISODate) => {
+    const offset = dayDiff(selected, date)
+    if (offset === -1) return onToday ? "Yesterday" : "Day before"
+    if (offset === 0) return onToday ? "Today" : "Selected day"
+    if (offset === 1) return onToday ? "Tomorrow" : "Day after"
+    return date < today ? "Past day" : "Upcoming day" // only seen mid-slide
+  }
+
+  const renderCard = (date: ISODate) => {
+    const story = dayStory(date, updates, { today, audience, tasks })
+    return (
+      <NoteCard label={labelFor(date)} date={date}>
+            {story.kind === "empty" ? (
+              <div className="note-empty">
+                <span className="note-empty-dash" aria-hidden>—</span>
+                <Text type="secondary" className="note-empty-caption">{story.message}</Text>
+              </div>
+            ) : (
+              <Flex vertical gap="middle">
+                {story.kind !== "done" && (
+                  <Tag variant="outlined" color={STORY_TAG[story.kind].color} icon={STORY_TAG[story.kind].icon} className="m-0! self-start">
+                    {STORY_TAG[story.kind].label}
+                  </Tag>
+                )}
+                {story.notes.map((note, index) => (
+                  <Flex key={note.progressId ?? note.taskId ?? index} vertical gap={4}>
+                    <Text>{note.text}</Text>
+                    {noteMeta?.(note)}
+                    {story.kind === "done" && blockerOn(note, date) && (
+                      <Text type="warning" className="text-[13px]!">
+                        <WarningOutlined /> {blockerOn(note, date)}
+                      </Text>
+                    )}
+                  </Flex>
+                ))}
+              </Flex>
+            )}
+      </NoteCard>
+    )
+  }
+
+  const trackDates = track?.dates ?? [addDays(selected, -1), selected, addDays(selected, 1)]
+  const trackIndex = track ? (track.moving ? track.toIndex : track.fromIndex) : 0
+  const cardWidth = (cardsWidth - 2 * CARD_GAP) / 3
+  const cardStep = cardWidth + CARD_GAP
 
   return (
     <Flex vertical gap="middle">
@@ -211,43 +276,35 @@ export default function DayTimeline({
         <Button type="text" shape="circle" icon={<RightOutlined />} aria-label="Next week" onClick={() => setSelected(addDays(selected, 7))} />
       </div>
 
-      <Row key={selected} gutter={[16, 16]} className={`dt-cards dt-slide-${direction}`}>
-        {columns.map(({ offset, label }, index) => {
-          const date = addDays(selected, offset)
-          const story = stories[index]!
-          return (
-            <Col key={offset} xs={24} md={8}>
-              <NoteCard label={label} date={date}>
-                {story.kind === "empty" ? (
-                  <div className="note-empty">
-                    <span className="note-empty-dash" aria-hidden>—</span>
-                    <Text type="secondary" className="note-empty-caption">{story.message}</Text>
-                  </div>
-                ) : (
-                  <Flex vertical gap="middle">
-                    {story.kind !== "done" && (
-                      <Tag variant="outlined" color={STORY_TAG[story.kind].color} icon={STORY_TAG[story.kind].icon} className="m-0! self-start">
-                        {STORY_TAG[story.kind].label}
-                      </Tag>
-                    )}
-                    {story.notes.map((note, index) => (
-                      <Flex key={note.progressId ?? note.taskId ?? index} vertical gap={4}>
-                        <Text>{note.text}</Text>
-                        {noteMeta?.(note)}
-                        {story.kind === "done" && blockerOn(note, date) && (
-                          <Text type="warning" className="text-[13px]!">
-                            <WarningOutlined /> {blockerOn(note, date)}
-                          </Text>
-                        )}
-                      </Flex>
-                    ))}
-                  </Flex>
-                )}
-              </NoteCard>
-            </Col>
-          )
-        })}
-      </Row>
+      <div ref={cardsRef} className="dt-cards-viewport">
+        {wide ? (
+          <div
+            className="dt-cards-track"
+            style={{
+              gap: CARD_GAP,
+              transform: `translateX(${-trackIndex * cardStep}px)`,
+              transition: track?.moving ? "transform 750ms cubic-bezier(0.45, 0, 0.55, 1)" : "none",
+            }}
+            onTransitionEnd={(event) => {
+              if (event.target === event.currentTarget && event.propertyName === "transform") setTrack(null)
+            }}
+          >
+            {trackDates.map((date) => (
+              <div key={date} className="dt-cards-cell" style={{ flex: `0 0 ${cardWidth}px` }}>
+                {renderCard(date)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Row key={selected} gutter={[16, 16]} className={`dt-cards dt-slide-${direction}`}>
+            {[-1, 0, 1].map((offset) => (
+              <Col key={offset} xs={24} md={8}>
+                {renderCard(addDays(selected, offset))}
+              </Col>
+            ))}
+          </Row>
+        )}
+      </div>
 
       {/* Three dashes in a row can read like a failed load, so say it and offer the way out. */}
       {allEmpty && (
