@@ -9,6 +9,7 @@ import { useAccess } from "../../session/useCan"
 import { useCommand } from "../../session/useCommand"
 import EvidenceThumb from "../EvidenceThumb"
 import Gated from "../Gated"
+import UpdateNotes from "./UpdateNotes"
 
 const { Paragraph, Text } = Typography
 
@@ -70,13 +71,13 @@ export default function PublishPanel({ progress }: { progress: DailyProgress }) 
       <Modal
         open={previewing}
         title="The homeowner will see"
+        width={760}
         okText="Publish"
         onOk={publish}
         onCancel={() => setPreviewing(false)}
       >
         <Flex vertical gap="middle">
-          <Paragraph className="m-0!"><Text strong>Today: </Text>{progress.todaySummary}</Paragraph>
-          <Paragraph className="m-0!"><Text strong>Tomorrow: </Text>{progress.tomorrowPlan}</Paragraph>
+          <UpdateNotes progress={progress} showYesterday={Boolean(progress.yesterdaySummary?.trim())} />
           <Row gutter={[12, 12]}>
             {shareable.filter((item) => chosen.includes(item.id)).map((item) => (
               <Col key={item.id} span={8}><EvidenceThumb evidence={item} /></Col>

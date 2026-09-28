@@ -211,7 +211,8 @@ html, body, #root {
 
 .company-dashboard .company-eyebrow,
 .business-onboarding .company-eyebrow,
-.company-form-page .company-eyebrow {
+.company-form-page .company-eyebrow,
+.ant-modal .company-eyebrow {
   font-family: 'Sometype Mono:SemiBold', monospace;
   font-size: 10px;
   font-weight: 600;

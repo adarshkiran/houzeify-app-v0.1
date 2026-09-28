@@ -33,6 +33,13 @@ export function localToday(now = new Date()): ISODate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
+/** "Fri 25 Sept" for a `YYYY-MM-DD` date (read as a calendar day, not a time). */
+export function formatDay(date: ISODate): string {
+  const day = new Date(`${date}T00:00:00Z`)
+  const part = (options: Intl.DateTimeFormatOptions) => day.toLocaleDateString("en-IN", { timeZone: "UTC", ...options })
+  return `${part({ weekday: "short" })} ${part({ day: "numeric", month: "short" })}`
+}
+
 /** Dates that have at least one update, for the dots on the date strip. */
 export function datesWithUpdates(updates: readonly DailyProgress[]): Set<ISODate> {
   return new Set(updates.map((update) => update.date))

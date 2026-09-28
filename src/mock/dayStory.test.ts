@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { DailyProgress, Task } from "../domain/models"
 import { seedConstructionData as seed } from "./seed"
-import { addDays, datesWithUpdates, dayStory, localToday } from "./dayStory"
+import { addDays, datesWithUpdates, dayStory, formatDay, localToday } from "./dayStory"
 
 const base = seed.dailyProgress.find((p) => p.id === "progress-sharma-2009")!
 const update = (over: Partial<DailyProgress>): DailyProgress => ({ ...base, ...over })
@@ -14,6 +14,11 @@ describe("dates", () => {
     expect(addDays("2026-09-30", 1)).toBe("2026-10-01")
     expect(addDays("2026-10-01", -1)).toBe("2026-09-30")
     expect(addDays("2026-09-28", -7)).toBe("2026-09-21")
+  })
+
+  it("labels a calendar day", () => {
+    expect(formatDay("2026-09-25")).toBe("Fri 25 Sept")
+    expect(formatDay("2026-10-01")).toBe("Thu 1 Oct")
   })
 
   it("formats the local date", () => {

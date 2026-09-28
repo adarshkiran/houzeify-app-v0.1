@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react"
 import { CalendarOutlined, LeftOutlined, RightOutlined, WarningOutlined } from "@ant-design/icons"
-import { Button, Card, Col, Flex, Popover, Row, Tag, Typography } from "antd"
+import { Button, Col, Flex, Popover, Row, Tag, Typography } from "antd"
 import type { DailyProgress, ISODate, Task } from "../../domain/models"
-import { addDays, datesWithUpdates, dayStory, localToday, type DayAudience, type DayNote } from "../../mock/dayStory"
+import { addDays, datesWithUpdates, dayStory, formatDay, localToday, type DayAudience, type DayNote } from "../../mock/dayStory"
+import { NoteCard } from "./UpdateNotes"
 
 const { Text } = Typography
 
@@ -10,7 +11,7 @@ const asDate = (date: ISODate) => new Date(`${date}T00:00:00Z`)
 const fmt = (date: ISODate, options: Intl.DateTimeFormatOptions) =>
   asDate(date).toLocaleDateString("en-IN", { timeZone: "UTC", ...options })
 const weekday = (date: ISODate) => fmt(date, { weekday: "short" })
-const longLabel = (date: ISODate) => `${weekday(date)} ${fmt(date, { day: "numeric", month: "short" })}`
+const longLabel = formatDay
 
 const STORY_TAG = {
   planned: "Planned",
@@ -180,32 +181,26 @@ export default function DayTimeline({
           const story = dayStory(date, updates, { today, audience, tasks })
           return (
             <Col key={offset} xs={24} md={8}>
-              <Card size="small" className={offset === 0 ? "project-narrative-card project-narrative-today" : "project-narrative-card"}>
-                <Flex vertical gap="small">
-                  <Flex align="baseline" justify="space-between" gap="small">
-                    <Text className="company-eyebrow">{label}</Text>
-                    <Text type="secondary" className="text-[13px]!">{longLabel(date)}</Text>
+              <NoteCard label={label} date={date} emphasis={offset === 0}>
+                {story.kind === "empty" ? (
+                  <Text type="secondary">{story.message}</Text>
+                ) : (
+                  <Flex vertical gap="middle">
+                    {story.kind !== "done" && <Tag className="m-0! self-start">{STORY_TAG[story.kind]}</Tag>}
+                    {story.notes.map((note, index) => (
+                      <Flex key={note.progressId ?? note.taskId ?? index} vertical gap={4}>
+                        <Text>{note.text}</Text>
+                        {noteMeta?.(note)}
+                        {story.kind === "done" && blockerOn(note, date) && (
+                          <Text type="warning" className="text-[13px]!">
+                            <WarningOutlined /> {blockerOn(note, date)}
+                          </Text>
+                        )}
+                      </Flex>
+                    ))}
                   </Flex>
-                  {story.kind === "empty" ? (
-                    <Text type="secondary">{story.message}</Text>
-                  ) : (
-                    <Flex vertical gap="middle">
-                      {story.kind !== "done" && <Tag className="m-0! self-start">{STORY_TAG[story.kind]}</Tag>}
-                      {story.notes.map((note, index) => (
-                        <Flex key={note.progressId ?? note.taskId ?? index} vertical gap={4}>
-                          <Text>{note.text}</Text>
-                          {noteMeta?.(note)}
-                          {story.kind === "done" && blockerOn(note, date) && (
-                            <Text type="warning" className="text-[13px]!">
-                              <WarningOutlined /> {blockerOn(note, date)}
-                            </Text>
-                          )}
-                        </Flex>
-                      ))}
-                    </Flex>
-                  )}
-                </Flex>
-              </Card>
+                )}
+              </NoteCard>
             </Col>
           )
         })}

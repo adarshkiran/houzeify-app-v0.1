@@ -10,9 +10,10 @@ import {
   getWorkTypeName,
 } from "../../mock/selectors"
 import EvidenceGrid from "./EvidenceGrid"
+import UpdateNotes from "./UpdateNotes"
 import { reviewStatusLabel } from "./progressLabels"
 
-const { Paragraph, Text } = Typography
+const { Text } = Typography
 
 /** One update: what was done, the evidence, and every earlier version with its review. */
 export default function ProgressDetail({ progress }: { progress: DailyProgress }) {
@@ -60,12 +61,7 @@ export default function ProgressDetail({ progress }: { progress: DailyProgress }
       />
 
       <Flex vertical gap="small">
-        <Text strong>Yesterday</Text>
-        <Paragraph className="m-0!">{progress.yesterdaySummary || "No previous-day note was included."}</Paragraph>
-        <Text strong>Today</Text>
-        <Paragraph className="m-0!">{progress.todaySummary}</Paragraph>
-        <Text strong>Tomorrow</Text>
-        <Paragraph className="m-0!">{progress.tomorrowPlan}</Paragraph>
+        <UpdateNotes progress={progress} />
         {progress.blockerSummary && <Alert type="warning" showIcon message={progress.blockerSummary} />}
       </Flex>
 
