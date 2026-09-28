@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { clickableRow, stopRowClick } from "../components/company/clickableRow"
 import { countLabel } from "../components/countLabel"
 import {
   ArrowRightOutlined,
@@ -109,7 +110,10 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
             type="link"
             className="p-0!"
             danger={getOpenIssues(scoped, project.id).length > 0}
-            onClick={() => onNavigate("issues", { project_id: project.id })}
+            onClick={(event) => {
+              stopRowClick(event)
+              onNavigate("issues", { project_id: project.id })
+            }}
           >
             {countLabel(getOpenIssues(scoped, project.id).length, "issue")}
           </Button>
@@ -125,19 +129,8 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
     {
       key: "action",
       width: 48,
-      render: (_, project) => (
-        <Button
-          type="text"
-          aria-label={`Open ${project.name}`}
-          icon={<ArrowRightOutlined />}
-          onClick={() =>
-            onNavigate("project-overview", {
-              project_id: project.id,
-              project_name: project.name,
-            })
-          }
-        />
-      ),
+      // The whole row opens the project; the arrow is just the hint.
+      render: () => <ArrowRightOutlined aria-hidden className="clickable-row-arrow" />,
     },
   ]
 
@@ -202,10 +195,12 @@ function CompanyProjects({ onNavigate }: { onNavigate: Navigate }) {
             columns={columns}
             dataSource={filteredProjects}
             pagination={false}
-            onRow={(project) => ({
-              onDoubleClick: () =>
-                onNavigate("project-overview", { project_id: project.id }),
-            })}
+            onRow={(project) =>
+              clickableRow(
+                () => onNavigate("project-overview", { project_id: project.id, project_name: project.name }),
+                `Open ${project.name}`,
+              )
+            }
           />
         </Card>
       </Flex>

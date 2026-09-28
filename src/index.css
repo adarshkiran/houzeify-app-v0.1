@@ -595,6 +595,27 @@ html, body, #root {
   background: var(--ant-color-primary-bg);
 }
 
+/* Table rows that open their record (projects, tasks, issues). */
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: -2px;
+}
+
+.clickable-row-arrow {
+  color: var(--ant-color-text-tertiary);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.clickable-row:hover .clickable-row-arrow,
+.clickable-row:focus-visible .clickable-row-arrow {
+  color: var(--ant-color-primary);
+  transform: translateX(2px);
+}
+
 /* Plain (uncoloured) tags are beige by default, which blends into the purple
    tint of selected rows and the Today card. Make them white there. Coloured
    tags keep their own colours. */

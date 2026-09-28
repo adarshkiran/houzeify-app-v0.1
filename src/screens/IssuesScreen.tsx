@@ -1,4 +1,5 @@
 import { ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons"
+import { clickableRow, stopRowClick } from "../components/company/clickableRow"
 import { countLabel } from "../components/countLabel"
 import { Button, Card, Flex, Input, Select, Table, Tag, Typography } from "antd"
 import type { TableProps } from "antd"
@@ -124,14 +125,8 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
     {
       key: "action",
       width: 48,
-      render: (_, issue) => (
-        <Button
-          type="text"
-          aria-label={`Open ${issue.title}`}
-          icon={<ArrowRightOutlined />}
-          onClick={() => onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id })}
-        />
-      ),
+      // The whole row opens the issue; the arrow is just the hint.
+      render: () => <ArrowRightOutlined aria-hidden className="clickable-row-arrow" />,
     },
   ]
 
@@ -194,6 +189,12 @@ function Issues({ onNavigate, projectId }: { onNavigate: Navigate; projectId: En
             rowKey="id"
             columns={columns}
             dataSource={issues}
+            onRow={(issue) =>
+              clickableRow(
+                () => onNavigate("issue-detail", { project_id: projectId, issue_id: issue.id }),
+                `Open ${issue.title}`,
+              )
+            }
             pagination={{ pageSize: 10, showSizeChanger: false }}
           />
         </Card>

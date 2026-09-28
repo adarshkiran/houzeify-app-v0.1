@@ -1,4 +1,5 @@
 import Gated from "../components/Gated"
+import { clickableRow, stopRowClick } from "../components/company/clickableRow"
 import { countLabel } from "../components/countLabel"
 import { Permissions } from "../domain/permissions"
 import { useAccess, useActableUnits } from "../session/useCan"
@@ -182,19 +183,8 @@ function Tasks({
     {
       key: "action",
       width: 48,
-      render: (_, task) => (
-        <Button
-          type="text"
-          aria-label={`Open ${task.title}`}
-          icon={<ArrowRightOutlined />}
-          onClick={() =>
-            onNavigate("task-detail", {
-              project_id: projectId,
-              task_id: task.id,
-            })
-          }
-        />
-      ),
+      // The whole row opens the task; the arrow is just the hint.
+      render: () => <ArrowRightOutlined aria-hidden className="clickable-row-arrow" />,
     },
   ]
 
@@ -283,6 +273,12 @@ function Tasks({
             rowKey="id"
             columns={columns}
             dataSource={filteredTasks}
+            onRow={(task) =>
+              clickableRow(
+                () => onNavigate("task-detail", { project_id: projectId, task_id: task.id }),
+                `Open ${task.title}`,
+              )
+            }
             pagination={{ pageSize: 10, showSizeChanger: false }}
           />
         </Card>
