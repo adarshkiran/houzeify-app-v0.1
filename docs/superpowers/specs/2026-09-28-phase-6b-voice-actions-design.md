@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-28
 **Branch:** `feature/voice-actions` (branched from `feature/communication-voice`, i.e. PR #14)
-**Status:** Draft — awaiting review
+**Status:** Implemented
 **Source:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` → Phase 6 (Communication & Voice): voice pipeline, Voice → Task / Progress / Issue, voice instructions
 **Follows:** Phase 6A — `docs/superpowers/specs/2026-09-27-phase-6a-conversations-design.md`
 
