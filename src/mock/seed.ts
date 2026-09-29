@@ -3,6 +3,7 @@ import type {
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
+  Document,
   Issue,
   Message,
   Project,
@@ -992,6 +993,7 @@ const issues: Issue[] = [
     status: "open",
     assignedMembershipId: "membership-manager-3",
     evidenceIds: [],
+    customerVisibility: "private",
     createdByMembershipId: "membership-manager-3",
     createdAt: "2026-09-19T14:10:00+05:30",
   },
@@ -1005,6 +1007,7 @@ const issues: Issue[] = [
     status: "in-progress",
     assignedMembershipId: "membership-manager-3",
     evidenceIds: [],
+    customerVisibility: "private",
     createdByMembershipId: "membership-manager-3",
     createdAt: "2026-09-17T10:20:00+05:30",
   },
@@ -1018,6 +1021,7 @@ const issues: Issue[] = [
     status: "open",
     assignedMembershipId: "membership-manager-1",
     evidenceIds: [],
+    customerVisibility: "private",
     createdByMembershipId: "membership-manager-1",
     createdAt: "2026-09-15T11:30:00+05:30",
   },
@@ -1143,6 +1147,29 @@ const threadReads: ThreadRead[] = [
 ]
 
 const callLogs: CallLog[] = []
+
+const documents: Document[] = [
+  {
+    id: "document-sharma-1",
+    projectId: "project-sharma",
+    title: "Municipal building approval",
+    category: "approval",
+    url: "/mock-evidence/sharma-approval.pdf",
+    uploadedByMembershipId: "membership-manager-1",
+    customerVisibility: "customer-visible",
+    createdAt: "2026-09-10T10:00:00+05:30",
+  },
+  {
+    id: "document-sharma-2",
+    projectId: "project-sharma",
+    title: "Construction contract — Sharma Residence",
+    category: "contract",
+    url: "/mock-evidence/sharma-contract.pdf",
+    uploadedByMembershipId: "membership-manager-1",
+    customerVisibility: "private",
+    createdAt: "2026-09-11T09:30:00+05:30",
+  },
+]
 
 export const seedConstructionData: ConstructionDataState = {
   organizations: [
@@ -1403,6 +1430,7 @@ export const seedConstructionData: ConstructionDataState = {
       customerVisibility: "review-required",
     },
   ],
+  documents,
   issues,
   threads,
   messages,

@@ -1523,6 +1523,7 @@ export const reportIssue =
       severity: input.severity,
       status: "open",
       evidenceIds: evidence.map((item) => item.id),
+      customerVisibility: "private",
       createdByMembershipId: reporter.id,
       createdAt: iso(ctx),
     }

@@ -305,12 +305,26 @@ export interface Issue {
   status: "open" | "in-progress" | "resolved" | "closed"
   assignedMembershipId?: EntityId
   evidenceIds: EntityId[]
+  /** Two states, not Evidence's three — a staff member either has shared this with the homeowner or hasn't. */
+  customerVisibility: "private" | "customer-visible"
   createdByMembershipId: EntityId
   createdAt: ISODateTime
   updatedAt?: ISODateTime
   resolvedAt?: ISODateTime
   resolutionNote?: string
   closedAt?: ISODateTime
+}
+
+/** A file shared with staff and, once published, the homeowner — an approval, contract or drawing. */
+export interface Document {
+  id: EntityId
+  projectId: EntityId
+  title: string
+  category: "approval" | "contract" | "drawing" | "other"
+  url: string
+  uploadedByMembershipId: EntityId
+  customerVisibility: "private" | "customer-visible"
+  createdAt: ISODateTime
 }
 
 /** What a conversation is attached to. */
@@ -384,6 +398,7 @@ export interface ConstructionDataState {
   assignments: TaskAssignment[]
   dailyProgress: DailyProgress[]
   evidence: Evidence[]
+  documents: Document[]
   issues: Issue[]
   threads: Thread[]
   messages: Message[]
