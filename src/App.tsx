@@ -272,8 +272,7 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <EstimateDashboardScreen
             onNavigate={navigateTo}
-            projectName={projectName}
-            location={projectLocation}
+            estimateId={params.estimate_id}
           />
         </div>
       )}
