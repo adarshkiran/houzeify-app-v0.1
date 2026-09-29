@@ -118,68 +118,6 @@ function CustomerUpdate({
             >
               <EvidenceGrid items={evidence} audience="homeowner" empty="No photos were shared with this update." />
             </Card>
-
-            <Card
-              title={
-                <Title level={5} className="company-heading! m-0!">
-                  Issues
-                </Title>
-              }
-            >
-              {publishedIssues.length ? (
-                <List
-                  dataSource={publishedIssues}
-                  renderItem={(issue) => (
-                    <List.Item>
-                      <Flex vertical gap={2} className="w-full">
-                        <Flex align="center" justify="space-between" gap="small">
-                          <Text strong>{issue.title}</Text>
-                          <Tag color={issueStatusWord(issue.status) === "Fixed" ? "success" : "warning"}>
-                            {issueStatusWord(issue.status)}
-                          </Tag>
-                        </Flex>
-                        <Text type="secondary" className="text-[12px]!">
-                          {(issue.status === "resolved" || issue.status === "closed"
-                            ? issue.resolvedAt ?? issue.createdAt
-                            : issue.createdAt
-                          ).slice(0, 10)}
-                        </Text>
-                      </Flex>
-                    </List.Item>
-                  )}
-                />
-              ) : (
-                <Paragraph className="m-0!" type="secondary">
-                  No issues have been shared for this project yet.
-                </Paragraph>
-              )}
-            </Card>
-
-            <Card
-              title={
-                <Title level={5} className="company-heading! m-0!">
-                  Documents
-                </Title>
-              }
-            >
-              {publishedDocuments.length ? (
-                <List
-                  dataSource={publishedDocuments}
-                  renderItem={(document) => (
-                    <List.Item>
-                      <Button type="link" className="p-0! h-auto!" icon={<FileTextOutlined />} onClick={() => setOpenDocument(document)}>
-                        {document.title}
-                      </Button>
-                      <Text type="secondary" className="text-[12px]!">{document.createdAt.slice(0, 10)}</Text>
-                    </List.Item>
-                  )}
-                />
-              ) : (
-                <Paragraph className="m-0!" type="secondary">
-                  No documents have been shared for this project yet.
-                </Paragraph>
-              )}
-            </Card>
           </>
         ) : (
           <Card>
@@ -188,6 +126,68 @@ function CustomerUpdate({
             </Paragraph>
           </Card>
         )}
+
+        <Card
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Issues
+            </Title>
+          }
+        >
+          {publishedIssues.length ? (
+            <List
+              dataSource={publishedIssues}
+              renderItem={(issue) => (
+                <List.Item>
+                  <Flex vertical gap={2} className="w-full">
+                    <Flex align="center" justify="space-between" gap="small">
+                      <Text strong>{issue.title}</Text>
+                      <Tag color={issueStatusWord(issue.status) === "Fixed" ? "success" : "warning"}>
+                        {issueStatusWord(issue.status)}
+                      </Tag>
+                    </Flex>
+                    <Text type="secondary" className="text-[12px]!">
+                      {(issue.status === "resolved" || issue.status === "closed"
+                        ? issue.resolvedAt ?? issue.createdAt
+                        : issue.createdAt
+                      ).slice(0, 10)}
+                    </Text>
+                  </Flex>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Paragraph className="m-0!" type="secondary">
+              No issues have been shared for this project yet.
+            </Paragraph>
+          )}
+        </Card>
+
+        <Card
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Documents
+            </Title>
+          }
+        >
+          {publishedDocuments.length ? (
+            <List
+              dataSource={publishedDocuments}
+              renderItem={(document) => (
+                <List.Item>
+                  <Button type="link" className="p-0! h-auto!" icon={<FileTextOutlined />} onClick={() => setOpenDocument(document)}>
+                    {document.title}
+                  </Button>
+                  <Text type="secondary" className="text-[12px]!">{document.createdAt.slice(0, 10)}</Text>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Paragraph className="m-0!" type="secondary">
+              No documents have been shared for this project yet.
+            </Paragraph>
+          )}
+        </Card>
 
         {project && canMessageTeam && (
           <Card title="Message your project team">
