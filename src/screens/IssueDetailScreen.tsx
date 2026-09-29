@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, CameraOutlined, MessageOutlined } from "@ant-design/icons"
-import { Alert, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Space, Tag, Timeline, Typography, Upload } from "antd"
+import { Alert, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Space, Switch, Tag, Timeline, Typography, Upload } from "antd"
 import { useState } from "react"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
@@ -31,7 +31,7 @@ function IssueDetail({
   projectId: EntityId
   issueId: EntityId
 }) {
-  const { state, assignIssue, transitionIssue, addIssueEvidence } = useConstructionData()
+  const { state, assignIssue, transitionIssue, addIssueEvidence, publishIssue } = useConstructionData()
   const scoped = useScopedData()
   const { session } = useSession()
   const run = useCommand()
@@ -229,6 +229,15 @@ function IssueDetail({
                   </Flex>
                   <Flex justify="space-between"><Text type="secondary">Raised by</Text><Text>{getMembershipName(state, issue.createdByMembershipId) ?? "Unknown"}</Text></Flex>
                   <Flex justify="space-between"><Text type="secondary">Raised</Text><Text>{issue.createdAt.slice(0, 10)}</Text></Flex>
+                  <Flex justify="space-between" align="center">
+                    <Text type="secondary">Share with homeowner</Text>
+                    <Gated allowed={can(Permissions.CUSTOMER_PUBLISH, projectId, issue)} reason="Publishing needs customer-publish access on this project.">
+                      <Switch
+                        checked={issue.customerVisibility === "customer-visible"}
+                        onChange={(checked) => run(() => publishIssue(issue.id, checked), { success: checked ? "Shared with the homeowner" : "Hidden from the homeowner" })}
+                      />
+                    </Gated>
+                  </Flex>
                 </Flex>
               </Card>
 
