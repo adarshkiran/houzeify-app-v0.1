@@ -10,6 +10,8 @@ import {
 import type * as Inputs from "../domain/commandInputs"
 import * as conversationCommands from "../domain/conversationCommands"
 import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
+import * as estimateCommands from "../domain/estimateCommands"
+import type { GenerateEstimateInput } from "../domain/estimateCommands"
 import * as commands from "../domain/constructionCommands"
 import type {
   CallLog,
@@ -18,6 +20,7 @@ import type {
   DailyProgress,
   Document,
   EntityId,
+  Estimate,
   Evidence,
   Issue,
   Message,
@@ -134,6 +137,7 @@ interface ConstructionDataContextValue {
   publishIssue: (issueId: EntityId, visible: boolean) => Issue
   uploadDocument: (input: Inputs.UploadDocumentInput) => Document
   publishDocument: (documentId: EntityId, visible: boolean) => Document
+  generateEstimate: (input: GenerateEstimateInput) => Estimate
   postMessage: (input: PostMessageInput) => Message
   logCall: (input: LogCallInput) => CallLog
   openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
@@ -236,6 +240,7 @@ export default function ConstructionDataProvider({
       publishIssue: (id, visible) => run(commands.publishIssue(id, visible)),
       uploadDocument: (input) => run(commands.uploadDocument(input)),
       publishDocument: (id, visible) => run(commands.publishDocument(id, visible)),
+      generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
       postMessage: (input) => run(conversationCommands.postMessage(input)),
       logCall: (input) => run(conversationCommands.logCall(input)),
       openDirectThread: (projectId, otherId) =>
