@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
-import { markThreadRead, markThreadUnread, openDirectThread, postMessage } from "./conversationCommands"
+import { logCall, markThreadRead, markThreadUnread, openDirectThread, postMessage } from "./conversationCommands"
 import { unreadCount } from "./conversations"
 import { ConflictError, IntegrityError } from "./errors"
 import type { ConstructionDataState, ProjectMembership } from "./models"
@@ -156,5 +156,77 @@ describe("markThreadUnread", () => {
 
   it("refuses a thread the caller can't read", () => {
     expect(() => run(seed, ravi, markThreadUnread("thread-sharma-homeowner"))).toThrow(PermissionError)
+  })
+})
+
+describe("logCall", () => {
+  const DIRECT = "thread-sharma-direct-arjun-ravi" // Arjun (membership-manager-1) ↔ Ravi (membership-worker-ravi-sharma)
+  const input = { threadId: DIRECT, type: "voice" as const, startedAt: "2026-09-27T09:00:00.000Z", durationMinutes: 12 }
+
+  it("logs a call for either participant", () => {
+    const { result } = run(seed, arjun, logCall(input))
+    expect(result).toMatchObject({
+      threadId: DIRECT,
+      loggedByMembershipId: "membership-manager-1",
+      otherMembershipId: "membership-worker-ravi-sharma",
+      type: "voice",
+      durationMinutes: 12,
+    })
+    const { result: fromRavi } = run(seed, ravi, logCall(input))
+    expect(fromRavi).toMatchObject({ loggedByMembershipId: "membership-worker-ravi-sharma", otherMembershipId: "membership-manager-1" })
+  })
+
+  it("stores an optional note, trimmed, and drops an empty one", () => {
+    const { result: withNote } = run(seed, arjun, logCall({ ...input, note: "  Discussed Friday's pour timing.  " }))
+    expect(withNote.note).toBe("Discussed Friday's pour timing.")
+    const { result: emptyNote } = run(seed, arjun, logCall({ ...input, note: "   " }))
+    expect(emptyNote.note).toBeUndefined()
+  })
+
+  it("adds the call to state without touching lastMessageAt", () => {
+    const before = seed.threads.find((t) => t.id === DIRECT)!.lastMessageAt
+    const { state, result } = run(seed, arjun, logCall(input))
+    expect(state.callLogs).toContainEqual(result)
+    expect(state.threads.find((t) => t.id === DIRECT)!.lastMessageAt).toBe(before)
+  })
+
+  it("refuses someone who isn't a participant", () => {
+    expect(() => run(seed, homeowner, logCall(input))).toThrow(PermissionError)
+  })
+
+  it("refuses a non-direct thread", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, threadId: "thread-sharma-project" }))).toThrow(IntegrityError)
+  })
+
+  it("authorizes before checking thread kind: an unauthorized caller gets PermissionError, not IntegrityError", () => {
+    expect(() => run(seed, homeowner, logCall({ ...input, threadId: "thread-sharma-project" }))).toThrow(PermissionError)
+  })
+
+  it("refuses a missing or negative duration", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, durationMinutes: -1 }))).toThrow(ConflictError)
+    // @ts-expect-error -- exercising the runtime guard for missing input
+    expect(() => run(seed, arjun, logCall({ ...input, durationMinutes: undefined }))).toThrow(ConflictError)
+  })
+
+  it("accepts a zero-minute call (no answer)", () => {
+    const { result } = run(seed, arjun, logCall({ ...input, durationMinutes: 0 }))
+    expect(result.durationMinutes).toBe(0)
+  })
+
+  it("refuses a fractional duration", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, durationMinutes: 2.5 }))).toThrow(ConflictError)
+  })
+
+  it("refuses a call dated in the future", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, startedAt: "2026-09-27T10:00:00.001Z" }))).toThrow(ConflictError)
+  })
+
+  it("refuses an unparseable startedAt", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, startedAt: "not-a-date" }))).toThrow(ConflictError)
+  })
+
+  it("accepts a call dated now or earlier", () => {
+    const { result } = run(seed, arjun, logCall({ ...input, startedAt: "2026-09-27T10:00:00.000Z" }))
+    expect(result.startedAt).toBe("2026-09-27T10:00:00.000Z")
   })
 })

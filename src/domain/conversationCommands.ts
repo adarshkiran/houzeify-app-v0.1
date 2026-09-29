@@ -1,6 +1,7 @@
 import { canMessageDirectly, findThread, readerMembership } from "./conversations"
 import { ConflictError, IntegrityError } from "./errors"
 import type {
+  CallLog,
   EntityId,
   Message,
   MessageVoice,
@@ -182,4 +183,53 @@ export const markThreadUnread =
       state: { ...state, threadReads: withRead(state.threadReads, thread.id, reader.id, justBefore) },
       result: undefined,
     }
+  }
+
+export interface LogCallInput {
+  threadId: EntityId
+  type: "voice" | "video"
+  /** ISO timestamp for when the call happened. */
+  startedAt: string
+  durationMinutes: number
+  note?: string
+}
+
+/**
+ * Records that a call happened between a direct thread's two people — not a
+ * message, and never carries a phone number. Either participant can log it.
+ */
+export const logCall =
+  (input: LogCallInput): Command<CallLog> =>
+  (state, ctx) => {
+    const thread = state.threads.find((item) => item.id === input.threadId)
+    if (!thread) throw new PermissionError(Permissions.PROJECT_READ)
+    const me = readerMembership(state, ctx.actor, thread)
+    if (!me) throw new PermissionError(Permissions.PROJECT_READ, thread.projectId)
+    if (thread.subject !== "direct") {
+      throw new IntegrityError(`Thread ${thread.id} is not a direct thread`)
+    }
+    const otherId = thread.participantMembershipIds?.find((id) => id !== me.id)
+    if (!otherId) throw new IntegrityError(`Direct thread ${thread.id} has no other participant`)
+
+    if (!Number.isInteger(input.durationMinutes) || input.durationMinutes < 0) {
+      throw new ConflictError("Enter how long the call lasted.")
+    }
+
+    const startedAtMs = Date.parse(input.startedAt)
+    if (Number.isNaN(startedAtMs) || startedAtMs > ctx.clock.now().getTime()) {
+      throw new ConflictError("That doesn't look like a valid date, or it hasn't happened yet.")
+    }
+
+    const call: CallLog = {
+      id: ctx.ids.next("call"),
+      threadId: thread.id,
+      loggedByMembershipId: me.id,
+      otherMembershipId: otherId,
+      type: input.type,
+      startedAt: input.startedAt,
+      durationMinutes: input.durationMinutes,
+      note: input.note?.trim() || undefined,
+      createdAt: iso(ctx),
+    }
+    return { state: { ...state, callLogs: [...state.callLogs, call] }, result: call }
   }

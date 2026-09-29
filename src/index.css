@@ -1199,6 +1199,35 @@ html, body, #root {
   border-top: 1px solid var(--ant-color-border-secondary);
 }
 
+.thread-call {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  align-self: center;
+  max-width: 90%;
+  padding: 8px 14px;
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-fill-quaternary);
+  color: var(--ant-color-text-secondary);
+}
+
+.thread-call-title {
+  display: block;
+  color: var(--ant-color-text);
+  font-weight: 500;
+}
+
+.thread-call-meta {
+  display: block;
+  font-size: 12px;
+}
+
+.thread-call-note {
+  display: block;
+  margin-top: 2px;
+  font-style: italic;
+}
+
 .thread-row {
   gap: 4px;
   max-width: 78%;

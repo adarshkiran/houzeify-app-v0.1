@@ -353,6 +353,20 @@ export interface ThreadRead {
   lastReadAt: ISODateTime
 }
 
+/** A call the two people on a direct thread had outside the app — nothing is dialled or recorded here, only that it happened. */
+export interface CallLog {
+  id: EntityId
+  threadId: EntityId
+  /** Who added the entry; the other side is whoever else is on the thread. */
+  loggedByMembershipId: EntityId
+  otherMembershipId: EntityId
+  type: "voice" | "video"
+  startedAt: ISODateTime
+  durationMinutes: number
+  note?: string
+  createdAt: ISODateTime
+}
+
 export interface ConstructionDataState {
   organizations: Organization[]
   people: Person[]
@@ -374,4 +388,5 @@ export interface ConstructionDataState {
   threads: Thread[]
   messages: Message[]
   threadReads: ThreadRead[]
+  callLogs: CallLog[]
 }

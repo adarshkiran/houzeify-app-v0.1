@@ -17,7 +17,7 @@ import { ISSUE_REPORT_PERMISSIONS, Permissions } from "../../domain/permissions"
 import { voiceExtractor } from "../../domain/voice/extract"
 import type { IssueDraftValues, TaskDraftValues, VoiceDraft } from "../../domain/voice/types"
 import { useConstructionData } from "../../mock/ConstructionDataProvider"
-import { getThreadMessages, roleLabel, threadTitle } from "../../mock/conversationSelectors"
+import { getThreadTimeline, roleLabel, threadTitle, type TimelineEntry } from "../../mock/conversationSelectors"
 import { messageLinks, type MessageLink } from "../../mock/messageLinks"
 import { getMembershipName } from "../../mock/selectors"
 import { useSession } from "../../session/SessionProvider"
@@ -29,6 +29,7 @@ import CreateTaskModal from "../tasks/CreateTaskModal"
 import { useDictation } from "../useDictation"
 import { useVoiceContext } from "../voice/useVoiceContext"
 import { clockTime, dayLabel, sameDay } from "./chatTime"
+import LogCallModal from "./LogCallModal"
 import { ThreadAvatar, threadSubtitle } from "./threadVisuals"
 
 const { Text } = Typography
@@ -61,7 +62,6 @@ const FROM_TASK_THREAD = "From this task's conversation"
 const messageText = (message: Message) => (message.body ?? message.voice?.transcript ?? "").trim()
 
 const MAX_LENGTH = 2000
-const CALLS_SOON = "Calls are coming in the calls update"
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
@@ -93,6 +93,7 @@ export default function ThreadPanel(props: PanelProps) {
   const [source, setSource] = useState<MessageSource>()
   // Who said the message a draft was made from; unset when it was the reader.
   const [draftAuthor, setDraftAuthor] = useState<string>()
+  const [logCallOpen, setLogCallOpen] = useState<"voice" | "video">()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const thread: Thread | undefined =
@@ -117,7 +118,8 @@ export default function ThreadPanel(props: PanelProps) {
     probe?.subject === "task" ? state.tasks.find((t) => t.id === probe.targetId) : undefined
   // Called unconditionally (hooks rule); an empty project only happens when there is no thread to act on.
   const voiceContext = useVoiceContext(probe?.projectId ?? "", threadTask?.id)
-  const messages = useMemo(() => (thread ? getThreadMessages(state, thread.id) : []), [state, thread])
+  const timeline = useMemo(() => (thread ? getThreadTimeline(state, thread.id) : []), [state, thread])
+  const messages = useMemo(() => timeline.filter((e): e is Extract<TimelineEntry, { kind: "message" }> => e.kind === "message").map((e) => e.message), [timeline])
   const needle = searchOpen ? query.trim() : ""
   const matches = needle
     ? messages.filter((m) =>
@@ -137,7 +139,7 @@ export default function ThreadPanel(props: PanelProps) {
     if (!box) return
     if (needle) box.querySelector(".thread-highlight")?.scrollIntoView({ block: "center" })
     else box.scrollTop = box.scrollHeight
-  }, [messages.length, needle])
+  }, [timeline.length, needle])
 
   if (!probe || !me) return <Text type="secondary">You can't see this conversation.</Text>
 
@@ -248,15 +250,11 @@ export default function ThreadPanel(props: PanelProps) {
             </Tooltip>
             {!group && (
               <>
-                <Tooltip title={CALLS_SOON}>
-                  <span>
-                    <Button type="text" shape="circle" icon={<PhoneOutlined />} aria-label="Voice call (coming soon)" disabled />
-                  </span>
+                <Tooltip title="Log a voice call">
+                  <Button type="text" shape="circle" icon={<PhoneOutlined />} aria-label="Log a voice call" onClick={() => setLogCallOpen("voice")} />
                 </Tooltip>
-                <Tooltip title={CALLS_SOON}>
-                  <span>
-                    <Button type="text" shape="circle" icon={<VideoCameraOutlined />} aria-label="Video call (coming soon)" disabled />
-                  </span>
+                <Tooltip title="Log a video call">
+                  <Button type="text" shape="circle" icon={<VideoCameraOutlined />} aria-label="Log a video call" onClick={() => setLogCallOpen("video")} />
                 </Tooltip>
               </>
             )}
@@ -288,22 +286,47 @@ export default function ThreadPanel(props: PanelProps) {
       )}
 
       <div ref={scrollRef} className="thread-messages" role="log" aria-live="polite">
-        {messages.length === 0 ? (
+        {timeline.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={props.emptyText ?? "No messages yet. Start the conversation."} />
         ) : (
-          messages.map((message, index) => {
+          timeline.map((entry, index) => {
+            const previous = timeline[index - 1]
+            const newDay = !previous || !sameDay(previous.at, entry.at)
+            const dayDivider = newDay && (
+              <div className="thread-day" role="separator">
+                <span>{dayLabel(entry.at)}</span>
+              </div>
+            )
+
+            if (entry.kind === "call") {
+              const { call } = entry
+              const byMe = call.loggedByMembershipId === me.id
+              return (
+                <Fragment key={call.id}>
+                  {dayDivider}
+                  <div className="thread-call" role="note">
+                    {call.type === "voice" ? <PhoneOutlined /> : <VideoCameraOutlined />}
+                    <div>
+                      <Text className="thread-call-title">
+                        {call.type === "voice" ? "Voice call" : "Video call"} · {call.durationMinutes} min
+                      </Text>
+                      <Text type="secondary" className="thread-call-meta">
+                        {clockTime(call.startedAt)} · logged by {byMe ? "you" : getMembershipName(state, call.loggedByMembershipId) ?? "them"}
+                      </Text>
+                      {call.note && <Text className="thread-call-note">“{call.note}”</Text>}
+                    </div>
+                  </div>
+                </Fragment>
+              )
+            }
+
+            const message = entry.message
             const author = state.memberships.find((m) => m.id === message.authorMembershipId)
             const mine = message.authorMembershipId === me.id
-            const previous = messages[index - 1]
-            const newDay = !previous || !sameDay(previous.createdAt, message.createdAt)
             const dimmed = needle && !matches.includes(message)
             return (
               <Fragment key={message.id}>
-                {newDay && (
-                  <div className="thread-day" role="separator">
-                    <span>{dayLabel(message.createdAt)}</span>
-                  </div>
-                )}
+                {dayDivider}
                 <Flex vertical className={`thread-row${mine ? " is-mine" : ""}${dimmed ? " is-dimmed" : ""}`}>
                   {!mine && group && (
                     <Text type="secondary" className="thread-author">
@@ -446,6 +469,14 @@ export default function ThreadPanel(props: PanelProps) {
           draft={issueDraft}
           draftLabel={draftAuthor ? `${draftAuthor} said` : undefined}
           source={source}
+        />
+      )}
+      {!group && thread && (
+        <LogCallModal
+          open={!!logCallOpen}
+          onClose={() => setLogCallOpen(undefined)}
+          threadId={thread.id}
+          initialType={logCallOpen ?? "voice"}
         />
       )}
     </Flex>
