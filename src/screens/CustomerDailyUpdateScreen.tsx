@@ -2,7 +2,7 @@ import { useState } from "react"
 import { ArrowLeftOutlined, FileTextOutlined } from "@ant-design/icons"
 import { Button, Card, Flex, List, Progress, Tag, Typography } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
-import DocumentViewerModal from "../components/documents/DocumentViewerModal"
+import DocumentViewerModal, { categoryLabel } from "../components/documents/DocumentViewerModal"
 import LogoHorizontal from "../components/LogoHorizontal"
 import ThreadPanel from "../components/conversations/ThreadPanel"
 import DayTimeline from "../components/progress/DayTimeline"
@@ -178,7 +178,9 @@ function CustomerUpdate({
                   <Button type="link" className="p-0! h-auto!" icon={<FileTextOutlined />} onClick={() => setOpenDocument(document)}>
                     {document.title}
                   </Button>
-                  <Text type="secondary" className="text-[12px]!">{document.createdAt.slice(0, 10)}</Text>
+                  <Text type="secondary" className="text-[12px]!">
+                    {categoryLabel[document.category]} · {document.createdAt.slice(0, 10)}
+                  </Text>
                 </List.Item>
               )}
             />

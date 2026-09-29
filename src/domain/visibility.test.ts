@@ -101,4 +101,32 @@ describe("published issues and documents", () => {
     expect(published.some((item) => item.id === "document-sharma-1")).toBe(true)
     expect(published.some((item) => item.id === "document-sharma-2")).toBe(false) // private
   })
+
+  it("excludes a published issue or document from a different project", () => {
+    const crossProject = {
+      ...seedConstructionData,
+      issues: seedConstructionData.issues.map((item) =>
+        item.id === "issue-1" ? { ...item, customerVisibility: "customer-visible" as const } : item,
+      ),
+      documents: [
+        ...seedConstructionData.documents,
+        {
+          id: "document-tech-park-1",
+          projectId: "project-tech-park",
+          title: "Tech Park approval",
+          category: "approval" as const,
+          url: "/mock-evidence/tech-park-approval.pdf",
+          uploadedByMembershipId: "membership-manager-3",
+          customerVisibility: "customer-visible" as const,
+          createdAt: "2026-09-10T10:00:00+05:30",
+        },
+      ],
+    }
+
+    const publishedIssues = getPublishedIssues(crossProject, "project-sharma")
+    expect(publishedIssues.some((item) => item.id === "issue-1")).toBe(false)
+
+    const publishedDocuments = getPublishedDocuments(crossProject, "project-sharma")
+    expect(publishedDocuments.some((item) => item.id === "document-tech-park-1")).toBe(false)
+  })
 })

@@ -69,6 +69,7 @@ export function scopeStateForReading(
     workPlanItems: state.workPlanItems.filter((item) => canRead(item.projectId, item)),
     issues: state.issues.filter((issue) => canRead(issue.projectId, issue)),
     dailyProgress: state.dailyProgress.filter((item) => canRead(item.projectId, item)),
+    documents: state.documents.filter((doc) => canRead(doc.projectId, {})),
     evidence: state.evidence.filter((item) => {
       const task = item.taskId ? taskById.get(item.taskId) : undefined
       return canRead(item.projectId, task ?? { projectUnitId: item.projectUnitId })

@@ -90,8 +90,15 @@ describe("publishDocument", () => {
     expect(result.customerVisibility).toBe("private")
   })
 
+  it("is a no-op when already in that state", () => {
+    const { state, result } = run(seed, manager, publishDocument("document-sharma-1", true))
+    expect(result.customerVisibility).toBe("customer-visible")
+    expect(state).toBe(seed)
+  })
+
   it("refuses a caller without CUSTOMER_PUBLISH", () => {
     expect(() => run(seed, worker, publishDocument("document-sharma-2", true))).toThrow(PermissionError)
+    expect(() => run(seed, homeowner, publishDocument("document-sharma-2", true))).toThrow(PermissionError)
   })
 
   it("refuses a missing document", () => {

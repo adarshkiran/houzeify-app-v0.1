@@ -102,6 +102,15 @@ describe("scopeStateForReading", () => {
     expect(view.evidence.map((e) => e.id)).not.toContain("ev-b")
   })
 
+  it("hides project-wide documents from a scope-restricted member but shows them to an unscoped one", () => {
+    const sharmaDocuments = base.documents.filter((doc) => doc.projectId === P)
+    expect(sharmaDocuments.length).toBeGreaterThan(0)
+    expect(scopeStateForReading(state, scopedA).documents.some((doc) => doc.projectId === P)).toBe(false)
+    expect(scopeStateForReading(state, manager).documents.filter((doc) => doc.projectId === P)).toEqual(
+      sharmaDocuments,
+    )
+  })
+
   it("makes the existing selectors scope-correct", () => {
     const view = scopeStateForReading(state, scopedA)
     expect(getOpenIssues(view, P).map((i) => i.id)).toEqual(["issue-a"])

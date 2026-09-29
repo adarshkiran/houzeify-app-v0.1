@@ -143,7 +143,11 @@ function ProjectDocuments({ onNavigate, projectId }: { onNavigate: Navigate; pro
         <Gated allowed={canPublish} reason="Publishing needs customer-publish access on this project.">
           <Switch
             checked={doc.customerVisibility === "customer-visible"}
-            onChange={(checked) => run(() => publishDocument(doc.id, checked))}
+            onChange={(checked) =>
+              run(() => publishDocument(doc.id, checked), {
+                success: checked ? "Shared with the homeowner" : "Hidden from the homeowner",
+              })
+            }
           />
         </Gated>
       ),

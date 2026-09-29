@@ -4,7 +4,7 @@ import type { Document } from "../../domain/models"
 
 const { Text } = Typography
 
-const categoryLabel: Record<Document["category"], string> = {
+export const categoryLabel: Record<Document["category"], string> = {
   approval: "Approval",
   contract: "Contract",
   drawing: "Drawing",

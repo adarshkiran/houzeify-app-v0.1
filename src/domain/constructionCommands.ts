@@ -1653,7 +1653,7 @@ export const publishIssue =
     authorizeProject(state, ctx, issue.projectId, [Permissions.CUSTOMER_PUBLISH], issue)
     const customerVisibility = visible ? "customer-visible" : "private"
     if (issue.customerVisibility === customerVisibility) return { state, result: issue }
-    const next = withIssue(state, issueId, (item) => ({ ...item, customerVisibility }))
+    const next = withIssue(state, issueId, (item) => ({ ...item, customerVisibility, updatedAt: iso(ctx) }))
     return { state: next, result: next.issues.find((item) => item.id === issueId)! }
   }
 
