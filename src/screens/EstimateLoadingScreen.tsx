@@ -141,7 +141,7 @@ export default function EstimateLoadingScreen({
               align="center"
               justify="space-between"
               gap={16}
-              className="w-full bg-white rounded-[16px] border border-[#E3DDD7] px-5 py-4"
+              className="w-full bg-white rounded-[16px] border border-[#E3DDD7] px-5! py-4!"
               style={{ animation: 'estimateReveal 0.5s ease-out 0.32s both' }}
             >
               <Flex vertical gap={2}>
@@ -199,7 +199,7 @@ export default function EstimateLoadingScreen({
           <Flex
             align="flex-start"
             gap={12}
-            className="w-full bg-white border border-[#E3DDD7] rounded-[12px] px-4 py-3.5"
+            className="w-full bg-white border border-[#E3DDD7] rounded-[12px] px-4! py-3.5!"
             style={{ animation: 'estimateReveal 0.4s ease-out 0.55s both' }}
           >
             <div className="shrink-0 w-7 h-7 rounded-[8px] bg-[#F3EAFF] flex items-center justify-center">
