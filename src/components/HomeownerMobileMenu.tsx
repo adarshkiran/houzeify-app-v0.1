@@ -10,7 +10,7 @@ type Item = { id: string; label: string; go?: (onNavigate: Navigate) => void }
 const MAIN: Item[] = [
   { id: 'home', label: 'Dashboard', go: (nav) => nav('dashboard-home') },
   { id: 'advisor', label: 'AI Advisor', go: (nav) => nav('ai-advisor') },
-  { id: 'site-update', label: 'Site update', go: (nav) => nav('customer-daily-update', { project_id: 'project-sharma' }) },
+  { id: 'site-update', label: 'My Project', go: (nav) => nav('customer-daily-update', { project_id: 'project-sharma' }) },
   { id: 'estimates', label: 'Estimates', go: (nav) => nav('estimate-dashboard') },
   { id: 'projects', label: 'Projects' },
   { id: 'boq', label: 'BOQ' },
