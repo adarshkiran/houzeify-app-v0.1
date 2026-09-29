@@ -114,11 +114,15 @@ export default function EstimateLoadingScreen({
     <div className="relative min-h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#FBF9F7' }}>
       <AmbientBg variant="estimate-loading" />
       <Flex vertical align="center" gap={32} className="relative z-10 px-5 sm:px-8 w-full py-12" style={{ maxWidth: 600 }}>
-        <ProcessingIcon complete={complete} />
+        <div style={{ animation: 'estimateReveal 0.5s ease-out 0.1s both' }}>
+          <ProcessingIcon complete={complete} />
+        </div>
 
-        <Text className="text-[10px] tracking-[0.10em] text-[#722ED1]!">HOZIE · AI CONSTRUCTION ADVISOR</Text>
+        <Text className="text-[10px] tracking-[0.10em] text-[#722ED1]!" style={{ animation: 'estimateReveal 0.5s ease-out 0.18s both' }}>
+          HOZIE · AI CONSTRUCTION ADVISOR
+        </Text>
 
-        <Flex vertical align="center" gap={12} className="text-center">
+        <Flex vertical align="center" gap={12} className="text-center" style={{ animation: 'estimateReveal 0.5s ease-out 0.26s both' }}>
           <Title level={1} className="m-0!">{complete ? 'Estimate ready.' : 'Building your estimate.'}</Title>
           <Text type="secondary" style={{ maxWidth: 480 }}>
             {complete
@@ -128,7 +132,13 @@ export default function EstimateLoadingScreen({
         </Flex>
 
         {estimate && (
-          <Flex align="center" justify="space-between" gap={16} className="w-full bg-white rounded-[16px] border border-[#E3DDD7] px-5 py-4">
+          <Flex
+            align="center"
+            justify="space-between"
+            gap={16}
+            className="w-full bg-white rounded-[16px] border border-[#E3DDD7] px-5 py-4"
+            style={{ animation: 'estimateReveal 0.5s ease-out 0.32s both' }}
+          >
             <Flex vertical gap={2}>
               <Text strong>{estimate.projectName}</Text>
               <Text type="secondary" className="text-[11px]!">
@@ -141,32 +151,46 @@ export default function EstimateLoadingScreen({
           </Flex>
         )}
 
-        <Steps
-          direction="vertical"
-          size="small"
-          className="w-full"
-          current={phase.doneCount}
-          status={complete ? 'finish' : 'process'}
-          items={STEP_LABELS.map((label, i) => ({
-            title: label,
-            status: i < phase.doneCount ? 'finish' : i === phase.doneCount && !complete ? 'process' : 'wait',
-          }))}
-        />
+        <div className="w-full" style={{ animation: 'estimateReveal 0.5s ease-out 0.38s both' }}>
+          <Steps
+            direction="vertical"
+            size="small"
+            className="w-full"
+            current={phase.doneCount}
+            status={complete ? 'finish' : 'process'}
+            items={STEP_LABELS.map((label, i) => ({
+              title: label,
+              status: i < phase.doneCount ? 'finish' : i === phase.doneCount && !complete ? 'process' : 'wait',
+            }))}
+          />
+        </div>
 
-        <Flex vertical align="center" gap={4} className="text-center">
+        <Flex vertical align="center" gap={4} className="text-center" style={{ animation: 'estimateReveal 0.4s ease-out 0.44s both' }}>
           <Text className="text-[10px] tracking-[0.10em] text-[#722ED1]!">{phase.stateLabel}</Text>
           <Text type="secondary" className="text-[12px]!">{phase.statusSub}</Text>
         </Flex>
 
-        <Progress percent={phase.progress} showInfo={false} strokeColor="#722ED1" className="w-full" />
+        <div className="w-full" style={{ animation: 'estimateReveal 0.4s ease-out 0.5s both' }}>
+          <Progress percent={phase.progress} showInfo={false} strokeColor="#722ED1" className="w-full" />
+        </div>
 
         {complete && estimate && (
-          <Button type="primary" size="large" onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}>
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}
+            style={{ animation: 'estimateButtonPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.2s both' }}
+          >
             View estimate →
           </Button>
         )}
 
-        <Flex align="flex-start" gap={12} className="w-full bg-white border border-[#E3DDD7] rounded-[12px] px-4 py-3.5">
+        <Flex
+          align="flex-start"
+          gap={12}
+          className="w-full bg-white border border-[#E3DDD7] rounded-[12px] px-4 py-3.5"
+          style={{ animation: 'estimateReveal 0.4s ease-out 0.55s both' }}
+        >
           <div className="shrink-0 w-7 h-7 rounded-[8px] bg-[#F3EAFF] flex items-center justify-center">
             <HIcon size={18} />
           </div>
