@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { CheckCircleFilled } from '@ant-design/icons'
 import { Button, Flex, Progress, Result, Steps, Typography } from 'antd'
 import AmbientBg from '../components/homeowner/AmbientBg'
+import CompanyThemeProvider from '../components/company/CompanyThemeProvider'
 import HIcon from '../components/HIcon'
 import { useConstructionData } from '../mock/ConstructionDataProvider'
 import { getEstimate } from '../mock/selectors'
@@ -97,113 +99,118 @@ export default function EstimateLoadingScreen({
 
   if (complete && !estimate) {
     return (
-      <div className="relative min-h-full flex items-center justify-center" style={{ backgroundColor: '#FBF9F7' }}>
-        <AmbientBg variant="estimate-loading" />
-        <div className="relative z-10">
-          <Result
-            status="error"
-            title="We couldn't find that estimate."
-            extra={<Button type="primary" onClick={() => onNavigate('create-project')}>Start over</Button>}
-          />
+      <CompanyThemeProvider>
+        <div className="relative min-h-full flex items-center justify-center" style={{ backgroundColor: '#FBF9F7' }}>
+          <AmbientBg variant="estimate-loading" />
+          <div className="relative z-10">
+            <Result
+              status="error"
+              title="We couldn't find that estimate."
+              extra={<Button type="primary" onClick={() => onNavigate('create-project')}>Start over</Button>}
+            />
+          </div>
         </div>
-      </div>
+      </CompanyThemeProvider>
     )
   }
 
   return (
-    <div className="relative min-h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#FBF9F7' }}>
-      <AmbientBg variant="estimate-loading" />
-      <Flex vertical align="center" gap={32} className="relative z-10 px-5! sm:px-8! w-full py-12!" style={{ maxWidth: 600 }}>
-        <div style={{ animation: 'estimateReveal 0.5s ease-out 0.1s both' }}>
-          <ProcessingIcon complete={complete} />
-        </div>
+    <CompanyThemeProvider>
+      <div className="relative min-h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#FBF9F7' }}>
+        <AmbientBg variant="estimate-loading" />
+        <Flex vertical align="center" gap={32} className="relative z-10 px-5! sm:px-8! w-full py-12!" style={{ maxWidth: 600 }}>
+          <div style={{ animation: 'estimateReveal 0.5s ease-out 0.1s both' }}>
+            <ProcessingIcon complete={complete} />
+          </div>
 
-        <Text className="text-[10px] tracking-[0.10em] text-[#722ED1]!" style={{ animation: 'estimateReveal 0.5s ease-out 0.18s both' }}>
-          HOZIE · AI CONSTRUCTION ADVISOR
-        </Text>
-
-        <Flex vertical align="center" gap={12} className="text-center" style={{ animation: 'estimateReveal 0.5s ease-out 0.26s both' }}>
-          <Title level={1} className="m-0!">{complete ? 'Estimate ready.' : 'Building your estimate.'}</Title>
-          <Text type="secondary" style={{ maxWidth: 480 }}>
-            {complete
-              ? 'Hozie has finished analysing your project. Your initial construction estimate is ready to view.'
-              : 'Hozie is analysing your project and preparing an initial construction estimate.'}
+          <Text className="text-[10px] tracking-[0.10em] text-[#722ED1]!" style={{ animation: 'estimateReveal 0.5s ease-out 0.18s both' }}>
+            HOZIE · AI CONSTRUCTION ADVISOR
           </Text>
-        </Flex>
 
-        {estimate && (
-          <Flex
-            align="center"
-            justify="space-between"
-            gap={16}
-            className="w-full bg-white rounded-[16px] border border-[#E3DDD7] px-5 py-4"
-            style={{ animation: 'estimateReveal 0.5s ease-out 0.32s both' }}
-          >
-            <Flex vertical gap={2}>
-              <Text strong>{estimate.projectName}</Text>
-              <Text type="secondary" className="text-[11px]!">
-                {estimate.location} · {estimate.builtUpAreaSqft.toLocaleString('en-IN')} sq ft
-              </Text>
-            </Flex>
-            <Text className={complete ? 'text-[#722ED1]!' : 'text-[#9A949D]!'} style={{ fontSize: 10 }}>
-              {complete ? 'ESTIMATE READY' : 'GENERATING ESTIMATE'}
+          <Flex vertical align="center" gap={12} className="text-center" style={{ animation: 'estimateReveal 0.5s ease-out 0.26s both' }}>
+            <Title level={1} className="m-0!">{complete ? 'Estimate ready.' : 'Building your estimate.'}</Title>
+            <Text type="secondary" style={{ maxWidth: 480 }}>
+              {complete
+                ? 'Hozie has finished analysing your project. Your initial construction estimate is ready to view.'
+                : 'Hozie is analysing your project and preparing an initial construction estimate.'}
             </Text>
           </Flex>
-        )}
 
-        <div className="w-full" style={{ animation: 'estimateReveal 0.5s ease-out 0.38s both' }}>
-          <Steps
-            direction="vertical"
-            size="small"
-            className="w-full"
-            current={phase.doneCount}
-            status={complete ? 'finish' : 'process'}
-            items={STEP_LABELS.map((label, i) => ({
-              title: label,
-              status: i < phase.doneCount ? 'finish' : i === phase.doneCount && !complete ? 'process' : 'wait',
-            }))}
-          />
-        </div>
+          {estimate && (
+            <Flex
+              align="center"
+              justify="space-between"
+              gap={16}
+              className="w-full bg-white rounded-[16px] border border-[#E3DDD7] px-5 py-4"
+              style={{ animation: 'estimateReveal 0.5s ease-out 0.32s both' }}
+            >
+              <Flex vertical gap={2}>
+                <Text strong>{estimate.projectName}</Text>
+                <Text type="secondary" className="text-[11px]!">
+                  {estimate.location} · {estimate.builtUpAreaSqft.toLocaleString('en-IN')} sq ft
+                </Text>
+              </Flex>
+              <Text className={complete ? 'text-[#722ED1]!' : 'text-[#9A949D]!'} style={{ fontSize: 10 }}>
+                {complete ? 'ESTIMATE READY' : 'GENERATING ESTIMATE'}
+              </Text>
+            </Flex>
+          )}
 
-        <Flex vertical align="center" gap={4} className="text-center" style={{ animation: 'estimateReveal 0.4s ease-out 0.44s both' }}>
-          <Text
-            className="text-[10px] tracking-[0.10em] text-[#722ED1]!"
-            style={{ animation: complete ? undefined : 'hozieStatusPulse 2s ease-in-out infinite' }}
-          >
-            {phase.stateLabel}
-          </Text>
-          <Text type="secondary" className="text-[12px]!">{phase.statusSub}</Text>
-        </Flex>
-
-        <div className="w-full" style={{ animation: 'estimateReveal 0.4s ease-out 0.5s both' }}>
-          <Progress percent={phase.progress} showInfo={false} strokeColor="#722ED1" className="w-full" />
-        </div>
-
-        {complete && estimate && (
-          <Button
-            type="primary"
-            size="large"
-            onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}
-            style={{ animation: 'estimateButtonPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.2s both' }}
-          >
-            View estimate →
-          </Button>
-        )}
-
-        <Flex
-          align="flex-start"
-          gap={12}
-          className="w-full bg-white border border-[#E3DDD7] rounded-[12px] px-4 py-3.5"
-          style={{ animation: 'estimateReveal 0.4s ease-out 0.55s both' }}
-        >
-          <div className="shrink-0 w-7 h-7 rounded-[8px] bg-[#F3EAFF] flex items-center justify-center">
-            <HIcon size={18} />
+          <div className="w-full" style={{ animation: 'estimateReveal 0.5s ease-out 0.38s both' }}>
+            <Steps
+              direction="vertical"
+              size="small"
+              className="w-full"
+              current={phase.doneCount}
+              status={complete ? 'finish' : 'process'}
+              items={STEP_LABELS.map((label, i) => ({
+                title: label,
+                status: i < phase.doneCount ? 'finish' : i === phase.doneCount && !complete ? 'process' : 'wait',
+                icon: i < phase.doneCount ? <CheckCircleFilled style={{ color: '#16A34A', fontSize: 20 }} /> : undefined,
+              }))}
+            />
           </div>
-          <Text className="text-[13px]!">
-            Your estimate will include materials, labour, finishing and contingency — covering all major cost categories.
-          </Text>
+
+          <Flex vertical align="center" gap={4} className="text-center" style={{ animation: 'estimateReveal 0.4s ease-out 0.44s both' }}>
+            <Text
+              className="text-[10px] tracking-[0.10em] text-[#722ED1]!"
+              style={{ animation: complete ? undefined : 'hozieStatusPulse 2s ease-in-out infinite' }}
+            >
+              {phase.stateLabel}
+            </Text>
+            <Text type="secondary" className="text-[12px]!">{phase.statusSub}</Text>
+          </Flex>
+
+          <div className="w-full" style={{ animation: 'estimateReveal 0.4s ease-out 0.5s both' }}>
+            <Progress percent={phase.progress} showInfo={false} strokeColor="#722ED1" className="w-full" />
+          </div>
+
+          {complete && estimate && (
+            <Button
+              type="primary"
+              size="large"
+              onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}
+              style={{ animation: 'estimateButtonPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.2s both' }}
+            >
+              View estimate →
+            </Button>
+          )}
+
+          <Flex
+            align="flex-start"
+            gap={12}
+            className="w-full bg-white border border-[#E3DDD7] rounded-[12px] px-4 py-3.5"
+            style={{ animation: 'estimateReveal 0.4s ease-out 0.55s both' }}
+          >
+            <div className="shrink-0 w-7 h-7 rounded-[8px] bg-[#F3EAFF] flex items-center justify-center">
+              <HIcon size={18} />
+            </div>
+            <Text className="text-[13px]!">
+              Your estimate will include materials, labour, finishing and contingency — covering all major cost categories.
+            </Text>
+          </Flex>
         </Flex>
-      </Flex>
-    </div>
+      </div>
+    </CompanyThemeProvider>
   )
 }
