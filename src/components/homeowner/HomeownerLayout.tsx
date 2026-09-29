@@ -23,10 +23,14 @@ function SoonLabel({ label }: { label: string }) {
 }
 
 function toMenuItem(item: { key: string; label: string; icon: ReactNode; to?: string }): NonNullable<MenuProps["items"]>[number] {
+  // These icons are hand-drawn <svg>, not @ant-design/icons components, so AntD's
+  // Menu never auto-wraps them in .ant-menu-item-icon — wrap explicitly so the
+  // same icon-to-label spacing CSS that CompanyLayout gets for free applies here.
+  const icon = <span className="ant-menu-item-icon">{item.icon}</span>
   if (!item.to) {
-    return { key: item.key, icon: item.icon, label: <SoonLabel label={item.label} />, disabled: true }
+    return { key: item.key, icon, label: <SoonLabel label={item.label} />, disabled: true }
   }
-  return { key: item.key, icon: item.icon, label: item.label }
+  return { key: item.key, icon, label: item.label }
 }
 
 /**
