@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **Branch:** `feature/estimate-antd-modernization` (from `main`)
-**Status:** Approved — ready for planning
+**Status:** Implemented
 **Source:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` → §10 Phase 8 — AI Construction Advisor, §10.1 Homeowner AI
 **Follows:** Slice 1 — `docs/superpowers/specs/2026-09-29-phase-8-homeowner-estimate-modernization-design.md` (data wiring; explicitly deferred this visual work)
 
