@@ -32,6 +32,6 @@ describe("company navigation", () => {
     expect(COMPANY_NAV.filter((item) => !item.to).map((item) => item.key)).toEqual([
       "site-ops", "live-site", "documents", "reports", "team", "hozie",
     ])
-    expect(project.filter((item) => !item.to).map((item) => item.key)).toEqual(["documents"])
+    expect(project.filter((item) => !item.to).map((item) => item.key)).toEqual([])
   })
 })
