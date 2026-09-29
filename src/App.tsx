@@ -264,8 +264,7 @@ export default function App() {
         <div style={{ ...slide }}>
           <EstimateLoadingScreen
             onNavigate={navigateTo}
-            projectName={projectName}
-            location={projectLocation}
+            estimateId={params.estimate_id}
           />
         </div>
       )}
