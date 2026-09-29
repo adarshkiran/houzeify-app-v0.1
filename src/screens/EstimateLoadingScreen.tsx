@@ -113,7 +113,7 @@ export default function EstimateLoadingScreen({
   return (
     <div className="relative min-h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#FBF9F7' }}>
       <AmbientBg variant="estimate-loading" />
-      <Flex vertical align="center" gap={32} className="relative z-10 px-5 sm:px-8 w-full py-12" style={{ maxWidth: 600 }}>
+      <Flex vertical align="center" gap={32} className="relative z-10 px-5! sm:px-8! w-full py-12!" style={{ maxWidth: 600 }}>
         <div style={{ animation: 'estimateReveal 0.5s ease-out 0.1s both' }}>
           <ProcessingIcon complete={complete} />
         </div>

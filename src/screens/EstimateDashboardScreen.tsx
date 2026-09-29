@@ -117,7 +117,7 @@ export default function EstimateDashboardScreen({
     <HomeownerLayout active="estimates" onNavigate={onNavigate}>
       <div className="relative min-h-full" style={{ backgroundColor: '#FBF9F7' }}>
         <AmbientBg variant="estimate-dashboard" />
-        <Flex vertical gap={20} className="relative z-10 max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <Flex vertical gap={20} className="relative z-10 max-w-[1080px] mx-auto! px-4! sm:px-6! lg:px-8! py-6! sm:py-8!">
           <Flex align="center" justify="space-between" wrap gap={12} style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.05s both' }}>
             <Flex vertical gap={2}>
               <Title level={3} className="m-0!">Construction Estimate</Title>

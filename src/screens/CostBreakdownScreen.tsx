@@ -63,7 +63,7 @@ function EstimateSummaryPanel({ categories, averageLabel }: { categories: Catego
             </Flex>
           </Flex>
         ))}
-        <Flex justify="space-between" className="pt-2 border-t border-[#E3DDD7]">
+        <Flex justify="space-between" className="pt-2! border-t border-[#E3DDD7]">
           <Text strong>Total (avg)</Text>
           <Text strong className="text-[#722ED1]!">{averageLabel}</Text>
         </Flex>
@@ -107,7 +107,7 @@ export default function CostBreakdownScreen({
     <HomeownerLayout active="estimates" onNavigate={onNavigate}>
       <div className="relative min-h-full" style={{ backgroundColor: '#FBF9F7' }}>
         <AmbientBg variant="cost-breakdown" />
-        <Flex vertical gap={24} className="relative z-10 max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <Flex vertical gap={24} className="relative z-10 max-w-[1080px] mx-auto! px-4! sm:px-6! lg:px-8! py-6! sm:py-8!">
           <Flex vertical gap={4} style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.05s both' }}>
             <Text className="text-[10px] tracking-[0.10em] uppercase text-[#722ED1]! block">Estimate Breakdown</Text>
             <Title level={2} className="m-0!">Where your money goes.</Title>

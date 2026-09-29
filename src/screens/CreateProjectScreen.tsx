@@ -110,7 +110,7 @@ export default function CreateProjectScreen({
     <HomeownerLayout active="estimates" onNavigate={onNavigate}>
       <div className="relative min-h-full" style={{ backgroundColor: '#FBF9F7' }}>
         <AmbientBg variant="create-project" />
-        <Flex vertical gap="large" className="relative z-10 max-w-[900px] mx-auto px-5 sm:px-8 lg:px-10 pt-8 pb-12">
+        <Flex vertical gap="large" className="relative z-10 max-w-[900px] mx-auto! px-5! sm:px-8! lg:px-10! pt-8! pb-12!">
           <Flex vertical gap={16} style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.05s both' }}>
             <Steps
               size="small"
