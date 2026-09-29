@@ -3,6 +3,7 @@ import type {
   DailyProgress,
   Document,
   EntityId,
+  Estimate,
   Evidence,
   Issue,
   Project,
@@ -373,4 +374,15 @@ export function getPublishedDocuments(state: ConstructionDataState, projectId: E
   return state.documents
     .filter((doc) => doc.projectId === projectId && doc.customerVisibility === "customer-visible")
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+}
+
+export function getEstimate(state: ConstructionDataState, estimateId: EntityId) {
+  return state.estimates.find((item) => item.id === estimateId)
+}
+
+/** A homeowner's most recent estimate, newest first, or undefined if they have none. */
+export function getLatestEstimate(state: ConstructionDataState, homeownerPersonId: EntityId) {
+  return state.estimates
+    .filter((item) => item.homeownerPersonId === homeownerPersonId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]
 }

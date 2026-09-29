@@ -195,7 +195,7 @@ function Sidebar({ onNavigate }: { onNavigate: (s: string) => void }) {
     { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: 'dashboard-home' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: '' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
-    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
+    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: 'estimate-dashboard' },
     { id: 'boq', icon: <IcoBOQ />, label: 'BOQ', dest: '' },
     { id: 'plan', icon: <IcoPlan />, label: 'Plan Analysis', dest: '' },
   ]

@@ -1,6 +1,9 @@
 import HIcon from '../components/HIcon'
 import HomeownerMobileMenu from '../components/HomeownerMobileMenu'
 import LogoHorizontal from '../components/LogoHorizontal'
+import { useConstructionData } from '../mock/ConstructionDataProvider'
+import { getEstimate, getLatestEstimate } from '../mock/selectors'
+import { useSession } from '../session/SessionProvider'
 
 // ─── Sidebar Icons ─────────────────────────────────────────────────────────────
 
@@ -167,7 +170,7 @@ function Sidebar({ onNavigate }: { onNavigate: (s: string) => void }) {
     { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: 'dashboard-home' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
-    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
+    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: 'estimate-dashboard' },
     { id: 'boq', icon: <IcoBOQ />, label: 'BOQ', dest: '' },
     { id: 'plan', icon: <IcoPlan />, label: 'Plan Analysis', dest: '' },
   ]
@@ -238,14 +241,9 @@ function MobileTopBar({ onNavigate }: { onNavigate: (s: string) => void }) {
 
 // ─── Cost Breakdown Bar ───────────────────────────────────────────────────────
 
-const breakdownItems = [
-  { label: 'Materials',   percent: 56, amount: '₹18.2L', color: '#E14B19' },
-  { label: 'Labour',      percent: 26, amount: '₹8.4L',  color: '#E19C12' },
-  { label: 'Finishing',   percent: 13, amount: '₹4.1L',  color: '#4AB017' },
-  { label: 'Contingency', percent:  5, amount: '₹1.7L',  color: '#7E7E7E' },
-]
+interface BreakdownItem { label: string; percent: number; amount: string; color: string }
 
-function CostBreakdownCard() {
+function CostBreakdownCard({ items }: { items: BreakdownItem[] }) {
   return (
     <div className="bg-white rounded-[16px] border border-[#E3DDD7] p-5 sm:p-6 flex flex-col gap-5" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <div className="flex items-center justify-between">
@@ -255,7 +253,7 @@ function CostBreakdownCard() {
 
       {/* Segmented bar */}
       <div className="flex h-3 rounded-full overflow-hidden gap-px">
-        {breakdownItems.map(item => (
+        {items.map(item => (
           <div
             key={item.label}
             className="transition-all duration-700"
@@ -266,7 +264,7 @@ function CostBreakdownCard() {
 
       {/* Legend */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {breakdownItems.map(item => (
+        {items.map(item => (
           <div key={item.label} className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: item.color }} />
@@ -303,7 +301,7 @@ function MetricCard({ label, value, sub, color }: { label: string; value: string
 
 // ─── Hozie Insight Card ───────────────────────────────────────────────────────
 
-function HozieInsightCard({ onNavigate }: { onNavigate?: (s: string) => void }) {
+function HozieInsightCard({ onNavigate, estimateId }: { onNavigate?: (s: string, data?: Record<string, string>) => void; estimateId: string }) {
   return (
     <div className="rounded-[16px] px-5 py-4 flex flex-col gap-3" style={{ backgroundColor: '#F3EAFF' }}>
       <div className="flex items-center gap-2.5">
@@ -315,7 +313,7 @@ function HozieInsightCard({ onNavigate }: { onNavigate?: (s: string) => void }) 
       <p className="text-[13px] text-[#242326] leading-[1.7] m-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
         &ldquo;Your estimate has the biggest cost sensitivity in materials and finishing. Choosing construction quality carefully can significantly change the final budget.&rdquo;
       </p>
-      <button onClick={() => onNavigate?.('cost-breakdown')} className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
+      <button onClick={() => onNavigate?.('cost-breakdown', { estimate_id: estimateId })} className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
         Explore cost drivers →
       </button>
     </div>
@@ -350,15 +348,42 @@ function ActionCard({ icon, title, desc, onClick }: {
 
 export default function EstimateDashboardScreen({
   onNavigate,
-  projectName = '3 BHK G+1 House',
-  location = 'Hyderabad',
-  area = '2,400 sq ft',
+  estimateId,
 }: {
   onNavigate: (s: string, data?: Record<string, string>) => void
-  projectName?: string
-  location?: string
-  area?: string
+  estimateId?: string
 }) {
+  const { state } = useConstructionData()
+  const { session } = useSession()
+  const estimate = estimateId
+    ? getEstimate(state, estimateId)
+    : session?.personId
+      ? getLatestEstimate(state, session.personId)
+      : undefined
+
+  if (!estimate) {
+    const message = estimateId ? "We couldn't find that estimate." : "You haven't created an estimate yet."
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 text-center px-6" style={{ height: '100%', backgroundColor: '#FBF9F7' }}>
+        <span className="text-[18px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
+          {message}
+        </span>
+        <button
+          onClick={() => onNavigate('create-project')}
+          className="h-[48px] px-6 rounded-[12px] bg-[#722ED1] text-white text-[14px] font-semibold cursor-pointer hover:brightness-90 transition-all border-0"
+          style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
+        >
+          Start an estimate
+        </button>
+      </div>
+    )
+  }
+
+  const areaLabel = `${estimate.builtUpAreaSqft.toLocaleString('en-IN')} sq ft`
+  const formatRupees = (value: number) => `₹${(value / 100000).toFixed(1)}L`
+  const perSqftLow = Math.round(estimate.totalLow / estimate.builtUpAreaSqft)
+  const perSqftHigh = Math.round(estimate.totalHigh / estimate.builtUpAreaSqft)
+
   const nextActions = [
     { icon: <IcoBOQLg />, title: 'View BOQ', desc: 'See materials and quantities.' },
     { icon: <IcoCalcLg />, title: 'Material Calculator', desc: 'Check material requirements.' },
@@ -386,7 +411,7 @@ export default function EstimateDashboardScreen({
                 Construction Estimate
               </h1>
               <span className="text-[13px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
-                {projectName} · {location} · {area}
+                {estimate.projectName} · {estimate.location} · {areaLabel}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -423,34 +448,23 @@ export default function EstimateDashboardScreen({
                     </div>
                     <div>
                       <div className="text-[36px] sm:text-[42px] font-semibold text-[#722ED1] leading-none" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-                        ₹29.8L — ₹35.2L
+                        {formatRupees(estimate.totalLow)} — {formatRupees(estimate.totalHigh)}
                       </div>
                       <div className="text-[13px] text-[#68636D] mt-1.5" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
                         Estimated construction cost
                       </div>
                     </div>
                     <div className="text-[16px] sm:text-[18px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-                      ₹1,240 — ₹1,467 / sq ft
+                      ₹{perSqftLow.toLocaleString('en-IN')} — ₹{perSqftHigh.toLocaleString('en-IN')} / sq ft
                     </div>
                   </div>
 
-                  {/* Right: confidence */}
+                  {/* Right: construction level badge */}
                   <div className="flex flex-col items-start sm:items-end gap-3">
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F3EAFF]" style={{ border: '1px solid rgba(114,46,209,0.18)' }}>
-                      <span
-                        className="w-2 h-2 rounded-full bg-[#722ED1] shrink-0"
-                        style={{ animation: 'hozieStatusPulse 2.5s ease-in-out infinite' }}
-                      />
-                      <span className="text-[12px] font-medium text-[#722ED1]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
-                        86% confidence
+                      <span className="text-[12px] font-medium text-[#722ED1] capitalize" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
+                        {estimate.constructionLevel} finish
                       </span>
-                    </div>
-                    {/* Confidence bar */}
-                    <div className="flex flex-col gap-1 w-full sm:w-[160px]">
-                      <div className="h-1.5 bg-[#E3DDD7] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#722ED1] rounded-full" style={{ width: '86%' }} />
-                      </div>
-                      <span className="text-[10px] text-[#9A949D] sm:text-right" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>AI CONFIDENCE SCORE</span>
                     </div>
                   </div>
                 </div>
@@ -458,7 +472,7 @@ export default function EstimateDashboardScreen({
                 {/* Divider + disclaimer */}
                 <div className="border-t border-[#F4F0EC]" />
                 <p className="text-[12px] text-[#9A949D] leading-[1.6] m-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
-                  Based on current project details and regional construction assumptions for {location}. Final cost depends on design, materials, and contractor rates.
+                  Based on current project details and regional construction assumptions for {estimate.location}. Final cost depends on design, materials, and contractor rates.
                 </p>
               </div>
 
@@ -467,20 +481,27 @@ export default function EstimateDashboardScreen({
                 className="grid grid-cols-2 lg:grid-cols-4 gap-3"
                 style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.12s both' }}
               >
-                <MetricCard label="Built-up Area" value="2,400 sq ft" />
-                <MetricCard label="Materials" value="₹18.2L" sub="56% of total" color="#E14B19" />
-                <MetricCard label="Labour" value="₹8.4L" sub="26% of total" color="#E19C12" />
-                <MetricCard label="Finishing" value="₹4.1L" sub="13% of total" color="#4AB017" />
+                <MetricCard label="Built-up Area" value={areaLabel} />
+                <MetricCard label="Materials" value={formatRupees(estimate.breakdown.materials)} sub="56% of total" color="#E14B19" />
+                <MetricCard label="Labour" value={formatRupees(estimate.breakdown.labour)} sub="26% of total" color="#E19C12" />
+                <MetricCard label="Finishing" value={formatRupees(estimate.breakdown.finishing)} sub="13% of total" color="#4AB017" />
               </div>
 
               {/* Cost Breakdown */}
               <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.18s both' }}>
-                <CostBreakdownCard />
+                <CostBreakdownCard
+                  items={[
+                    { label: 'Materials', percent: 56, amount: formatRupees(estimate.breakdown.materials), color: '#E14B19' },
+                    { label: 'Labour', percent: 26, amount: formatRupees(estimate.breakdown.labour), color: '#E19C12' },
+                    { label: 'Finishing', percent: 13, amount: formatRupees(estimate.breakdown.finishing), color: '#4AB017' },
+                    { label: 'Contingency', percent: 5, amount: formatRupees(estimate.breakdown.contingency), color: '#7E7E7E' },
+                  ]}
+                />
               </div>
 
               {/* Hozie Insight */}
               <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.24s both' }}>
-                <HozieInsightCard onNavigate={onNavigate} />
+                <HozieInsightCard onNavigate={onNavigate} estimateId={estimate.id} />
               </div>
 
               {/* Next Actions */}

@@ -182,7 +182,7 @@ function Sidebar({
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
     { id: 'site-update', icon: <IcoPlan />, label: 'My Project', dest: 'customer-daily-update' },
-    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
+    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: 'estimate-dashboard' },
     { id: 'boq', icon: <IcoBOQ />, label: 'BOQ', dest: '' },
     { id: 'plan', icon: <IcoPlan />, label: 'Plan Analysis', dest: '' },
   ]

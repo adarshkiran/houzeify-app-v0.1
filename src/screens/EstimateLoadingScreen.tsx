@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import HIcon from '../components/HIcon'
+import { useConstructionData } from '../mock/ConstructionDataProvider'
+import { getEstimate } from '../mock/selectors'
 
 // ─── Processing state machine ──────────────────────────────────────────────────
 
@@ -13,7 +15,7 @@ interface ProcessingPhase {
 const phases: ProcessingPhase[] = [
   { stateLabel: 'PREPARING PROJECT DATA',               statusSub: 'Initialising estimate generation',                        progress: 14,  doneCount: 0 },
   { stateLabel: 'CALCULATING CONSTRUCTION QUANTITIES',  statusSub: 'Analysing structural parameters and floor layout',        progress: 38,  doneCount: 1 },
-  { stateLabel: 'ESTIMATING MATERIALS + LABOUR',        statusSub: 'Analysing approximately 120+ construction parameters',    progress: 72,  doneCount: 2 },
+  { stateLabel: 'ESTIMATING MATERIALS + LABOUR',        statusSub: 'Analysing your project details',                          progress: 72,  doneCount: 2 },
   { stateLabel: 'PREPARING YOUR ESTIMATE',              statusSub: 'Compiling cost breakdown and contingency values',         progress: 92,  doneCount: 3 },
   { stateLabel: 'ESTIMATE READY',                       statusSub: 'Your construction estimate has been generated',           progress: 100, doneCount: 5 },
 ]
@@ -23,7 +25,7 @@ const STEP_LABELS = [
   'Calculating construction quantities',
   'Estimating materials and labour',
   'Preparing cost breakdown',
-  'Generating BOQ',
+  'Preparing your estimate',
 ]
 
 // Cumulative delay in ms to move to each phase (0-indexed)
@@ -146,15 +148,13 @@ function ProgressBar({ value }: { value: number }) {
 
 export default function EstimateLoadingScreen({
   onNavigate,
-  projectName = '3 BHK G+1 House',
-  location = 'Hyderabad',
-  area = '2,400 SQ FT',
+  estimateId,
 }: {
   onNavigate: (s: string, data?: Record<string, string>) => void
-  projectName?: string
-  location?: string
-  area?: string
+  estimateId?: string
 }) {
+  const { state } = useConstructionData()
+  const estimate = estimateId ? getEstimate(state, estimateId) : undefined
   const [phaseIdx, setPhaseIdx] = useState(0)
 
   useEffect(() => {
@@ -232,13 +232,13 @@ export default function EstimateLoadingScreen({
               className="text-[13px] font-semibold text-[#242326]"
               style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
             >
-              {projectName}
+              {estimate?.projectName ?? 'Your project'}
             </span>
             <span
               className="text-[11px] text-[#68636D]"
               style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
             >
-              {location} · {area}
+              {estimate ? `${estimate.location} · ${estimate.builtUpAreaSqft.toLocaleString('en-IN')} sq ft` : ''}
             </span>
           </div>
           <span
@@ -311,10 +311,10 @@ export default function EstimateLoadingScreen({
           <ProgressBar value={phase.progress} />
         </div>
 
-        {/* View estimate button — appears only on complete */}
-        {complete && (
+        {/* View estimate button — appears only on complete, and only if the estimate really exists */}
+        {complete && estimate && (
           <button
-            onClick={() => onNavigate('estimate-dashboard')}
+            onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}
             className="h-[52px] px-8 rounded-[12px] bg-[#722ED1] text-white text-[15px] font-semibold cursor-pointer hover:brightness-90 active:scale-[0.98] transition-all border-0"
             style={{
               fontFamily: '"Google Sans Flex:SemiBold", sans-serif',
@@ -324,6 +324,20 @@ export default function EstimateLoadingScreen({
           >
             View estimate →
           </button>
+        )}
+        {complete && !estimate && (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="text-[13px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
+              We couldn&apos;t find that estimate.
+            </span>
+            <button
+              onClick={() => onNavigate('create-project')}
+              className="h-[44px] px-6 rounded-[12px] bg-[#722ED1] text-white text-[14px] font-semibold cursor-pointer hover:brightness-90 transition-all border-0"
+              style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
+            >
+              Start over
+            </button>
+          </div>
         )}
 
         {/* Hozie message card */}

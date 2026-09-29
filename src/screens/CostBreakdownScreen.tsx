@@ -1,5 +1,7 @@
 import HIcon from '../components/HIcon'
 import LogoHorizontal from '../components/LogoHorizontal'
+import { useConstructionData } from '../mock/ConstructionDataProvider'
+import { getEstimate } from '../mock/selectors'
 
 // ─── Sidebar & shell icons ─────────────────────────────────────────────────────
 
@@ -116,12 +118,6 @@ const IcoFinishing = () => (
     <line x1="8" y1="4.5" x2="11.5" y2="8"/>
   </svg>
 )
-const IcoServices = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9.5 1.5c0 0 1.5.5 2 2s0 3.5-1.5 4.5L5.5 13c-.5.5-1 .5-1.5 0L3 12c-.5-.5-.5-1 0-1.5L7.5 6C8.5 4.5 9.5 3 9.5 1.5z"/>
-    <circle cx="4.5" cy="11.5" r="1"/>
-  </svg>
-)
 const IcoContingency = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 2L2 5v4c0 3.3 2.7 5 6 5s6-1.7 6-5V5L8 2z"/>
@@ -138,19 +134,10 @@ interface Category {
   amount: string
   pct: number
   icon: React.ReactNode
-  dest: string
   detail: string
   color: string
   bg: string
 }
-
-const categories: Category[] = [
-  { id: 'materials',   label: 'Materials',   amount: '₹18.2L', pct: 61, icon: <IcoMaterials />,   dest: 'material-estimate',       detail: 'Cement, steel, bricks, aggregates and other raw materials.',  color: '#E14B19', bg: '#FFF2E8' },
-  { id: 'labour',      label: 'Labour',      amount: '₹8.4L',  pct: 28, icon: <IcoLabour />,      dest: 'labour-estimate',         detail: 'Civil, plumbing, electrical and finishing labour charges.',    color: '#E19C12', bg: '#FFFBE6' },
-  { id: 'finishing',   label: 'Finishing',   amount: '₹4.1L',  pct: 14, icon: <IcoFinishing />,   dest: 'finishing-details',       detail: 'Flooring, painting, doors, windows and interior finishes.',   color: '#4AB017', bg: '#F6FFED' },
-  { id: 'services',    label: 'Services',    amount: '₹2.2L',  pct:  7, icon: <IcoServices />,    dest: 'services-details',        detail: 'Electrical, plumbing, HVAC and sanitation installations.',    color: '#136BE6', bg: '#E6F4FF' },
-  { id: 'contingency', label: 'Contingency', amount: '₹1.7L',  pct:  6, icon: <IcoContingency />, dest: 'contingency-assumptions', detail: 'Buffer for unforeseen costs and estimation variance.',        color: '#7E7E7E', bg: '#F5F5F5' },
-]
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
@@ -230,7 +217,7 @@ function AmbientBg() {
 
 // ─── Total Card ───────────────────────────────────────────────────────────────
 
-function TotalCard() {
+function TotalCard({ categories, totalLabel, averageLabel }: { categories: Category[]; totalLabel: string; averageLabel: string }) {
   return (
     <div
       className="bg-white rounded-[20px] border border-[#E3DDD7] p-6 sm:p-7 flex flex-col gap-4"
@@ -245,27 +232,15 @@ function TotalCard() {
             Total Estimated Cost
           </span>
           <div className="text-[34px] sm:text-[40px] font-semibold leading-none" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif', color: 'rgb(40, 40, 40)' }}>
-            ₹29.8L — ₹35.2L
+            {totalLabel}
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[13px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
               Estimated average:
             </span>
             <span className="text-[15px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-              ₹32.5L
+              {averageLabel}
             </span>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#F3EAFF]" style={{ border: '1px solid rgba(114,46,209,0.16)' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#722ED1]" style={{ animation: 'hozieStatusPulse 2.5s ease-in-out infinite' }} />
-            <span className="text-[11px] font-medium text-[#722ED1]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>86% confidence</span>
-          </div>
-          <div className="flex flex-col gap-1 w-[140px]">
-            <div className="h-1.5 bg-[#F3EAFF] rounded-full overflow-hidden">
-              <div className="h-full bg-[#722ED1] rounded-full" style={{ width: '86%' }} />
-            </div>
-            <span className="text-[9px] text-[#9A949D] text-right" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>AI CONFIDENCE</span>
           </div>
         </div>
       </div>
@@ -292,7 +267,7 @@ function TotalCard() {
 
 // ─── Category Card ────────────────────────────────────────────────────────────
 
-function CategoryCard({ cat, onNavigate }: { cat: Category; onNavigate: (s: string) => void }) {
+function CategoryCard({ cat }: { cat: Category }) {
   return (
     <div
       className="bg-white rounded-[14px] border border-[#E3DDD7] overflow-hidden"
@@ -339,22 +314,13 @@ function CategoryCard({ cat, onNavigate }: { cat: Category; onNavigate: (s: stri
             />
           </div>
 
-          {/* Detail text + link */}
-          <div className="flex items-center justify-between gap-3">
-            <span
-              className="text-[12px] text-[#9A949D] leading-[1.5]"
-              style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
-            >
-              {cat.detail}
-            </span>
-            <button
-              onClick={() => cat.dest && onNavigate(cat.dest)}
-              className="shrink-0 text-[12px] hover:underline cursor-pointer border-0 bg-transparent p-0 whitespace-nowrap"
-              style={{ fontFamily: '"Open Sans:Regular", sans-serif', color: cat.color }}
-            >
-              View details →
-            </button>
-          </div>
+          {/* Detail text */}
+          <span
+            className="text-[12px] text-[#9A949D] leading-[1.5]"
+            style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+          >
+            {cat.detail}
+          </span>
         </div>
       </div>
     </div>
@@ -381,7 +347,7 @@ function HozieInsightPanel() {
   )
 }
 
-function EstimateSummaryPanel() {
+function EstimateSummaryPanel({ categories, averageLabel }: { categories: Category[]; averageLabel: string }) {
   return (
     <div className="bg-white rounded-[16px] border border-[#E3DDD7] p-5 flex flex-col gap-3" style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
       <span className="text-[10px] tracking-[0.10em] text-[#9A949D] uppercase" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
@@ -402,7 +368,7 @@ function EstimateSummaryPanel() {
         ))}
         <div className="border-t border-[#E3DDD7] pt-2.5 flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>Total (avg)</span>
-          <span className="text-[14px] font-semibold text-[#722ED1]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>₹32.5L</span>
+          <span className="text-[14px] font-semibold text-[#722ED1]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>{averageLabel}</span>
         </div>
       </div>
     </div>
@@ -413,15 +379,43 @@ function EstimateSummaryPanel() {
 
 export default function CostBreakdownScreen({
   onNavigate,
-  projectName = '3 BHK G+1 House',
-  location = 'Hyderabad',
-  area = '2,400 sq ft',
+  estimateId,
 }: {
   onNavigate: (s: string, data?: Record<string, string>) => void
-  projectName?: string
-  location?: string
-  area?: string
+  estimateId?: string
 }) {
+  const { state } = useConstructionData()
+  const estimate = estimateId ? getEstimate(state, estimateId) : undefined
+
+  if (!estimate) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 text-center px-6" style={{ height: '100%', backgroundColor: '#FBF9F7' }}>
+        <span className="text-[18px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
+          We couldn&apos;t find that estimate.
+        </span>
+        <button
+          onClick={() => onNavigate('estimate-dashboard')}
+          className="h-[48px] px-6 rounded-[12px] bg-[#722ED1] text-white text-[14px] font-semibold cursor-pointer hover:brightness-90 transition-all border-0"
+          style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
+        >
+          Back to estimate
+        </button>
+      </div>
+    )
+  }
+
+  const areaLabel = `${estimate.builtUpAreaSqft.toLocaleString('en-IN')} sq ft`
+  const formatRupees = (value: number) => `₹${(value / 100000).toFixed(1)}L`
+  const midpoint = (estimate.totalLow + estimate.totalHigh) / 2
+  const totalLabel = `${formatRupees(estimate.totalLow)} — ${formatRupees(estimate.totalHigh)}`
+  const averageLabel = formatRupees(midpoint)
+  const categories: Category[] = [
+    { id: 'materials', label: 'Materials', amount: formatRupees(estimate.breakdown.materials), pct: 56, icon: <IcoMaterials />, detail: 'Cement, steel, bricks, aggregates and other raw materials.', color: '#E14B19', bg: '#FFF2E8' },
+    { id: 'labour', label: 'Labour', amount: formatRupees(estimate.breakdown.labour), pct: 26, icon: <IcoLabour />, detail: 'Civil, plumbing, electrical and finishing labour charges.', color: '#E19C12', bg: '#FFFBE6' },
+    { id: 'finishing', label: 'Finishing', amount: formatRupees(estimate.breakdown.finishing), pct: 13, icon: <IcoFinishing />, detail: 'Flooring, painting, doors, windows and interior finishes.', color: '#4AB017', bg: '#F6FFED' },
+    { id: 'contingency', label: 'Contingency', amount: formatRupees(estimate.breakdown.contingency), pct: 5, icon: <IcoContingency />, detail: 'Buffer for unforeseen costs and estimation variance.', color: '#7E7E7E', bg: '#F5F5F5' },
+  ]
+
   return (
     <div className="flex flex-col" style={{ height: '100%', backgroundColor: '#FBF9F7' }}>
       <AmbientBg />
@@ -448,7 +442,7 @@ export default function CostBreakdownScreen({
                 Cost Breakdown
               </h1>
               <span className="text-[13px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
-                {projectName} · {location} · {area}
+                {estimate.projectName} · {estimate.location} · {areaLabel}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -491,12 +485,12 @@ export default function CostBreakdownScreen({
                 {/* Left — Total + categories */}
                 <div className="flex flex-col gap-4 w-full min-w-0" style={{ flex: '60 60 0' }}>
                   <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.1s both' }}>
-                    <TotalCard />
+                    <TotalCard categories={categories} totalLabel={totalLabel} averageLabel={averageLabel} />
                   </div>
                   <div className="flex flex-col gap-3">
                     {categories.map((cat, i) => (
                       <div key={cat.id} style={{ animation: `welcomeFadeUp 0.4s ease-out ${0.15 + i * 0.06}s both` }}>
-                        <CategoryCard cat={cat} onNavigate={onNavigate} />
+                        <CategoryCard cat={cat} />
                       </div>
                     ))}
                   </div>
@@ -511,7 +505,7 @@ export default function CostBreakdownScreen({
                     <HozieInsightPanel />
                   </div>
                   <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.24s both' }}>
-                    <EstimateSummaryPanel />
+                    <EstimateSummaryPanel categories={categories} averageLabel={averageLabel} />
                   </div>
 
                   {/* Next actions */}
