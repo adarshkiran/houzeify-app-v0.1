@@ -1033,6 +1033,41 @@ html, body, #root {
   flex: 1 1 240px;
 }
 
+/* Homeowner photo viewer: no side panel, so the image can take the full modal. */
+.evidence-viewer-stage-full {
+  flex: 1 1 auto;
+}
+
+.evidence-viewer-stage-full .evidence-viewer-media {
+  max-height: 80vh;
+}
+
+.evidence-viewer-media-wrap {
+  position: relative;
+}
+
+.evidence-viewer-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.evidence-viewer-close:hover,
+.evidence-viewer-close:focus {
+  background: rgba(0, 0, 0, 0.75) !important;
+  color: #fff !important;
+}
+
+.evidence-viewer-caption {
+  text-align: center;
+  font-size: 13px;
+}
+
 .evidence-grid-item {
   display: block;
   width: 100%;
