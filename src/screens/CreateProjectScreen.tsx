@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import HIcon from '../components/HIcon'
 import LogoHorizontal from '../components/LogoHorizontal'
+import type { ConstructionLevel } from '../domain/models'
+import { useConstructionData } from '../mock/ConstructionDataProvider'
+import { useCommand } from '../session/useCommand'
 
 // ─── Sidebar Icons ─────────────────────────────────────────────────────────────
 
@@ -162,7 +165,7 @@ function Sidebar({ onNavigate }: { onNavigate: (s: string) => void }) {
     { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: 'dashboard-home' },
     { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
     { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
-    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: '' },
+    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: 'estimate-dashboard' },
     { id: 'boq', icon: <IcoBOQ />, label: 'BOQ', dest: '' },
     { id: 'plan', icon: <IcoPlan />, label: 'Plan Analysis', dest: '' },
   ]
@@ -320,6 +323,52 @@ function StageCard({ stage, selected, onSelect }: { stage: StageOption; selected
   )
 }
 
+// ─── Construction Level ───────────────────────────────────────────────────────
+
+interface LevelOption {
+  id: ConstructionLevel
+  title: string
+  desc: string
+}
+
+const levels: LevelOption[] = [
+  { id: 'basic', title: 'Basic', desc: 'Functional finishes, standard materials.' },
+  { id: 'standard', title: 'Standard', desc: 'Good quality finishes, popular choice.' },
+  { id: 'premium', title: 'Premium', desc: 'High-end finishes, premium materials.' },
+]
+
+function LevelCard({ level, selected, onSelect }: { level: LevelOption; selected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      onClick={onSelect}
+      className={[
+        'relative flex flex-col gap-1 p-4 rounded-[12px] text-left cursor-pointer transition-all duration-150 border outline-none',
+        selected
+          ? 'bg-[#F3EAFF] border-[#722ED1] border-2'
+          : 'bg-white border-[#E3DDD7] hover:bg-[#F3EAFF] hover:border-[#722ED1]',
+      ].join(' ')}
+    >
+      {selected && (
+        <div
+          className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#722ED1] flex items-center justify-center"
+          style={{ animation: 'successBadgePop 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+      )}
+      <span
+        className={`text-[13px] font-semibold leading-tight ${selected ? 'text-[#722ED1]' : 'text-[#242326]'}`}
+        style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
+      >
+        {level.title}
+      </span>
+      <span className="text-[12px] text-[#68636D] leading-[1.5]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
+        {level.desc}
+      </span>
+    </button>
+  )
+}
+
 // ─── Form Input ───────────────────────────────────────────────────────────────
 
 function FormLabel({ children }: { children: React.ReactNode }) {
@@ -368,18 +417,37 @@ export default function CreateProjectScreen({
   const [stage, setStage] = useState<string | null>(null)
   const [changingType, setChangingType] = useState(false)
   const [editingLocation, setEditingLocation] = useState(false)
+  const [builtUpArea, setBuiltUpArea] = useState('')
+  const [floors, setFloors] = useState('1')
+  const [constructionLevel, setConstructionLevel] = useState<ConstructionLevel>('standard')
 
-  const canContinue = projectName.trim().length > 0 && stage !== null
+  const { generateEstimate } = useConstructionData()
+  const run = useCommand()
+
+  const builtUpAreaNum = Number(builtUpArea)
+  const floorsNum = Number(floors)
+  const canContinue =
+    projectName.trim().length > 0 &&
+    stage !== null &&
+    Number.isInteger(builtUpAreaNum) &&
+    builtUpAreaNum > 0 &&
+    Number.isInteger(floorsNum) &&
+    floorsNum > 0
 
   const handleContinue = () => {
     if (!canContinue) return
-    onNavigate('estimate-loading', {
-      project_name: projectName.trim(),
-      property_type: propertyType,
-      location,
-      project_stage: stage!,
-      user_role: 'homeowner',
-    })
+    const outcome = run(() =>
+      generateEstimate({
+        projectName: projectName.trim(),
+        propertyType,
+        location,
+        builtUpAreaSqft: builtUpAreaNum,
+        floors: floorsNum,
+        constructionLevel,
+      }),
+    )
+    if (!outcome.ok) return
+    onNavigate('estimate-loading', { estimate_id: outcome.value.id })
   }
 
   return (
@@ -580,6 +648,58 @@ export default function CreateProjectScreen({
                         stage={s}
                         selected={stage === s.id}
                         onSelect={() => setStage(s.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-[#F4F0EC]" />
+
+                {/* Field 5: Built-up area + floors */}
+                <div className="flex flex-col sm:flex-row gap-5">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <FormLabel>Built-up area (sq.ft)</FormLabel>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="e.g. 2000"
+                      value={builtUpArea}
+                      onChange={e => setBuiltUpArea(e.target.value)}
+                      className="w-full h-[52px] px-4 rounded-[12px] border border-[#E3DDD7] bg-white text-[15px] text-[#242326] outline-none transition-all placeholder-[#C4BFC8]"
+                      style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+                      onFocus={e => { e.currentTarget.style.borderColor = '#722ED1'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(114,46,209,0.08)' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = '#E3DDD7'; e.currentTarget.style.boxShadow = 'none' }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <FormLabel>Floors</FormLabel>
+                    <input
+                      type="number"
+                      min={1}
+                      value={floors}
+                      onChange={e => setFloors(e.target.value)}
+                      className="w-full h-[52px] px-4 rounded-[12px] border border-[#E3DDD7] bg-white text-[15px] text-[#242326] outline-none transition-all placeholder-[#C4BFC8]"
+                      style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+                      onFocus={e => { e.currentTarget.style.borderColor = '#722ED1'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(114,46,209,0.08)' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = '#E3DDD7'; e.currentTarget.style.boxShadow = 'none' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-[#F4F0EC]" />
+
+                {/* Field 6: Construction level */}
+                <div className="flex flex-col gap-3">
+                  <FormLabel>Construction level</FormLabel>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {levels.map(l => (
+                      <LevelCard
+                        key={l.id}
+                        level={l}
+                        selected={constructionLevel === l.id}
+                        onSelect={() => setConstructionLevel(l.id)}
                       />
                     ))}
                   </div>
