@@ -81,11 +81,10 @@ function Layout_({
 
   return (
     <Layout className="h-full">
-      <Sider breakpoint="lg" collapsedWidth={72} width={240} theme="light" trigger={null} className="hidden md:block">
+      <Sider width={240} theme="light" trigger={null} className="hidden md:block border-r border-[#F0F0F0]">
         <Flex vertical className="h-full">
           <Flex align="center" gap="small" className="h-16 px-5 border-b border-[#F0F0F0]">
-            <LogoHorizontal height={24} className="hidden lg:block" />
-            <span className="lg:hidden"><HIcon size={28} /></span>
+            <LogoHorizontal height={24} />
           </Flex>
           {mainMenu}
           {toolsMenu}
