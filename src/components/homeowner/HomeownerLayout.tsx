@@ -92,7 +92,7 @@ function Layout_({
 
       <Layout className="min-w-0">
         <Header className="bg-white! flex items-center px-4 md:px-6 h-16!" style={{ borderBottom: "1px solid #F0F0F0" }}>
-          <Flex align="center" gap="middle" className="h-full w-full md:hidden">
+          <Flex align="center" gap="middle" className="h-full w-full md:hidden!">
             <HomeownerMobileMenu active={active} onNavigate={onNavigate} />
             <Flex align="center" gap="small" className="flex-1">
               <HIcon size={24} />
