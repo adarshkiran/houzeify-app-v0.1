@@ -166,7 +166,12 @@ export default function EstimateLoadingScreen({
         </div>
 
         <Flex vertical align="center" gap={4} className="text-center" style={{ animation: 'estimateReveal 0.4s ease-out 0.44s both' }}>
-          <Text className="text-[10px] tracking-[0.10em] text-[#722ED1]!">{phase.stateLabel}</Text>
+          <Text
+            className="text-[10px] tracking-[0.10em] text-[#722ED1]!"
+            style={{ animation: complete ? undefined : 'hozieStatusPulse 2s ease-in-out infinite' }}
+          >
+            {phase.stateLabel}
+          </Text>
           <Text type="secondary" className="text-[12px]!">{phase.statusSub}</Text>
         </Flex>
 

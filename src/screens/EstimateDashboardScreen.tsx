@@ -118,7 +118,7 @@ export default function EstimateDashboardScreen({
       <div className="relative min-h-full" style={{ backgroundColor: '#FBF9F7' }}>
         <AmbientBg variant="estimate-dashboard" />
         <Flex vertical gap={20} className="relative z-10 max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <Flex align="center" justify="space-between" wrap gap={12}>
+          <Flex align="center" justify="space-between" wrap gap={12} style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.05s both' }}>
             <Flex vertical gap={2}>
               <Title level={3} className="m-0!">Construction Estimate</Title>
               <Text type="secondary">{estimate.projectName} · {estimate.location} · {areaLabel}</Text>
@@ -130,9 +130,11 @@ export default function EstimateDashboardScreen({
             </Flex>
           </Flex>
 
-          <EstimateTotalSummary estimate={estimate} />
+          <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.12s both' }}>
+            <EstimateTotalSummary estimate={estimate} />
+          </div>
 
-          <Row gutter={[12, 12]}>
+          <Row gutter={[12, 12]} style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.18s both' }}>
             <Col xs={12} lg={6}><Card><Statistic title="Built-up Area" value={areaLabel} /></Card></Col>
             <Col xs={12} lg={6}>
               <Card>
@@ -154,18 +156,22 @@ export default function EstimateDashboardScreen({
             </Col>
           </Row>
 
-          <CostBreakdownCard
-            items={[
-              { label: 'Materials', percent: 56, amount: formatRupees(estimate.breakdown.materials), color: '#E14B19' },
-              { label: 'Labour', percent: 26, amount: formatRupees(estimate.breakdown.labour), color: '#E19C12' },
-              { label: 'Finishing', percent: 13, amount: formatRupees(estimate.breakdown.finishing), color: '#4AB017' },
-              { label: 'Contingency', percent: 5, amount: formatRupees(estimate.breakdown.contingency), color: '#7E7E7E' },
-            ]}
-          />
+          <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.24s both' }}>
+            <CostBreakdownCard
+              items={[
+                { label: 'Materials', percent: 56, amount: formatRupees(estimate.breakdown.materials), color: '#E14B19' },
+                { label: 'Labour', percent: 26, amount: formatRupees(estimate.breakdown.labour), color: '#E19C12' },
+                { label: 'Finishing', percent: 13, amount: formatRupees(estimate.breakdown.finishing), color: '#4AB017' },
+                { label: 'Contingency', percent: 5, amount: formatRupees(estimate.breakdown.contingency), color: '#7E7E7E' },
+              ]}
+            />
+          </div>
 
-          <HozieInsightCard onNavigate={onNavigate} estimateId={estimate.id} />
+          <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.3s both' }}>
+            <HozieInsightCard onNavigate={onNavigate} estimateId={estimate.id} />
+          </div>
 
-          <Flex vertical gap={12}>
+          <Flex vertical gap={12} style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.36s both' }}>
             <Text className="text-[10px] tracking-[0.10em] uppercase text-[#9A949D]!">Next Steps</Text>
             <Row gutter={[12, 12]}>
               {nextActions.map((a) => (

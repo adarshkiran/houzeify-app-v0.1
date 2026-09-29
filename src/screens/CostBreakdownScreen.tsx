@@ -108,7 +108,7 @@ export default function CostBreakdownScreen({
       <div className="relative min-h-full" style={{ backgroundColor: '#FBF9F7' }}>
         <AmbientBg variant="cost-breakdown" />
         <Flex vertical gap={24} className="relative z-10 max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <Flex vertical gap={4}>
+          <Flex vertical gap={4} style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.05s both' }}>
             <Text className="text-[10px] tracking-[0.10em] uppercase text-[#722ED1]! block">Estimate Breakdown</Text>
             <Title level={2} className="m-0!">Where your money goes.</Title>
             <Text type="secondary">Hozie has grouped your estimated construction cost into the major areas of work.</Text>
@@ -118,13 +118,19 @@ export default function CostBreakdownScreen({
           <Row gutter={[24, 24]}>
             <Col xs={24} lg={14}>
               <Flex vertical gap={16}>
-                <EstimateTotalSummary estimate={estimate} />
-                {categories.map((cat) => <CategoryCard key={cat.id} cat={cat} />)}
+                <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.1s both' }}>
+                  <EstimateTotalSummary estimate={estimate} />
+                </div>
+                {categories.map((cat, i) => (
+                  <div key={cat.id} style={{ animation: `welcomeFadeUp 0.4s ease-out ${0.15 + i * 0.06}s both` }}>
+                    <CategoryCard cat={cat} />
+                  </div>
+                ))}
               </Flex>
             </Col>
             <Col xs={24} lg={10}>
               <Flex vertical gap={16}>
-                <Card className="bg-[#F3EAFF]! border-0!">
+                <Card className="bg-[#F3EAFF]! border-0!" style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.18s both' }}>
                   <Flex vertical gap={12}>
                     <Flex align="center" gap={10}>
                       <div className="w-8 h-8 rounded-[10px] bg-white flex items-center justify-center shrink-0">
@@ -138,11 +144,18 @@ export default function CostBreakdownScreen({
                     </Text>
                   </Flex>
                 </Card>
-                <EstimateSummaryPanel categories={categories} averageLabel={averageLabel} />
-                <Button type="primary" block onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}>
+                <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.24s both' }}>
+                  <EstimateSummaryPanel categories={categories} averageLabel={averageLabel} />
+                </div>
+                <Button
+                  type="primary"
+                  block
+                  onClick={() => onNavigate('estimate-dashboard', { estimate_id: estimate.id })}
+                  style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.3s both' }}
+                >
                   ← Back to Estimate
                 </Button>
-                <Text type="secondary" className="text-[10px]!">
+                <Text type="secondary" className="text-[10px]!" style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.36s both' }}>
                   AI-generated estimate based on the information provided. Actual costs may vary based on design,
                   specifications, site conditions and contractor pricing.
                 </Text>

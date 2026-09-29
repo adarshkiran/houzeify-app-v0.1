@@ -41,10 +41,19 @@ function PickCard({ title, desc, selected, onSelect }: { title: string; desc?: s
     <Card
       hoverable
       onClick={onSelect}
+      role="radio"
+      aria-checked={selected}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
       className={selected ? 'border-[#722ED1]! bg-[#F3EAFF]!' : ''}
       styles={{ body: { padding: 16, position: 'relative' } }}
     >
-      {selected && <CheckCircleFilled className="absolute top-3 right-3 text-[#722ED1]" />}
+      {selected && <CheckCircleFilled className="absolute top-3 right-3 text-[#722ED1]" style={{ animation: 'successBadgePop 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }} />}
       <Flex vertical gap={2}>
         <Text strong className={selected ? 'text-[#722ED1]!' : undefined}>{title}</Text>
         {desc && <Text type="secondary" className="text-[12px]!">{desc}</Text>}
@@ -102,7 +111,7 @@ export default function CreateProjectScreen({
       <div className="relative min-h-full" style={{ backgroundColor: '#FBF9F7' }}>
         <AmbientBg variant="create-project" />
         <Flex vertical gap="large" className="relative z-10 max-w-[900px] mx-auto px-5 sm:px-8 lg:px-10 pt-8 pb-12">
-          <Flex vertical gap={16}>
+          <Flex vertical gap={16} style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.05s both' }}>
             <Steps
               size="small"
               current={0}
@@ -115,10 +124,11 @@ export default function CreateProjectScreen({
             </Flex>
           </Flex>
 
-          <Card>
+          <Card style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.12s both' }}>
             <Form layout="vertical" requiredMark={false}>
-              <Form.Item label="Project name">
+              <Form.Item label="Project name" htmlFor="project-name">
                 <Input
+                  id="project-name"
                   size="large"
                   placeholder="My New Home"
                   value={projectName}
@@ -127,7 +137,7 @@ export default function CreateProjectScreen({
               </Form.Item>
 
               <Form.Item label="What are you building?">
-                <Flex gap={8} wrap>
+                <Flex gap={8} wrap style={{ animation: 'welcomeFadeUp 0.2s ease-out both' }}>
                   {propertyTypes.map((pt) => (
                     <Button
                       key={pt}
@@ -141,8 +151,8 @@ export default function CreateProjectScreen({
                 </Flex>
               </Form.Item>
 
-              <Form.Item label="Where are you building?">
-                <Input size="large" value={location} onChange={(e) => setLocation(e.target.value)} />
+              <Form.Item label="Where are you building?" htmlFor="location">
+                <Input id="location" size="large" value={location} onChange={(e) => setLocation(e.target.value)} />
               </Form.Item>
 
               <Form.Item label="What stage are you at?">
@@ -156,8 +166,9 @@ export default function CreateProjectScreen({
               </Form.Item>
 
               <Flex gap={16}>
-                <Form.Item label="Built-up area (sq.ft)" className="flex-1">
+                <Form.Item label="Built-up area (sq.ft)" className="flex-1" htmlFor="built-up-area">
                   <InputNumber
+                    id="built-up-area"
                     size="large"
                     min={1}
                     style={{ width: '100%' }}
@@ -166,8 +177,8 @@ export default function CreateProjectScreen({
                     onChange={(v) => setBuiltUpArea(v)}
                   />
                 </Form.Item>
-                <Form.Item label="Floors" className="flex-1">
-                  <InputNumber size="large" min={1} style={{ width: '100%' }} value={floors} onChange={(v) => setFloors(v)} />
+                <Form.Item label="Floors" className="flex-1" htmlFor="floors">
+                  <InputNumber id="floors" size="large" min={1} style={{ width: '100%' }} value={floors} onChange={(v) => setFloors(v)} />
                 </Form.Item>
               </Flex>
 
@@ -188,7 +199,7 @@ export default function CreateProjectScreen({
             </Form>
           </Card>
 
-          <Card className="bg-[#F3EAFF]! border-0!">
+          <Card className="bg-[#F3EAFF]! border-0!" style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.22s both' }}>
             <Flex gap={12} align="flex-start">
               <div className="shrink-0 w-8 h-8 rounded-[10px] bg-white flex items-center justify-center">
                 <HIcon size={20} />
@@ -200,7 +211,7 @@ export default function CreateProjectScreen({
             </Flex>
           </Card>
 
-          <Flex gap={16} align="center" wrap>
+          <Flex gap={16} align="center" wrap style={{ animation: 'welcomeFadeUp 0.4s ease-out 0.3s both' }}>
             <Button type="primary" size="large" disabled={!canContinue} onClick={handleContinue}>
               Continue to project details →
             </Button>
