@@ -16,6 +16,12 @@ const IcoProjects = () => (
     <path d="M2 6a1.5 1.5 0 011.5-1.5H7l1.5 2H16a1.5 1.5 0 011.5 1.5V14A1.5 1.5 0 0116 15.5H2A1.5 1.5 0 01.5 14V6z" />
   </svg>
 )
+const IcoMyProject = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 9L9 3l7 6" /><path d="M4 8v8h10V8" />
+    <path d="M7 12.5l1.3 1.3L11 11" />
+  </svg>
+)
 const IcoEstimates = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="2" width="12" height="14" rx="1.5" />
@@ -72,7 +78,7 @@ const IcoSettings = () => (
   </svg>
 )
 
-export type HomeownerNavKey = "home" | "advisor" | "projects" | "estimates" | "boq" | "plan"
+export type HomeownerNavKey = "home" | "advisor" | "site-update" | "projects" | "estimates" | "boq" | "plan"
 
 export interface HomeownerNavItem {
   key: HomeownerNavKey | string
@@ -80,12 +86,21 @@ export interface HomeownerNavItem {
   icon: ReactNode
   /** Where it goes. Omitted = planned, not built yet ("Soon"). */
   to?: string
+  /** Extra params passed to onNavigate alongside `to`. */
+  params?: Record<string, string>
 }
 
 /** The homeowner desktop side-menu, defined once so every screen stays in sync. */
 export const HOMEOWNER_NAV: HomeownerNavItem[] = [
   { key: "home", label: "Dashboard", icon: <IcoHome />, to: "dashboard-home" },
   { key: "advisor", label: "AI Advisor", icon: <IcoAdvisor />, to: "ai-advisor" },
+  {
+    key: "site-update",
+    label: "My Project",
+    icon: <IcoMyProject />,
+    to: "customer-daily-update",
+    params: { project_id: "project-sharma" },
+  },
   { key: "projects", label: "Projects", icon: <IcoProjects /> },
   { key: "estimates", label: "Estimates", icon: <IcoEstimates />, to: "estimate-dashboard" },
   { key: "boq", label: "BOQ", icon: <IcoBOQ /> },

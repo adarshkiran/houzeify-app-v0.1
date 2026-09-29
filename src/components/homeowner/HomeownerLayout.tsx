@@ -44,12 +44,15 @@ function Layout_({
   children: ReactNode
 }) {
   const targets = Object.fromEntries(
-    [...HOMEOWNER_NAV, ...HOMEOWNER_TOOLS_NAV, ...HOMEOWNER_BOTTOM_NAV].map((item) => [item.key, item.to]),
+    [...HOMEOWNER_NAV, ...HOMEOWNER_TOOLS_NAV, ...HOMEOWNER_BOTTOM_NAV].map((item) => [
+      item.key,
+      { to: item.to, params: item.params },
+    ]),
   )
 
   const go = (key: string) => {
-    const to = targets[key]
-    if (to) onNavigate(to)
+    const target = targets[key]
+    if (target?.to) onNavigate(target.to, target.params)
   }
 
   const mainMenu = (

@@ -1,36 +1,15 @@
 import { useState, useRef } from 'react'
-import HomeownerMobileMenu from '../components/HomeownerMobileMenu'
 import HIcon from '../components/HIcon'
-import LogoHorizontal from '../components/LogoHorizontal'
+import HomeownerLayout from '../components/homeowner/HomeownerLayout'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AiState = 'idle' | 'thinking' | 'response'
 
 // ─── Sidebar Icons ─────────────────────────────────────────────────────────────
 
-const IcoHome = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 9L9 3l7 6"/>
-    <path d="M4 8v8h3.5v-4h3v4H14V8"/>
-  </svg>
-)
-const IcoAdvisor = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 1.5L10.6 5.4L14.5 7 10.6 8.6 9 12.5 7.4 8.6 3.5 7l3.9-1.6L9 1.5z"/>
-    <path d="M14 12l.9 1.9 1.6.6-1.6.6-.9 1.9-.9-1.9-1.6-.6 1.6-.6.9-1.9z" strokeWidth="1.2"/>
-  </svg>
-)
 const IcoProjects = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 6a1.5 1.5 0 011.5-1.5H7l1.5 2H16a1.5 1.5 0 011.5 1.5V14A1.5 1.5 0 0116 15.5H2A1.5 1.5 0 01.5 14V6z"/>
-  </svg>
-)
-const IcoEstimates = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="2" width="12" height="14" rx="1.5"/>
-    <line x1="6" y1="6.5" x2="12" y2="6.5"/>
-    <line x1="6" y1="9.5" x2="12" y2="9.5"/>
-    <line x1="6" y1="12.5" x2="10" y2="12.5"/>
   </svg>
 )
 const IcoBOQ = () => (
@@ -43,13 +22,6 @@ const IcoBOQ = () => (
     <line x1="6.5" y1="13" x2="15" y2="13"/>
   </svg>
 )
-const IcoPlan = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="14" height="14" rx="2"/>
-    <line x1="2" y1="7.5" x2="16" y2="7.5"/>
-    <line x1="7.5" y1="7.5" x2="7.5" y2="16"/>
-  </svg>
-)
 const IcoCalc = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="2" width="12" height="14" rx="1.5"/>
@@ -60,28 +32,6 @@ const IcoCalc = () => (
     <circle cx="6" cy="13" r="0.7" fill="currentColor" stroke="none"/>
     <circle cx="9" cy="13" r="0.7" fill="currentColor" stroke="none"/>
     <circle cx="12" cy="13" r="0.7" fill="currentColor" stroke="none"/>
-  </svg>
-)
-const IcoReports = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="15.5" x2="15" y2="15.5"/>
-    <line x1="4" y1="15.5" x2="4" y2="9"/>
-    <line x1="7.5" y1="15.5" x2="7.5" y2="5"/>
-    <line x1="11" y1="15.5" x2="11" y2="8"/>
-    <line x1="14.5" y1="15.5" x2="14.5" y2="3"/>
-  </svg>
-)
-const IcoHelp = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="9" r="7"/>
-    <path d="M6.5 6.5a2.5 2.5 0 015 0c0 2-2.5 2.5-2.5 3.5"/>
-    <circle cx="9" cy="14" r="0.6" fill="currentColor" stroke="none"/>
-  </svg>
-)
-const IcoSettings = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="9" r="2.5"/>
-    <path d="M9 2v1.5M9 14.5V16M2 9h1.5M14.5 9H16M4.1 4.1l1.06 1.06M12.84 12.84l1.06 1.06M4.1 13.9l1.06-1.06M12.84 5.16l1.06-1.06"/>
   </svg>
 )
 const IcoBell = () => (
@@ -132,162 +82,6 @@ const IcoUpload = () => (
     <path d="M4.5 4.5L7 2l2.5 2.5"/>
   </svg>
 )
-
-// ─── Sidebar Nav Item ─────────────────────────────────────────────────────────
-
-function NavItem({
-  icon, label, active, onClick,
-}: {
-  icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void
-}) {
-  return (
-    <button
-      title={label}
-      onClick={onClick}
-      className={[
-        'w-full flex items-center border-0 cursor-pointer rounded-[12px] transition-all duration-150 outline-none',
-        'md:justify-center md:w-[40px] md:h-[40px] md:mx-auto md:p-0',
-        'lg:justify-start lg:w-full lg:h-auto lg:mx-0 lg:px-3 lg:py-[9px] lg:gap-3',
-        active
-          ? 'bg-[#F3EAFF] text-[#722ED1]'
-          : 'bg-transparent text-[#68636D] hover:bg-[#F4F0EC] hover:text-[#242326]',
-      ].join(' ')}
-    >
-      <span className="shrink-0 w-[18px] h-[18px] flex items-center justify-center">
-        {icon}
-      </span>
-      <span
-        className="hidden lg:block text-[13px] leading-none"
-        style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
-      >
-        {label}
-      </span>
-    </button>
-  )
-}
-
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-
-function Sidebar({
-  activeNav,
-  onNav,
-  onNavigate,
-}: {
-  activeNav: string
-  onNav: (id: string) => void
-  onNavigate: (screen: string, data?: Record<string, string>) => void
-}) {
-  const navMain = [
-    { id: 'home', icon: <IcoHome />, label: 'Dashboard', dest: '' },
-    { id: 'advisor', icon: <IcoAdvisor />, label: 'AI Advisor', dest: 'ai-advisor' },
-    { id: 'projects', icon: <IcoProjects />, label: 'Projects', dest: '' },
-    { id: 'site-update', icon: <IcoPlan />, label: 'My Project', dest: 'customer-daily-update' },
-    { id: 'estimates', icon: <IcoEstimates />, label: 'Estimates', dest: 'estimate-dashboard' },
-    { id: 'boq', icon: <IcoBOQ />, label: 'BOQ', dest: '' },
-    { id: 'plan', icon: <IcoPlan />, label: 'Plan Analysis', dest: '' },
-  ]
-  const navTools = [
-    { id: 'calculator', icon: <IcoCalc />, label: 'Material Calculator', dest: '' },
-    { id: 'reports', icon: <IcoReports />, label: 'Reports', dest: '' },
-  ]
-  const navBottom = [
-    { id: 'help', icon: <IcoHelp />, label: 'Help', dest: '' },
-    { id: 'settings', icon: <IcoSettings />, label: 'Settings', dest: '' },
-  ]
-
-  return (
-    <aside
-      className="hidden md:flex flex-col shrink-0 bg-white z-10"
-      style={{ width: undefined, borderRight: '1px solid #E3DDD7' }}
-    >
-      {/* This wrapper handles the width responsiveness */}
-      <div className="flex flex-col h-full md:w-[72px] lg:w-[240px]">
-        {/* Logo */}
-        <div className="h-[64px] shrink-0 flex items-center border-b border-[#E3DDD7] md:justify-center lg:justify-start lg:px-5">
-          <LogoHorizontal height={22} className="hidden lg:block" />
-          <div className="flex lg:hidden">
-            <HIcon size={28} />
-          </div>
-        </div>
-
-        {/* Main nav */}
-        <nav className="flex-1 overflow-y-auto md:p-2 lg:p-3 flex flex-col gap-0.5 scrollbar-hide">
-          <div className="flex flex-col gap-0.5">
-            {navMain.map(item => (
-              <NavItem
-                key={item.id}
-                icon={item.icon}
-                label={item.label}
-                active={activeNav === item.id}
-                onClick={() => {
-                  if (item.id === 'site-update') {
-                    onNavigate('customer-daily-update', { project_id: 'project-sharma' })
-                    return
-                  }
-                  item.dest ? onNavigate(item.dest) : onNav(item.id)
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Divider + Tools */}
-          <div className="my-3 border-t border-[#E3DDD7]" />
-          <p className="hidden lg:block text-[10px] tracking-[0.08em] uppercase text-[#9A949D] px-3 mb-1.5" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
-            Tools
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {navTools.map(item => (
-              <NavItem
-                key={item.id}
-                icon={item.icon}
-                label={item.label}
-                active={activeNav === item.id}
-                onClick={() => onNav(item.id)}
-              />
-            ))}
-          </div>
-        </nav>
-
-        {/* Bottom */}
-        <div className="shrink-0 border-t border-[#E3DDD7] md:p-2 lg:p-3 flex flex-col gap-0.5">
-          {navBottom.map(item => (
-            <NavItem
-              key={item.id}
-              icon={item.icon}
-              label={item.label}
-              active={activeNav === item.id}
-              onClick={() => onNav(item.id)}
-            />
-          ))}
-        </div>
-      </div>
-    </aside>
-  )
-}
-
-// ─── Mobile Top Bar ────────────────────────────────────────────────────────────
-
-function MobileTopBar({ onNavigate }: { onNavigate: (screen: string, data?: Record<string, string>) => void }) {
-  return (
-    <div className="flex md:hidden h-14 items-center justify-between px-4 bg-white border-b border-[#E3DDD7] shrink-0 z-10">
-      <div className="flex items-center gap-2.5">
-        <HomeownerMobileMenu active="home" onNavigate={onNavigate} />
-        <HIcon size={26} />
-        <span className="text-[16px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-          Dashboard
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <button className="w-8 h-8 flex items-center justify-center text-[#68636D] hover:text-[#242326] transition-colors">
-          <IcoBell />
-        </button>
-        <div className="w-8 h-8 rounded-full bg-[#722ED1] flex items-center justify-center text-white text-[11px] font-semibold" style={{ fontFamily: '"Google Sans Flex:Bold", sans-serif' }}>
-          AK
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── Top Header ───────────────────────────────────────────────────────────────
 
@@ -746,7 +540,6 @@ function WelcomeSection() {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: string, data?: Record<string, string>) => void }) {
-  const [activeNav, setActiveNav] = useState('home')
   const [aiState, setAiState] = useState<AiState>('idle')
   const [aiResponse, setAiResponse] = useState('')
   const [composerValue, setComposerValue] = useState('')
@@ -783,61 +576,52 @@ export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: st
   }
 
   return (
-    <div className="flex flex-col relative" style={{ height: '100%', backgroundColor: '#FBF9F7' }}>
-      <AmbientBackground />
+    <HomeownerLayout active="home" onNavigate={onNavigate}>
+      <div className="flex flex-col relative" style={{ minHeight: '100%', backgroundColor: '#FBF9F7' }}>
+        <AmbientBackground />
 
-      {/* Mobile top bar */}
-      <MobileTopBar onNavigate={onNavigate} />
+        <TopHeader />
 
-      {/* Body: sidebar + main */}
-      <div className="flex flex-1 min-h-0 relative z-10">
-        <Sidebar activeNav={activeNav} onNav={setActiveNav} onNavigate={onNavigate} />
+        {/* Scrollable content */}
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{ padding: '28px 24px', scrollbarWidth: 'none' }}
+        >
+          <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+            <WelcomeSection />
 
-        {/* Main content column */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <TopHeader />
+            {/* Two-column layout */}
+            <div
+              className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start"
+              style={{ animation: 'welcomeFadeUp 0.5s ease-out 0.28s both' }}
+            >
+              {/* Left column ~65% */}
+              <div className="flex flex-col gap-5 w-full min-w-0" style={{ flex: '65 65 0' }}>
+                <HozieAICard
+                  aiState={aiState}
+                  aiResponse={aiResponse}
+                  composerValue={composerValue}
+                  onComposerChange={setComposerValue}
+                  onComposerSubmit={handleComposerSubmit}
+                  onQuickAction={handleQuickAction}
+                  onNavigate={onNavigate}
+                />
+                <ProjectSection hasProject={hasProject} onNavigate={onNavigate} />
+              </div>
 
-          {/* Scrollable content */}
-          <main
-            className="flex-1 overflow-y-auto"
-            style={{ padding: '28px 24px', scrollbarWidth: 'none' }}
-          >
-            <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-              <WelcomeSection />
-
-              {/* Two-column layout */}
+              {/* Right column ~35% */}
               <div
-                className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start"
-                style={{ animation: 'welcomeFadeUp 0.5s ease-out 0.28s both' }}
+                className="flex flex-col gap-4 w-full lg:shrink-0"
+                style={{ flex: '35 35 0', minWidth: 0, maxWidth: '100%' }}
               >
-                {/* Left column ~65% */}
-                <div className="flex flex-col gap-5 w-full min-w-0" style={{ flex: '65 65 0' }}>
-                  <HozieAICard
-                    aiState={aiState}
-                    aiResponse={aiResponse}
-                    composerValue={composerValue}
-                    onComposerChange={setComposerValue}
-                    onComposerSubmit={handleComposerSubmit}
-                    onQuickAction={handleQuickAction}
-                    onNavigate={onNavigate}
-                  />
-                  <ProjectSection hasProject={hasProject} onNavigate={onNavigate} />
-                </div>
-
-                {/* Right column ~35% */}
-                <div
-                  className="flex flex-col gap-4 w-full lg:shrink-0"
-                  style={{ flex: '35 35 0', minWidth: 0, maxWidth: '100%' }}
-                >
-                  <ProjectSnapshotCard />
-                  <AIInsightCard />
-                  <QuickToolsCard />
-                </div>
+                <ProjectSnapshotCard />
+                <AIInsightCard />
+                <QuickToolsCard />
               </div>
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
-    </div>
+    </HomeownerLayout>
   )
 }
