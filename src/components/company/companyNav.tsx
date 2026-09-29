@@ -95,7 +95,7 @@ export function projectNav(projectId: string): NavItem<ProjectNavKey>[] {
     { key: "issues", label: "Issues", icon: <ExclamationCircleOutlined />, to: { screen: "issues", params: p } },
     { key: "messages", label: "Messages", icon: <MessageOutlined />, to: { screen: "project-messages", params: p } },
     { key: "team", label: "Project Team", icon: <TeamOutlined />, to: { screen: "project-team", params: p } },
-    { key: "documents", label: "Documents", icon: <FileTextOutlined /> },
+    { key: "documents", label: "Documents", icon: <FileTextOutlined />, to: { screen: "project-documents", params: p } },
   ]
 }
 

@@ -16,6 +16,7 @@ import type {
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
+  Document,
   EntityId,
   Evidence,
   Issue,
@@ -130,6 +131,9 @@ interface ConstructionDataContextValue {
     issueId: EntityId,
     items: Inputs.IssueEvidenceInput[],
   ) => Evidence[]
+  publishIssue: (issueId: EntityId, visible: boolean) => Issue
+  uploadDocument: (input: Inputs.UploadDocumentInput) => Document
+  publishDocument: (documentId: EntityId, visible: boolean) => Document
   postMessage: (input: PostMessageInput) => Message
   logCall: (input: LogCallInput) => CallLog
   openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
@@ -229,6 +233,9 @@ export default function ConstructionDataProvider({
         run(commands.transitionIssue(id, next, note)),
       addIssueEvidence: (id, items) =>
         run(commands.addIssueEvidence(id, items)),
+      publishIssue: (id, visible) => run(commands.publishIssue(id, visible)),
+      uploadDocument: (input) => run(commands.uploadDocument(input)),
+      publishDocument: (id, visible) => run(commands.publishDocument(id, visible)),
       postMessage: (input) => run(conversationCommands.postMessage(input)),
       logCall: (input) => run(conversationCommands.logCall(input)),
       openDirectThread: (projectId, otherId) =>

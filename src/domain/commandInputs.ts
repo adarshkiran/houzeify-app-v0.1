@@ -1,5 +1,6 @@
 import type {
   DailyProgress,
+  Document,
   EntityId,
   Evidence,
   Issue,
@@ -201,4 +202,11 @@ export interface ReportIssueInput {
   evidence?: IssueEvidenceInput[]
   /** Created from a conversation message (checked: exists, same project, readable). */
   source?: MessageSource
+}
+
+export interface UploadDocumentInput {
+  projectId: EntityId
+  title: string
+  category: Document["category"]
+  url: string
 }

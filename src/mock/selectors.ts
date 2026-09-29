@@ -1,6 +1,7 @@
 import type {
   ConstructionDataState,
   DailyProgress,
+  Document,
   EntityId,
   Evidence,
   Issue,
@@ -358,4 +359,18 @@ export function getMembershipName(
   return membership.principalType === "organization"
     ? state.organizations.find((item) => item.id === membership.principalId)?.name
     : state.people.find((item) => item.id === membership.principalId)?.name
+}
+
+/** Issues a staff member has shared with the homeowner, newest first. */
+export function getPublishedIssues(state: ConstructionDataState, projectId: EntityId) {
+  return state.issues
+    .filter((issue) => issue.projectId === projectId && issue.customerVisibility === "customer-visible")
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+}
+
+/** Documents a staff member has shared with the homeowner, newest first. */
+export function getPublishedDocuments(state: ConstructionDataState, projectId: EntityId) {
+  return state.documents
+    .filter((doc) => doc.projectId === projectId && doc.customerVisibility === "customer-visible")
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
 }

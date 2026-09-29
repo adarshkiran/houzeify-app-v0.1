@@ -1,18 +1,23 @@
-import { ArrowLeftOutlined } from "@ant-design/icons"
-import { Button, Card, Flex, Progress, Typography } from "antd"
+import { useState } from "react"
+import { ArrowLeftOutlined, FileTextOutlined } from "@ant-design/icons"
+import { Button, Card, Flex, List, Progress, Tag, Typography } from "antd"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import DocumentViewerModal, { categoryLabel } from "../components/documents/DocumentViewerModal"
 import LogoHorizontal from "../components/LogoHorizontal"
 import ThreadPanel from "../components/conversations/ThreadPanel"
 import DayTimeline from "../components/progress/DayTimeline"
 import EvidenceGrid from "../components/progress/EvidenceGrid"
 import { findThread, readerMembership } from "../domain/conversations"
-import type { EntityId, Thread } from "../domain/models"
+import type { Document, EntityId, Issue, Thread } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import {
   getProject,
+  getPublishedDocuments,
   getPublishedEvidence,
   getPublishedForCustomer,
+  getPublishedIssues,
+  getStageName,
   getWorkTypeName,
 } from "../mock/selectors"
 import { useSession } from "../session/SessionProvider"
@@ -31,6 +36,13 @@ function CustomerUpdate({
   const published = getPublishedForCustomer(state, projectId)
   const latest = published[0]
   const project = latest ? getProject(state, latest.projectId) : getProject(state, projectId ?? "")
+  const [openDocument, setOpenDocument] = useState<Document>()
+  const publishedIssues = project ? getPublishedIssues(state, project.id) : []
+  const publishedDocuments = project ? getPublishedDocuments(state, project.id) : []
+  const stageName = project?.currentStageId ? getStageName(state, project.currentStageId) : undefined
+
+  const issueStatusWord = (status: Issue["status"]) =>
+    status === "resolved" || status === "closed" ? "Fixed" : "Being looked into"
   const evidence = latest ? getPublishedEvidence(state, latest) : []
   const progress = project?.progress ?? 0
   // Only the homeowner gets a composer here; company staff use Messages.
@@ -65,6 +77,11 @@ function CustomerUpdate({
               ? `${latest.date} · ${getWorkTypeName(state, latest.workTypeId)} · ${project?.location ?? ""}`
               : "Published updates from your contractor appear here."}
           </Text>
+          {stageName && (
+            <Text>
+              Current stage: <Text strong>{stageName}</Text>
+            </Text>
+          )}
         </Flex>
 
         {latest ? (
@@ -110,11 +127,77 @@ function CustomerUpdate({
           </Card>
         )}
 
+        <Card
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Issues
+            </Title>
+          }
+        >
+          {publishedIssues.length ? (
+            <List
+              dataSource={publishedIssues}
+              renderItem={(issue) => (
+                <List.Item>
+                  <Flex vertical gap={2} className="w-full">
+                    <Flex align="center" justify="space-between" gap="small">
+                      <Text strong>{issue.title}</Text>
+                      <Tag color={issueStatusWord(issue.status) === "Fixed" ? "success" : "warning"}>
+                        {issueStatusWord(issue.status)}
+                      </Tag>
+                    </Flex>
+                    <Text type="secondary" className="text-[12px]!">
+                      {(issue.status === "resolved" || issue.status === "closed"
+                        ? issue.resolvedAt ?? issue.createdAt
+                        : issue.createdAt
+                      ).slice(0, 10)}
+                    </Text>
+                  </Flex>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Paragraph className="m-0!" type="secondary">
+              No issues have been shared for this project yet.
+            </Paragraph>
+          )}
+        </Card>
+
+        <Card
+          title={
+            <Title level={5} className="company-heading! m-0!">
+              Documents
+            </Title>
+          }
+        >
+          {publishedDocuments.length ? (
+            <List
+              dataSource={publishedDocuments}
+              renderItem={(document) => (
+                <List.Item>
+                  <Button type="link" className="p-0! h-auto!" icon={<FileTextOutlined />} onClick={() => setOpenDocument(document)}>
+                    {document.title}
+                  </Button>
+                  <Text type="secondary" className="text-[12px]!">
+                    {categoryLabel[document.category]} · {document.createdAt.slice(0, 10)}
+                  </Text>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Paragraph className="m-0!" type="secondary">
+              No documents have been shared for this project yet.
+            </Paragraph>
+          )}
+        </Card>
+
         {project && canMessageTeam && (
           <Card title="Message your project team">
             <ThreadPanel compact projectId={project.id} subject="homeowner" emptyText="Ask the project team anything about your home." />
           </Card>
         )}
+
+        <DocumentViewerModal document={openDocument} onClose={() => setOpenDocument(undefined)} />
       </Flex>
     </Flex>
   )

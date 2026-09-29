@@ -25,6 +25,7 @@ const taskIn = (id: string, projectUnitId: string): Task => ({ ...template, id, 
 const issueIn = (id: string, projectUnitId?: string, taskId?: string): Issue => ({
   id, projectId: P, projectUnitId, taskId, stageId: template.stageId, tradeId: template.tradeId,
   title: id, description: "", severity: "low", status: "open", evidenceIds: [],
+  customerVisibility: "private",
   createdByMembershipId: "m", createdAt: "2026-01-01T00:00:00Z",
 })
 
@@ -99,6 +100,15 @@ describe("scopeStateForReading", () => {
     expect(view.assignments.map((a) => a.id)).not.toContain("as-b")
     expect(view.evidence.map((e) => e.id)).toContain("ev-a")
     expect(view.evidence.map((e) => e.id)).not.toContain("ev-b")
+  })
+
+  it("hides project-wide documents from a scope-restricted member but shows them to an unscoped one", () => {
+    const sharmaDocuments = base.documents.filter((doc) => doc.projectId === P)
+    expect(sharmaDocuments.length).toBeGreaterThan(0)
+    expect(scopeStateForReading(state, scopedA).documents.some((doc) => doc.projectId === P)).toBe(false)
+    expect(scopeStateForReading(state, manager).documents.filter((doc) => doc.projectId === P)).toEqual(
+      sharmaDocuments,
+    )
   })
 
   it("makes the existing selectors scope-correct", () => {

@@ -17,11 +17,13 @@ import type {
   ReportIssueInput,
   ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
+  UploadDocumentInput,
 } from "./commandInputs"
 import type {
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
+  Document,
   EntityId,
   Evidence,
   EvidenceType,
@@ -1523,6 +1525,7 @@ export const reportIssue =
       severity: input.severity,
       status: "open",
       evidenceIds: evidence.map((item) => item.id),
+      customerVisibility: "private",
       createdByMembershipId: reporter.id,
       createdAt: iso(ctx),
     }
@@ -1639,4 +1642,53 @@ export const addIssueEvidence =
       },
       result: evidence,
     }
+  }
+
+/** Shares (or hides) one issue with the homeowner. Independent of status — an open issue can be shared, a resolved one can stay private. */
+export const publishIssue =
+  (issueId: EntityId, visible: boolean): Command<Issue> =>
+  (state, ctx) => {
+    const issue = state.issues.find((item) => item.id === issueId)
+    if (!issue) throw new PermissionError(Permissions.CUSTOMER_PUBLISH)
+    authorizeProject(state, ctx, issue.projectId, [Permissions.CUSTOMER_PUBLISH], issue)
+    const customerVisibility = visible ? "customer-visible" : "private"
+    if (issue.customerVisibility === customerVisibility) return { state, result: issue }
+    const next = withIssue(state, issueId, (item) => ({ ...item, customerVisibility, updatedAt: iso(ctx) }))
+    return { state: next, result: next.issues.find((item) => item.id === issueId)! }
+  }
+
+// ─── Documents ─────────────────────────────────────────────────────────────────
+
+export const uploadDocument =
+  (input: UploadDocumentInput): Command<Document> =>
+  (state, ctx) => {
+    const uploader = authorizeProject(state, ctx, input.projectId, [Permissions.EVIDENCE_CAPTURE])
+    const title = input.title.trim()
+    if (!title) throw new ConflictError("Give the document a title.")
+    const document: Document = {
+      id: ctx.ids.next("document"),
+      projectId: input.projectId,
+      title,
+      category: input.category,
+      url: input.url,
+      uploadedByMembershipId: uploader.id,
+      customerVisibility: "private" as const,
+      createdAt: iso(ctx),
+    }
+    return { state: { ...state, documents: [...state.documents, document] }, result: document }
+  }
+
+/** Shares (or hides) one document with the homeowner. */
+export const publishDocument =
+  (documentId: EntityId, visible: boolean): Command<Document> =>
+  (state, ctx) => {
+    const document = state.documents.find((item) => item.id === documentId)
+    if (!document) throw new PermissionError(Permissions.CUSTOMER_PUBLISH)
+    authorizeProject(state, ctx, document.projectId, [Permissions.CUSTOMER_PUBLISH])
+    const customerVisibility: Document["customerVisibility"] = visible ? "customer-visible" : "private"
+    if (document.customerVisibility === customerVisibility) return { state, result: document }
+    const documents = state.documents.map((item) =>
+      item.id === documentId ? { ...item, customerVisibility } : item,
+    )
+    return { state: { ...state, documents }, result: documents.find((item) => item.id === documentId)! }
   }
