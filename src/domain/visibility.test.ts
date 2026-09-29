@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 import { seedConstructionData } from "../mock/seed"
 import {
   getCustomerVisibleEvidence,
+  getEstimate,
   getEvidenceForProgress,
+  getLatestEstimate,
   getPublishedDocuments,
   getPublishedEvidence,
   getPublishedForCustomer,
@@ -128,5 +130,69 @@ describe("published issues and documents", () => {
 
     const publishedDocuments = getPublishedDocuments(crossProject, "project-sharma")
     expect(publishedDocuments.some((item) => item.id === "document-tech-park-1")).toBe(false)
+  })
+})
+
+describe("estimate selectors", () => {
+  const withEstimates = {
+    ...seedConstructionData,
+    estimates: [
+      {
+        id: "estimate-1",
+        homeownerPersonId: "person-demo-homeowner",
+        projectName: "First House",
+        propertyType: "House",
+        location: "Hyderabad",
+        builtUpAreaSqft: 2000,
+        floors: 2,
+        constructionLevel: "standard" as const,
+        totalLow: 3300000,
+        totalHigh: 3900000,
+        breakdown: { materials: 2016000, labour: 936000, finishing: 468000, contingency: 180000 },
+        createdAt: "2026-09-20T10:00:00.000Z",
+      },
+      {
+        id: "estimate-2",
+        homeownerPersonId: "person-demo-homeowner",
+        projectName: "Second House",
+        propertyType: "Villa",
+        location: "Hyderabad",
+        builtUpAreaSqft: 2500,
+        floors: 3,
+        constructionLevel: "premium" as const,
+        totalLow: 4875000,
+        totalHigh: 6000000,
+        breakdown: { materials: 3045000, labour: 1413000, finishing: 706500, contingency: 271500 },
+        createdAt: "2026-09-28T10:00:00.000Z",
+      },
+      {
+        id: "estimate-other",
+        homeownerPersonId: "person-someone-else",
+        projectName: "Not mine",
+        propertyType: "House",
+        location: "Chennai",
+        builtUpAreaSqft: 1000,
+        floors: 1,
+        constructionLevel: "basic" as const,
+        totalLow: 1450000,
+        totalHigh: 1650000,
+        breakdown: { materials: 868000, labour: 403000, finishing: 201500, contingency: 77500 },
+        createdAt: "2026-09-29T10:00:00.000Z",
+      },
+    ],
+  }
+
+  it("getEstimate returns the matching record", () => {
+    expect(getEstimate(withEstimates, "estimate-1")?.projectName).toBe("First House")
+    expect(getEstimate(withEstimates, "nope")).toBeUndefined()
+  })
+
+  it("getLatestEstimate returns the newest for that homeowner, ignoring others", () => {
+    const latest = getLatestEstimate(withEstimates, "person-demo-homeowner")
+    expect(latest?.id).toBe("estimate-2")
+  })
+
+  it("getLatestEstimate returns undefined when the homeowner has none", () => {
+    expect(getLatestEstimate(withEstimates, "person-nobody")).toBeUndefined()
   })
 })
