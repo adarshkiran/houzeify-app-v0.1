@@ -1,6 +1,7 @@
 import { useState } from "react"
 import {
   CameraOutlined,
+  CloseOutlined,
   FileOutlined,
   LeftOutlined,
   PlayCircleOutlined,
@@ -17,7 +18,7 @@ const { Text } = Typography
 export type EvidenceAudience = "company" | "homeowner"
 
 function Media({ item }: { item: Evidence }) {
-  const [failed, setFailed] = useState(item.url.startsWith("/mock-evidence"))
+  const [failed, setFailed] = useState(false)
 
   if ((item.type === "photo" || item.type === "video") && failed) {
     const Icon = item.type === "video" ? PlayCircleOutlined : CameraOutlined
@@ -65,8 +66,9 @@ function Media({ item }: { item: Evidence }) {
 }
 
 /**
- * Full-size look at one piece of evidence, with who captured it and who can
- * see it. The homeowner audience gets only date, location and task.
+ * Full-size look at one piece of evidence. The homeowner audience gets just
+ * the photo and a close button — no captured-by/review detail, which is
+ * staff-only information.
  */
 export default function EvidenceViewer({
   items,
@@ -83,52 +85,90 @@ export default function EvidenceViewer({
   const item = index === null ? undefined : items[index]
   if (!item) return null
 
+  const at = index ?? 0
+  const navigation = items.length > 1 && (
+    <Flex align="center" justify="space-between">
+      <Button icon={<LeftOutlined />} disabled={at === 0} onClick={() => onChange(at - 1)} aria-label="Previous" />
+      <Text type="secondary">{at + 1} of {items.length}</Text>
+      <Button icon={<RightOutlined />} disabled={at === items.length - 1} onClick={() => onChange(at + 1)} aria-label="Next" />
+    </Flex>
+  )
+
   const unit = getProjectUnits(state, item.projectId).find((u) => u.id === item.projectUnitId)
   const task = state.tasks.find((t) => t.id === item.taskId)
+  const where = [getProject(state, item.projectId)?.name, unit?.name].filter(Boolean).join(" · ")
+  const when = new Date(item.capturedAt).toLocaleString("en-IN")
+
+  if (audience === "homeowner") {
+    const caption = [when, where, task?.title].filter(Boolean).join(" · ")
+    return (
+      <Modal
+        open
+        width="90vw"
+        style={{ maxWidth: 1200, top: 20 }}
+        footer={null}
+        closable={false}
+        title={null}
+        onCancel={() => onChange(null)}
+        destroyOnHidden
+      >
+        <Flex vertical gap="small" className="evidence-viewer-stage evidence-viewer-stage-full">
+          <div className="evidence-viewer-media-wrap">
+            <Media key={item.id} item={item} />
+            <Button
+              type="text"
+              shape="circle"
+              icon={<CloseOutlined />}
+              onClick={() => onChange(null)}
+              aria-label="Close"
+              className="evidence-viewer-close"
+            />
+          </div>
+          {caption && (
+            <Text type="secondary" className="evidence-viewer-caption">
+              {caption}
+            </Text>
+          )}
+          {navigation}
+        </Flex>
+      </Modal>
+    )
+  }
+
   const progress = state.dailyProgress.find((p) => p.id === item.dailyProgressId)
   const worker = state.workers.find((w) => w.id === item.capturedByWorkerId)
   const capturedBy =
     worker?.name ??
     (item.capturedByMembershipId ? getMembershipName(state, item.capturedByMembershipId) : undefined) ??
     "—"
-  const where = [getProject(state, item.projectId)?.name, unit?.name].filter(Boolean).join(" · ")
-  const when = new Date(item.capturedAt).toLocaleString("en-IN")
 
-  const details =
-    audience === "homeowner"
-      ? [
-          { key: "when", label: "Date", children: when },
-          { key: "where", label: "Location", children: where },
-          { key: "task", label: "Work", children: task?.title ?? "—" },
-        ]
-      : [
-          { key: "by", label: "Captured by", children: capturedBy },
-          { key: "when", label: "Captured at", children: when },
-          { key: "where", label: "Project / unit", children: where },
-          { key: "task", label: "Task", children: task?.title ?? "—" },
-          {
-            key: "visibility",
-            label: "Homeowner",
-            children: (
-              <Tag color={visibilityLabel[item.customerVisibility].color} className="m-0!">
-                {visibilityLabel[item.customerVisibility].text}
-              </Tag>
-            ),
-          },
-          ...(progress
-            ? [{
-                key: "review",
-                label: "Review",
-                children: (
-                  <Tag color={reviewStatusLabel[progress.reviewStatus].color} className="m-0!">
-                    {reviewStatusLabel[progress.reviewStatus].text}
-                  </Tag>
-                ),
-              }]
-            : []),
-        ]
+  const details = [
+    { key: "by", label: "Captured by", children: capturedBy },
+    { key: "when", label: "Captured at", children: when },
+    { key: "where", label: "Project / unit", children: where },
+    { key: "task", label: "Task", children: task?.title ?? "—" },
+    {
+      key: "visibility",
+      label: "Homeowner",
+      children: (
+        <Tag color={visibilityLabel[item.customerVisibility].color} className="m-0!">
+          {visibilityLabel[item.customerVisibility].text}
+        </Tag>
+      ),
+    },
+    ...(progress
+      ? [{
+          key: "review",
+          label: "Review",
+          children: (
+            <Tag color={reviewStatusLabel[progress.reviewStatus].color} className="m-0!">
+              {reviewStatusLabel[progress.reviewStatus].text}
+            </Tag>
+          ),
+        }]
+      : []),
+  ]
 
-  const at = index ?? 0
   return (
     <Modal
       open
@@ -141,13 +181,7 @@ export default function EvidenceViewer({
       <Flex gap="large" wrap className="evidence-viewer">
         <Flex vertical gap="small" className="evidence-viewer-stage">
           <Media key={item.id} item={item} />
-          {items.length > 1 && (
-            <Flex align="center" justify="space-between">
-              <Button icon={<LeftOutlined />} disabled={at === 0} onClick={() => onChange(at - 1)} aria-label="Previous" />
-              <Text type="secondary">{at + 1} of {items.length}</Text>
-              <Button icon={<RightOutlined />} disabled={at === items.length - 1} onClick={() => onChange(at + 1)} aria-label="Next" />
-            </Flex>
-          )}
+          {navigation}
         </Flex>
         <Descriptions column={1} size="small" items={details} className="evidence-viewer-details" />
       </Flex>

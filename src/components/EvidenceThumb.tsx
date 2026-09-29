@@ -22,7 +22,7 @@ export default function EvidenceThumb({
   evidence: Evidence
   preview?: boolean
 }) {
-  const [failed, setFailed] = useState(evidence.url.startsWith("/mock-evidence"))
+  const [failed, setFailed] = useState(false)
   const isVideo = evidence.type === "video"
   const Icon = isVideo
     ? PlayCircleOutlined
