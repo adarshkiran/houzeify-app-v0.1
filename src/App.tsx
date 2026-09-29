@@ -138,8 +138,6 @@ export default function App() {
 
   const { screen, params } = location
   const projectId = params.project_id
-  const projectName = params.project_name ?? '3 BHK G+1 House'
-  const projectLocation = params.location ?? 'Hyderabad'
 
   if (!decision.ok) return null
 
@@ -280,8 +278,7 @@ export default function App() {
         <div style={{ ...slide }}>
           <CostBreakdownScreen
             onNavigate={navigateTo}
-            projectName={projectName}
-            location={projectLocation}
+            estimateId={params.estimate_id}
           />
         </div>
       )}
