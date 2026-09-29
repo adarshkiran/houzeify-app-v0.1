@@ -327,6 +327,29 @@ export interface Document {
   createdAt: ISODateTime
 }
 
+export type ConstructionLevel = "basic" | "standard" | "premium"
+
+/** A homeowner's self-serve cost estimate. Not a Project — no organizationId, no company engagement yet. */
+export interface Estimate {
+  id: EntityId
+  homeownerPersonId: EntityId
+  projectName: string
+  propertyType: string
+  location: string
+  builtUpAreaSqft: number
+  floors: number
+  constructionLevel: ConstructionLevel
+  totalLow: number
+  totalHigh: number
+  breakdown: {
+    materials: number
+    labour: number
+    finishing: number
+    contingency: number
+  }
+  createdAt: ISODateTime
+}
+
 /** What a conversation is attached to. */
 export type ThreadSubject = "project" | "unit" | "task" | "issue" | "homeowner" | "direct"
 
@@ -399,6 +422,7 @@ export interface ConstructionDataState {
   dailyProgress: DailyProgress[]
   evidence: Evidence[]
   documents: Document[]
+  estimates: Estimate[]
   issues: Issue[]
   threads: Thread[]
   messages: Message[]
