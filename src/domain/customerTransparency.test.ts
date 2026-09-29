@@ -65,8 +65,8 @@ describe("uploadDocument", () => {
     expect(state.documents).toContainEqual(result)
   })
 
-  it("allows any EVIDENCE_CAPTURE holder, not only publishers", () => {
-    expect(() => run(seed, worker, uploadDocument(input))).not.toThrow()
+  it("refuses a scope-restricted worker (documents are project-wide, not unit-scoped)", () => {
+    expect(() => run(seed, worker, uploadDocument(input))).toThrow(PermissionError)
   })
 
   it("refuses a caller without EVIDENCE_CAPTURE", () => {
