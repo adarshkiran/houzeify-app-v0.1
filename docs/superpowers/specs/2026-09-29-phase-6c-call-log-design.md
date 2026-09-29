@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **Branch:** `feature/call-log` (from `main`, after Phase 6B)
-**Status:** Draft — awaiting review
+**Status:** Implemented
 **Source:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` → Phase 6 (Communication & Voice), §21 Communication Security Model
 **Follows:** 6A Conversations, 6B Voice → structured actions
 
