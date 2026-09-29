@@ -46,10 +46,7 @@ export default function LogCallModal({
   const [form] = Form.useForm<CallFormValues>()
 
   useEffect(() => {
-    if (!open) {
-      form.resetFields()
-      return
-    }
+    if (!open) return
     // The Form store instance persists across opens (ThreadPanel keeps this
     // component mounted and only toggles `open`), so re-seed every field
     // explicitly here rather than relying on `initialValues`, which only
@@ -83,7 +80,7 @@ export default function LogCallModal({
     onLogged?.(outcome.value)
   }
 
-  const { date, time } = nowParts()
+  const { date } = nowParts()
 
   return (
     <Modal title="Log a call" open={open} onCancel={onClose} footer={null} destroyOnHidden>
@@ -114,7 +111,7 @@ export default function LogCallModal({
           name="durationMinutes"
           rules={[{ required: true, message: "Enter how long the call lasted." }]}
         >
-          <InputNumber min={0} className="w-full!" />
+          <InputNumber min={0} precision={0} className="w-full!" />
         </Form.Item>
         <Form.Item label="Note (optional)" name="note">
           <Input.TextArea rows={2} placeholder="e.g. Discussed Friday's pour timing" />

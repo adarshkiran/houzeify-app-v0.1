@@ -212,4 +212,21 @@ describe("logCall", () => {
     const { result } = run(seed, arjun, logCall({ ...input, durationMinutes: 0 }))
     expect(result.durationMinutes).toBe(0)
   })
+
+  it("refuses a fractional duration", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, durationMinutes: 2.5 }))).toThrow(ConflictError)
+  })
+
+  it("refuses a call dated in the future", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, startedAt: "2026-09-27T10:00:00.001Z" }))).toThrow(ConflictError)
+  })
+
+  it("refuses an unparseable startedAt", () => {
+    expect(() => run(seed, arjun, logCall({ ...input, startedAt: "not-a-date" }))).toThrow(ConflictError)
+  })
+
+  it("accepts a call dated now or earlier", () => {
+    const { result } = run(seed, arjun, logCall({ ...input, startedAt: "2026-09-27T10:00:00.000Z" }))
+    expect(result.startedAt).toBe("2026-09-27T10:00:00.000Z")
+  })
 })

@@ -58,16 +58,18 @@ interface LogCallInput {
 
 Pure, authorize-first, same shape as `postMessage`:
 
-1. The thread must exist and be a **direct** thread — else `IntegrityError`.
-2. The caller must be one of its two participants (`readerMembership(state, session, thread)` returns a membership that is in `thread.participantMembershipIds`) — else `PermissionError`. (Being a participant of a direct thread already implies read access; this is stricter than general thread-read, matching how direct threads work today.)
+1. The caller must be able to read the thread: a missing thread, or a caller whose membership isn't a participant (`readerMembership(state, session, thread)` returns nothing), throws `PermissionError` in both cases — the command never reveals whether an unauthorized thread ID even exists. (Ruling 1, during implementation, reversed the original draft's ordering — authorization now runs before the thread-kind check below.)
+2. The thread must be a **direct** thread — else `IntegrityError`. (Being a participant of a direct thread already implies read access; checking participancy first is stricter than general thread-read, matching how direct threads work today.)
 3. `durationMinutes` must be a whole number ≥ 0 (0 covers "called, no answer") — else `ConflictError`, message: "Enter how long the call lasted."
-4. `note`, if present, is trimmed; empty string is stored as `undefined`.
-5. Builds the `CallLog` with `loggedByMembershipId` = the caller's membership, `otherMembershipId` = the thread's other participant, `id` from `ctx.ids.next("call")`, `createdAt` from `ctx.clock`.
-6. Does **not** touch `lastMessageAt` or unread counts — a call log is not a message, so it never shows as an unread badge. (Decided for simplicity; revisit if it turns out people miss logged calls.)
+4. `startedAt` must parse to a valid date and not be later than `ctx.clock.now()` — else `ConflictError` ("That doesn't look like a valid date, or it hasn't happened yet.").
+5. `note`, if present, is trimmed; empty string is stored as `undefined`.
+6. Builds the `CallLog` with `loggedByMembershipId` = the caller's membership, `otherMembershipId` = the thread's other participant, `id` from `ctx.ids.next("call")`, `createdAt` from `ctx.clock`.
+7. Does **not** touch `lastMessageAt` or unread counts — a call log is not a message, so it never shows as an unread badge. (Decided for simplicity; revisit if it turns out people miss logged calls.)
 
 Errors (exact copy):
-- `"Enter how long the call lasted."` — missing or negative duration.
-- Wrong thread kind or caller not a participant → `IntegrityError` / `PermissionError`, no custom copy (matches existing command style).
+- `"Enter how long the call lasted."` — missing, negative, or non-integer duration.
+- `"That doesn't look like a valid date, or it hasn't happened yet."` — unparseable or future `startedAt`.
+- Missing thread or caller not a participant → `PermissionError`; wrong thread kind → `IntegrityError`. No custom copy for either (matches existing command style).
 
 ## 3. UI
 
@@ -94,8 +96,8 @@ become:
 Opens pre-set to the tapped type (a Voice/Video segmented toggle the user can still change):
 
 - **Type:** Voice / Video toggle, defaulting to whichever icon was tapped.
-- **When:** date + time, defaulting to now, not in the future.
-- **Duration (minutes):** number, required, min 0.
+- **When:** date + time, defaulting to now, not in the future (the date input's `max` is today; `logCall` also rejects a future or unparseable `startedAt` server-side).
+- **Duration (minutes):** whole number, required, min 0.
 - **Note (optional):** short text, e.g. "Discussed Friday's pour timing."
 - **Log call** button calls `logCall`; **Cancel** discards.
 
@@ -107,11 +109,11 @@ A small card between the message bubbles it falls between (by time), visually di
 
 ```
 📞  Voice call · 12 min
-    Fri, 26 Sept, 5:40 pm · logged by You
+    Fri, 26 Sept, 5:40 pm · logged by you
     "Discussed Friday's pour timing."
 ```
 
-"logged by You" / "logged by {name}" tells the other participant who added the entry, since either side may log it. No number, ever.
+"logged by you" / "logged by {name}" tells the other participant who added the entry, since either side may log it. No number, ever.
 
 ## 4. Rules, errors, testing
 
@@ -123,7 +125,7 @@ A small card between the message bubbles it falls between (by time), visually di
 
 ### Tests (Vitest, written first)
 
-- `logCall`: succeeds for either participant; refused for a non-participant (`PermissionError`); refused against a non-direct thread (`IntegrityError`); refused with a missing/negative duration (`ConflictError`, exact copy); trims an empty note to `undefined`.
+- `logCall`: succeeds for either participant; refused for a non-participant (`PermissionError`); refused against a non-direct thread (`IntegrityError`); refused with a missing, negative, or fractional duration (`ConflictError`, exact copy); refused with a future or unparseable `startedAt` (`ConflictError`); trims an empty note to `undefined`.
 - Selector: a thread's timeline (messages + call logs merged, sorted by time) only includes call logs from that thread.
 - Browser walkthrough (typed form — no real calling to test): open a direct thread as each participant, tap 📞, log a call, see the card; tap 🎥, log a video call; confirm a third person who is not one of the two participants cannot open the thread or its call logs (existing 6A protection, spot-checked here).
 

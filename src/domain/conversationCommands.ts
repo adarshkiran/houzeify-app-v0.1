@@ -211,8 +211,13 @@ export const logCall =
     const otherId = thread.participantMembershipIds?.find((id) => id !== me.id)
     if (!otherId) throw new IntegrityError(`Direct thread ${thread.id} has no other participant`)
 
-    if (!Number.isFinite(input.durationMinutes) || input.durationMinutes < 0) {
+    if (!Number.isInteger(input.durationMinutes) || input.durationMinutes < 0) {
       throw new ConflictError("Enter how long the call lasted.")
+    }
+
+    const startedAtMs = Date.parse(input.startedAt)
+    if (Number.isNaN(startedAtMs) || startedAtMs > ctx.clock.now().getTime()) {
+      throw new ConflictError("That doesn't look like a valid date, or it hasn't happened yet.")
     }
 
     const call: CallLog = {
