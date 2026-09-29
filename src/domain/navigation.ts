@@ -161,7 +161,7 @@ export interface RouteLocation {
 }
 
 /** Params that describe *where* we are; they never carry over between screens. */
-const SCOPED_PARAMS = new Set(["project_id", "task_id", "issue_id", "thread_id", "setup", "from"])
+const SCOPED_PARAMS = new Set(["project_id", "task_id", "issue_id", "thread_id", "setup", "from", "estimate_id"])
 
 /** Params never written to the URL. */
 const PRIVATE_PARAMS = new Set(["phone"])

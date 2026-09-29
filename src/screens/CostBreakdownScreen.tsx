@@ -118,12 +118,6 @@ const IcoFinishing = () => (
     <line x1="8" y1="4.5" x2="11.5" y2="8"/>
   </svg>
 )
-const IcoServices = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9.5 1.5c0 0 1.5.5 2 2s0 3.5-1.5 4.5L5.5 13c-.5.5-1 .5-1.5 0L3 12c-.5-.5-.5-1 0-1.5L7.5 6C8.5 4.5 9.5 3 9.5 1.5z"/>
-    <circle cx="4.5" cy="11.5" r="1"/>
-  </svg>
-)
 const IcoContingency = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 2L2 5v4c0 3.3 2.7 5 6 5s6-1.7 6-5V5L8 2z"/>

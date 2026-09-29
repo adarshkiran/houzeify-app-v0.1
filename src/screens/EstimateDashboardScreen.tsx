@@ -301,7 +301,7 @@ function MetricCard({ label, value, sub, color }: { label: string; value: string
 
 // ─── Hozie Insight Card ───────────────────────────────────────────────────────
 
-function HozieInsightCard({ onNavigate }: { onNavigate?: (s: string) => void }) {
+function HozieInsightCard({ onNavigate, estimateId }: { onNavigate?: (s: string, data?: Record<string, string>) => void; estimateId: string }) {
   return (
     <div className="rounded-[16px] px-5 py-4 flex flex-col gap-3" style={{ backgroundColor: '#F3EAFF' }}>
       <div className="flex items-center gap-2.5">
@@ -313,7 +313,7 @@ function HozieInsightCard({ onNavigate }: { onNavigate?: (s: string) => void }) 
       <p className="text-[13px] text-[#242326] leading-[1.7] m-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
         &ldquo;Your estimate has the biggest cost sensitivity in materials and finishing. Choosing construction quality carefully can significantly change the final budget.&rdquo;
       </p>
-      <button onClick={() => onNavigate?.('cost-breakdown')} className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
+      <button onClick={() => onNavigate?.('cost-breakdown', { estimate_id: estimateId })} className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
         Explore cost drivers →
       </button>
     </div>
@@ -362,10 +362,11 @@ export default function EstimateDashboardScreen({
       : undefined
 
   if (!estimate) {
+    const message = estimateId ? "We couldn't find that estimate." : "You haven't created an estimate yet."
     return (
       <div className="flex flex-col items-center justify-center gap-4 text-center px-6" style={{ height: '100%', backgroundColor: '#FBF9F7' }}>
         <span className="text-[18px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-          You haven&apos;t created an estimate yet.
+          {message}
         </span>
         <button
           onClick={() => onNavigate('create-project')}
@@ -500,7 +501,7 @@ export default function EstimateDashboardScreen({
 
               {/* Hozie Insight */}
               <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.24s both' }}>
-                <HozieInsightCard onNavigate={onNavigate} />
+                <HozieInsightCard onNavigate={onNavigate} estimateId={estimate.id} />
               </div>
 
               {/* Next Actions */}

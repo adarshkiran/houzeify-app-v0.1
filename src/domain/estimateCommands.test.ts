@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { seedConstructionData as seed } from "../mock/seed"
+import { ESTIMATE_RATES, seedConstructionData as seed } from "../mock/seed"
 import { generateEstimate } from "./estimateCommands"
 import { ConflictError } from "./errors"
 import type { ConstructionDataState } from "./models"
@@ -76,5 +76,21 @@ describe("generateEstimate", () => {
   it("requires at least 1 floor", () => {
     expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: 0 }))).toThrow(ConflictError)
     expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: 1.5 }))).toThrow(ConflictError)
+    expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: -1 }))).toThrow(ConflictError)
+  })
+
+  it("sums the four breakdown buckets to the midpoint total", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    expect(result.breakdown.materials + result.breakdown.labour + result.breakdown.finishing + result.breakdown.contingency).toBeCloseTo((result.totalLow + result.totalHigh) / 2)
+  })
+})
+
+describe("ESTIMATE_RATES stays in sync with seed", () => {
+  it("matches the rate table documented in the plan/spec", () => {
+    expect(ESTIMATE_RATES).toEqual({
+      basic: { low: 1450, high: 1650 },
+      standard: { low: 1650, high: 1950 },
+      premium: { low: 1950, high: 2400 },
+    })
   })
 })

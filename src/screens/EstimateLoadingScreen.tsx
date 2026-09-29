@@ -15,7 +15,7 @@ interface ProcessingPhase {
 const phases: ProcessingPhase[] = [
   { stateLabel: 'PREPARING PROJECT DATA',               statusSub: 'Initialising estimate generation',                        progress: 14,  doneCount: 0 },
   { stateLabel: 'CALCULATING CONSTRUCTION QUANTITIES',  statusSub: 'Analysing structural parameters and floor layout',        progress: 38,  doneCount: 1 },
-  { stateLabel: 'ESTIMATING MATERIALS + LABOUR',        statusSub: 'Analysing approximately 120+ construction parameters',    progress: 72,  doneCount: 2 },
+  { stateLabel: 'ESTIMATING MATERIALS + LABOUR',        statusSub: 'Analysing your project details',                          progress: 72,  doneCount: 2 },
   { stateLabel: 'PREPARING YOUR ESTIMATE',              statusSub: 'Compiling cost breakdown and contingency values',         progress: 92,  doneCount: 3 },
   { stateLabel: 'ESTIMATE READY',                       statusSub: 'Your construction estimate has been generated',           progress: 100, doneCount: 5 },
 ]
@@ -25,7 +25,7 @@ const STEP_LABELS = [
   'Calculating construction quantities',
   'Estimating materials and labour',
   'Preparing cost breakdown',
-  'Generating BOQ',
+  'Preparing your estimate',
 ]
 
 // Cumulative delay in ms to move to each phase (0-indexed)

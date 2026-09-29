@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **Branch:** `feature/estimate-modernization` (from `main`)
-**Status:** Implemented
+**Status:** Implemented (data wiring only — the spec's Ant Design modernization sections describe a separate, not-yet-built follow-up plan; this slice kept the 4 screens' existing visual styling)
 **Source:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` → §10 Phase 8 — AI Construction Advisor, §10.1 Homeowner AI (this spec covers 10.1 only; 10.2 Partner AI, 10.3 Site AI, 10.4 Project AI are separate future phases)
 
 ## Goal
