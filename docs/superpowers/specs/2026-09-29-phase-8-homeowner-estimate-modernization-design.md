@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **Branch:** `feature/estimate-modernization` (from `main`)
-**Status:** Approved — ready for planning
+**Status:** Implemented
 **Source:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` → §10 Phase 8 — AI Construction Advisor, §10.1 Homeowner AI (this spec covers 10.1 only; 10.2 Partner AI, 10.3 Site AI, 10.4 Project AI are separate future phases)
 
 ## Goal
