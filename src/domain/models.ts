@@ -329,7 +329,30 @@ export interface Document {
 
 export type ConstructionLevel = "basic" | "standard" | "premium"
 
-/** A homeowner's self-serve cost estimate. Not a Project — no organizationId, no company engagement yet. */
+export type EstimateReviewStatus = "draft" | "confirmed"
+
+export type EstimateLineCategory = "materials" | "labour" | "finishing" | "contingency"
+
+/** One priced line in an estimate's Bill of Quantities. */
+export interface EstimateLine {
+  id: EntityId
+  category: EstimateLineCategory
+  item: string
+  quantity: number
+  unit: string
+  rate: number
+  amount: number
+  source: string
+  effectiveDate: ISODateTime
+  confidence: "low" | "medium" | "high"
+}
+
+/**
+ * A homeowner's self-serve cost estimate. Not a Project — no organizationId,
+ * no company engagement yet. generateEstimate produces it as an unconfirmed
+ * AI draft (source/createdBy/reviewStatus = "draft"); confirmEstimate marks
+ * it reviewed (reviewStatus = "confirmed", approvedBy/approvedAt set).
+ */
 export interface Estimate {
   id: EntityId
   homeownerPersonId: EntityId
@@ -347,6 +370,13 @@ export interface Estimate {
     finishing: number
     contingency: number
   }
+  lines: EstimateLine[]
+  source: "ai"
+  confidence: "low" | "medium" | "high"
+  createdBy: "ai"
+  reviewStatus: EstimateReviewStatus
+  approvedBy?: EntityId
+  approvedAt?: ISODateTime
   createdAt: ISODateTime
 }
 
