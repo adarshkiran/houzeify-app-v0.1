@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { ESTIMATE_RATES, seedConstructionData as seed } from "../mock/seed"
-import { generateEstimate } from "./estimateCommands"
+import { confirmEstimate, generateEstimate } from "./estimateCommands"
 import { ConflictError } from "./errors"
-import type { ConstructionDataState } from "./models"
+import type { ConstructionDataState, EstimateLine } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
 
@@ -36,10 +36,10 @@ describe("generateEstimate", () => {
   it("computes the breakdown as 56/26/13/5 of the midpoint total", () => {
     const { result } = run(seed, homeowner, generateEstimate(input))
     const midpoint = (result.totalLow + result.totalHigh) / 2
-    expect(result.breakdown.materials).toBe(midpoint * 0.56)
-    expect(result.breakdown.labour).toBe(midpoint * 0.26)
-    expect(result.breakdown.finishing).toBe(midpoint * 0.13)
-    expect(result.breakdown.contingency).toBe(midpoint * 0.05)
+    expect(result.breakdown.materials).toBeCloseTo(midpoint * 0.56, 5)
+    expect(result.breakdown.labour).toBeCloseTo(midpoint * 0.26, 5)
+    expect(result.breakdown.finishing).toBeCloseTo(midpoint * 0.13, 5)
+    expect(result.breakdown.contingency).toBeCloseTo(midpoint * 0.05, 5)
   })
 
   it("uses the correct rate tier for basic and premium", () => {
@@ -92,5 +92,80 @@ describe("ESTIMATE_RATES stays in sync with seed", () => {
       standard: { low: 1650, high: 1950 },
       premium: { low: 1950, high: 2400 },
     })
+  })
+})
+
+describe("generateEstimate line items", () => {
+  it("builds 7 lines across materials/labour/finishing/contingency", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    expect(result.lines).toHaveLength(7)
+    expect(result.lines.filter((l) => l.category === "materials")).toHaveLength(3)
+    expect(result.lines.filter((l) => l.category === "labour")).toHaveLength(2)
+    expect(result.lines.filter((l) => l.category === "finishing")).toHaveLength(1)
+    expect(result.lines.filter((l) => l.category === "contingency")).toHaveLength(1)
+  })
+
+  it("each line's amount equals quantity x rate", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    for (const line of result.lines) {
+      expect(line.rate * line.quantity).toBeCloseTo(line.amount, 5)
+    }
+  })
+
+  it("sums lines per category to the matching breakdown bucket", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    const sumOf = (category: string) =>
+      result.lines.filter((l) => l.category === category).reduce((sum, l) => sum + l.amount, 0)
+    expect(sumOf("materials")).toBeCloseTo(result.breakdown.materials, 5)
+    expect(sumOf("labour")).toBeCloseTo(result.breakdown.labour, 5)
+    expect(sumOf("finishing")).toBeCloseTo(result.breakdown.finishing, 5)
+    expect(sumOf("contingency")).toBeCloseTo(result.breakdown.contingency, 5)
+  })
+})
+
+describe("generateEstimate AI governance fields", () => {
+  it("marks the estimate as an unconfirmed AI draft", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    expect(result.source).toBe("ai")
+    expect(result.createdBy).toBe("ai")
+    expect(result.reviewStatus).toBe("draft")
+    expect(result.approvedBy).toBeUndefined()
+    expect(result.approvedAt).toBeUndefined()
+  })
+
+  it("derives overall confidence as the lowest confidence among its lines", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    const ranks = { low: 0, medium: 1, high: 2 } as const
+    const lowest = result.lines.reduce<EstimateLine["confidence"]>(
+      (min, l) => (ranks[l.confidence] < ranks[min] ? l.confidence : min),
+      "high",
+    )
+    expect(result.confidence).toBe(lowest)
+  })
+})
+
+describe("confirmEstimate", () => {
+  it("confirms a draft estimate and records who/when", () => {
+    const { state: afterGenerate, result: draft } = run(seed, homeowner, generateEstimate(input))
+    const { result: confirmed } = run(afterGenerate, homeowner, confirmEstimate(draft.id))
+    expect(confirmed.reviewStatus).toBe("confirmed")
+    expect(confirmed.approvedBy).toBe("person-demo-homeowner")
+    expect(confirmed.approvedAt).toBe("2026-09-29T10:00:00.000Z")
+  })
+
+  it("refuses to confirm someone else's estimate", () => {
+    const { state: afterGenerate, result: draft } = run(seed, homeowner, generateEstimate(input))
+    const otherHomeowner: Session = { accountType: "homeowner", personId: "person-someone-else" }
+    expect(() => run(afterGenerate, otherHomeowner, confirmEstimate(draft.id))).toThrow(ConflictError)
+  })
+
+  it("refuses to confirm an already-confirmed estimate", () => {
+    const { state: afterGenerate, result: draft } = run(seed, homeowner, generateEstimate(input))
+    const { state: afterConfirm } = run(afterGenerate, homeowner, confirmEstimate(draft.id))
+    expect(() => run(afterConfirm, homeowner, confirmEstimate(draft.id))).toThrow(ConflictError)
+  })
+
+  it("refuses an unknown estimate id", () => {
+    expect(() => run(seed, homeowner, confirmEstimate("estimate-nope"))).toThrow(ConflictError)
   })
 })
