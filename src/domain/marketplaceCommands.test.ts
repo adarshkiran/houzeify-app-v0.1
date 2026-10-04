@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { generateEstimate, confirmEstimate } from "./estimateCommands"
 import { ConflictError } from "./errors"
-import { postRequirement, submitProposal, unlockRequirement } from "./marketplaceCommands"
+import { postRequirement, selectProposal, submitProposal, unlockRequirement } from "./marketplaceCommands"
+import { viewRequirement } from "./marketplaceVisibility"
 import type { ConstructionDataState } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
@@ -156,5 +157,65 @@ describe("submitProposal", () => {
     const { state, requirementId } = unlockedState()
     const once = run(state, contractorPartner, submitProposal(requirementId, "org-contractor", { assumptions: [], exclusions: [] }))
     expect(() => run(once.state, contractorPartner, submitProposal(requirementId, "org-contractor", { assumptions: [], exclusions: [] }))).toThrow(ConflictError)
+  })
+})
+
+function proposedState() {
+  const { state: s, estimateId } = confirmedState(withPartner)
+  const posted = run(s, homeowner, postRequirement(estimateId))
+  const unlocked = run(posted.state, contractorPartner, unlockRequirement(posted.result.id, "org-contractor"))
+  const proposed = run(unlocked.state, contractorPartner, submitProposal(posted.result.id, "org-contractor", { assumptions: [], exclusions: [] }))
+  return { state: proposed.state, requirementId: posted.result.id, proposalId: proposed.result.id }
+}
+
+describe("selectProposal", () => {
+  it("awards the requirement and creates one project linked to the homeowner", () => {
+    const { state, requirementId, proposalId } = proposedState()
+    const { state: after } = run(state, homeowner, selectProposal(proposalId))
+    expect(after.requirements.find((r) => r.id === requirementId)?.status).toBe("awarded")
+    expect(after.proposals.find((p) => p.id === proposalId)?.status).toBe("selected")
+    const created = after.projects.filter((p) => p.organizationId === "org-contractor" && p.name === "My New Home")
+    expect(created).toHaveLength(1)
+    const link = after.memberships.find((m) => m.projectId === created[0].id && m.principalId === "person-demo-homeowner")
+    expect(link?.role).toBe("homeowner")
+  })
+
+  it("rejects the other proposals on the same requirement", () => {
+    const { state, requirementId, proposalId } = proposedState()
+    const other = { ...state.proposals[0], id: "proposal-other", partnerOrganizationId: "org-other", status: "submitted" as const }
+    const seeded = { ...state, proposals: [...state.proposals, other] }
+    const { state: after } = run(seeded, homeowner, selectProposal(proposalId))
+    expect(after.proposals.find((p) => p.id === "proposal-other")?.status).toBe("rejected")
+    expect(after.requirements.find((r) => r.id === requirementId)?.awardedProposalId).toBe(proposalId)
+  })
+
+  it("refuses a second selection on an awarded requirement", () => {
+    const { state, proposalId } = proposedState()
+    const once = run(state, homeowner, selectProposal(proposalId))
+    expect(() => run(once.state, homeowner, selectProposal(proposalId))).toThrow(ConflictError)
+  })
+
+  it("refuses a homeowner who does not own the requirement", () => {
+    const { state, proposalId } = proposedState()
+    const other: Session = { accountType: "homeowner", personId: "person-someone-else" }
+    expect(() => run(state, other, selectProposal(proposalId))).toThrow(ConflictError)
+  })
+})
+
+describe("viewRequirement visibility", () => {
+  it("returns only a preview to an organization that has not unlocked", () => {
+    const { state, requirementId } = proposedState()
+    const view = viewRequirement(state, requirementId, "org-other")
+    expect(view?.kind).toBe("preview")
+    expect(view).not.toHaveProperty("builtUpAreaSqft")
+    expect(view).not.toHaveProperty("projectName")
+    expect(view).not.toHaveProperty("lines")
+  })
+
+  it("returns full details to an organization that has unlocked", () => {
+    const { state, requirementId } = proposedState()
+    const view = viewRequirement(state, requirementId, "org-contractor")
+    expect(view?.kind).toBe("full")
+    expect(view).toHaveProperty("builtUpAreaSqft", 2000)
   })
 })
