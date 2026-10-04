@@ -138,6 +138,7 @@ interface ConstructionDataContextValue {
   uploadDocument: (input: Inputs.UploadDocumentInput) => Document
   publishDocument: (documentId: EntityId, visible: boolean) => Document
   generateEstimate: (input: GenerateEstimateInput) => Estimate
+  confirmEstimate: (estimateId: EntityId) => Estimate
   postMessage: (input: PostMessageInput) => Message
   logCall: (input: LogCallInput) => CallLog
   openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
@@ -241,6 +242,7 @@ export default function ConstructionDataProvider({
       uploadDocument: (input) => run(commands.uploadDocument(input)),
       publishDocument: (id, visible) => run(commands.publishDocument(id, visible)),
       generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
+      confirmEstimate: (estimateId) => run(estimateCommands.confirmEstimate(estimateId)),
       postMessage: (input) => run(conversationCommands.postMessage(input)),
       logCall: (input) => run(conversationCommands.logCall(input)),
       openDirectThread: (projectId, otherId) =>
