@@ -1,6 +1,6 @@
 # Phase 8 — AI Construction Advisor (Homeowner AI) Design
 
-**Status:** Approved — ready for planning
+**Status:** Implemented
 
 **Source of truth:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` §10 ("Phase 8 — AI Construction Advisor"), specifically §10.1 "Homeowner AI":
 
