@@ -146,3 +146,20 @@ Content: `estimate.lines` grouped by `category`, rendered as a real quantities t
 
 - `src/domain/estimateCommands.test.ts` (already exists) gets new cases: `lines[]` sums correctly to `breakdown`/`totalLow`/`totalHigh`; `reviewStatus` starts `"draft"`; `confirmEstimate` sets the three governance fields correctly; `confirmEstimate` rejects a non-owning actor; `confirmEstimate` rejects double-confirmation.
 - Browser walkthrough (per this repo's established pattern, no jsdom/testing-library present): full flow through to BOQ, confirm action, re-visit after confirm to see the badge persists (mock state, not page reload — matches how the rest of this prototype is verified).
+
+## Revision 2 (2026-10-04): real per-item rate card
+
+This revision supersedes §1–§3 and the §7 note on percentages. The first implementation
+back-computed line items from the flat 56/26/13/5 split; that was rejected in final review.
+
+- **Rate card.** Each catalog item has a fixed unit rate per construction level (basic / standard /
+  premium). Values are illustrative placeholders for the Houzeify rate card, not market data.
+- **Lines.** `amount = quantity × rate`. The line's `rate` is the card rate, so rate × quantity
+  always equals amount exactly.
+- **Totals.** `breakdown.<category>` is the sum of that category's line amounts. The total is the
+  sum of all lines (materials + labour + finishing + contingency). Contingency is a policy line at 5%
+  of materials + labour + finishing.
+- **Range.** `totalLow = total × 0.92`, `totalHigh = total × 1.08`.
+- **Percentages.** Category percentages are computed from real breakdown values and now vary with
+  inputs. They are no longer fixed at 56/26/13/5.
+- **Removed.** `ESTIMATE_RATES` (domain and seed) and `BREAKDOWN_SHARE`.
