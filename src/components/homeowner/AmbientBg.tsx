@@ -1,4 +1,4 @@
-export type AmbientBgVariant = "create-project" | "estimate-loading" | "estimate-dashboard" | "cost-breakdown"
+export type AmbientBgVariant = "create-project" | "estimate-loading" | "estimate-dashboard" | "cost-breakdown" | "boq"
 
 interface Blob {
   top?: number | string
@@ -32,6 +32,11 @@ const VARIANTS: Record<AmbientBgVariant, Blob[]> = {
     { top: -100, right: -180, width: 560, height: 560, backgroundColor: "rgba(114,46,209,0.042)", filter: "blur(130px)" },
     { bottom: -160, left: -100, width: 640, height: 640, backgroundColor: "rgba(243,234,255,0.50)", filter: "blur(140px)" },
     { top: "55%", right: "15%", width: 380, height: 380, backgroundColor: "rgba(243,234,255,0.38)", filter: "blur(90px)" },
+  ],
+  "boq": [
+    { top: -90, right: -190, width: 570, height: 570, backgroundColor: "rgba(114,46,209,0.044)", filter: "blur(125px)" },
+    { bottom: -170, left: -110, width: 610, height: 610, backgroundColor: "rgba(243,234,255,0.48)", filter: "blur(135px)" },
+    { top: "48%", right: "12%", width: 360, height: 360, backgroundColor: "rgba(243,234,255,0.40)", filter: "blur(95px)" },
   ],
 }
 

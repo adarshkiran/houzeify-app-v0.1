@@ -75,6 +75,7 @@ export const routes = {
   "estimate-loading": { access: HOMEOWNER },
   "estimate-dashboard": { access: HOMEOWNER },
   "cost-breakdown": { access: HOMEOWNER },
+  "boq": { access: HOMEOWNER },
 
   "company-dashboard": { access: BUSINESS },
   "company-projects": { access: BUSINESS },
