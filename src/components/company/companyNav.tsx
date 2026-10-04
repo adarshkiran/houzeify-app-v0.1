@@ -14,6 +14,7 @@ import {
   RobotOutlined,
   SafetyCertificateOutlined,
   ScheduleOutlined,
+  ShopOutlined,
   SnippetsOutlined,
   TeamOutlined,
   UsergroupAddOutlined,
@@ -36,6 +37,7 @@ export type CompanyNavKey =
   | "home"
   | "projects"
   | "library"
+  | "opportunities"
   | "progress"
   | "site-ops"
   | "workforce"
@@ -74,6 +76,7 @@ export const COMPANY_NAV: NavItem<CompanyNavKey>[] = [
   { key: "home", label: "Dashboard", icon: <DashboardOutlined />, to: { screen: "company-dashboard" } },
   { key: "projects", label: "Projects", icon: <ProjectOutlined />, to: { screen: "company-projects" } },
   { key: "library", label: "Work Library", icon: <SnippetsOutlined />, to: { screen: "work-library" } },
+  { key: "opportunities", label: "Opportunities", icon: <ShopOutlined />, to: { screen: "marketplace-opportunities" } },
   { key: "progress", label: "Progress", icon: <LineChartOutlined />, to: { screen: "daily-progress-review" } },
   { key: "site-ops", label: "Site Operations", icon: <SafetyCertificateOutlined /> },
   { key: "workforce", label: "Workforce", icon: <TeamOutlined />, to: { screen: "workforce" } },

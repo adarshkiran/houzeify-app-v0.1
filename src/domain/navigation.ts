@@ -76,12 +76,16 @@ export const routes = {
   "estimate-dashboard": { access: HOMEOWNER },
   "cost-breakdown": { access: HOMEOWNER },
   "boq": { access: HOMEOWNER },
+  "marketplace-post": { access: HOMEOWNER },
+  "marketplace-responses": { access: HOMEOWNER, requires: ["requirement_id"] },
 
   "company-dashboard": { access: BUSINESS },
   "company-projects": { access: BUSINESS },
   "company-create-project": { access: BUSINESS },
   "work-library": { access: BUSINESS },
   workforce: { access: BUSINESS },
+  "marketplace-opportunities": { access: BUSINESS },
+  "marketplace-requirement": { access: BUSINESS, requires: ["requirement_id"] },
 
   "worker-today": { access: WORKER },
   "worker-task": {
