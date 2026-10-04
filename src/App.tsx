@@ -14,6 +14,8 @@ import EstimateLoadingScreen from './screens/EstimateLoadingScreen'
 import EstimateDashboardScreen from './screens/EstimateDashboardScreen'
 import CostBreakdownScreen from './screens/CostBreakdownScreen'
 import BOQScreen from './screens/BOQScreen'
+import MarketplacePostScreen from './screens/MarketplacePostScreen'
+import MarketplaceResponsesScreen from './screens/MarketplaceResponsesScreen'
 import {
   buildHash,
   homeScreenFor,
@@ -288,6 +290,23 @@ export default function App() {
           <BOQScreen
             onNavigate={navigateTo}
             estimateId={params.estimate_id}
+          />
+        </div>
+      )}
+      {screen === 'marketplace-post' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <MarketplacePostScreen
+            onNavigate={navigateTo}
+            estimateId={params.estimate_id}
+          />
+        </div>
+      )}
+      {screen === 'marketplace-responses' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <MarketplaceResponsesScreen
+            onNavigate={navigateTo}
+            requirementId={params.requirement_id}
+            proposalId={params.proposal_id}
           />
         </div>
       )}

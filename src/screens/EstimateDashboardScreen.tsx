@@ -156,6 +156,7 @@ export default function EstimateDashboardScreen({
                 type="success"
                 showIcon
                 message={`Confirmed by you on ${new Date(estimate.approvedAt!).toLocaleDateString('en-IN')}.`}
+                action={<Button size="small" type="primary" onClick={() => onNavigate('marketplace-post', { estimate_id: estimate.id })}>Post to marketplace</Button>}
               />
             )}
           </div>
