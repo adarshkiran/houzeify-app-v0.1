@@ -95,12 +95,13 @@ export default function CostBreakdownScreen({
   }
 
   const midpoint = (estimate.totalLow + estimate.totalHigh) / 2
+  const pct = (amount: number) => Math.round((amount / midpoint) * 100)
   const averageLabel = formatRupees(midpoint)
   const categories: Category[] = [
-    { id: 'materials', label: 'Materials', amount: formatRupees(estimate.breakdown.materials), pct: 56, icon: <FileOutlined />, detail: 'Cement, steel, bricks, aggregates and other raw materials.', color: '#E14B19' },
-    { id: 'labour', label: 'Labour', amount: formatRupees(estimate.breakdown.labour), pct: 26, icon: <TeamOutlined />, detail: 'Civil, plumbing, electrical and finishing labour charges.', color: '#E19C12' },
-    { id: 'finishing', label: 'Finishing', amount: formatRupees(estimate.breakdown.finishing), pct: 13, icon: <BgColorsOutlined />, detail: 'Flooring, painting, doors, windows and interior finishes.', color: '#4AB017' },
-    { id: 'contingency', label: 'Contingency', amount: formatRupees(estimate.breakdown.contingency), pct: 5, icon: <SafetyOutlined />, detail: 'Buffer for unforeseen costs and estimation variance.', color: '#7E7E7E' },
+    { id: 'materials', label: 'Materials', amount: formatRupees(estimate.breakdown.materials), pct: pct(estimate.breakdown.materials), icon: <FileOutlined />, detail: 'Cement, steel, bricks, aggregates and other raw materials.', color: '#E14B19' },
+    { id: 'labour', label: 'Labour', amount: formatRupees(estimate.breakdown.labour), pct: pct(estimate.breakdown.labour), icon: <TeamOutlined />, detail: 'Civil, plumbing, electrical and finishing labour charges.', color: '#E19C12' },
+    { id: 'finishing', label: 'Finishing', amount: formatRupees(estimate.breakdown.finishing), pct: pct(estimate.breakdown.finishing), icon: <BgColorsOutlined />, detail: 'Flooring, painting, doors, windows and interior finishes.', color: '#4AB017' },
+    { id: 'contingency', label: 'Contingency', amount: formatRupees(estimate.breakdown.contingency), pct: pct(estimate.breakdown.contingency), icon: <SafetyOutlined />, detail: 'Buffer for unforeseen costs and estimation variance.', color: '#7E7E7E' },
   ]
 
   return (
