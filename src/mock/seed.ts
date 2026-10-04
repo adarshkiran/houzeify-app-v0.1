@@ -1440,4 +1440,7 @@ export const seedConstructionData: ConstructionDataState = {
   messages,
   threadReads,
   callLogs,
+  requirements: [],
+  unlocks: [],
+  proposals: [],
 }

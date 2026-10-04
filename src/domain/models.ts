@@ -380,6 +380,46 @@ export interface Estimate {
   createdAt: ISODateTime
 }
 
+export type RequirementStatus = "draft" | "posted" | "awarded" | "closed"
+
+export type ProposalStatus = "submitted" | "selected" | "rejected"
+
+export interface MarketplaceRequirement {
+  id: EntityId
+  estimateId: EntityId
+  homeownerPersonId: EntityId
+  projectName: string
+  location: string
+  builtUpAreaSqft: number
+  constructionLevel: ConstructionLevel
+  propertyType: string
+  estimateTotalLow: number
+  estimateTotalHigh: number
+  status: RequirementStatus
+  postedAt?: ISODateTime
+  awardedProposalId?: EntityId
+  createdAt: ISODateTime
+}
+
+export interface MarketplaceUnlock {
+  id: EntityId
+  requirementId: EntityId
+  partnerOrganizationId: EntityId
+  unlockedAt: ISODateTime
+}
+
+export interface Proposal {
+  id: EntityId
+  requirementId: EntityId
+  partnerOrganizationId: EntityId
+  lines: EstimateLine[]
+  total: number
+  assumptions: string[]
+  exclusions: string[]
+  status: ProposalStatus
+  submittedAt: ISODateTime
+}
+
 /** What a conversation is attached to. */
 export type ThreadSubject = "project" | "unit" | "task" | "issue" | "homeowner" | "direct"
 
@@ -458,4 +498,7 @@ export interface ConstructionDataState {
   messages: Message[]
   threadReads: ThreadRead[]
   callLogs: CallLog[]
+  requirements: MarketplaceRequirement[]
+  unlocks: MarketplaceUnlock[]
+  proposals: Proposal[]
 }
