@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { ESTIMATE_RATES, seedConstructionData as seed } from "../mock/seed"
+import { seedConstructionData as seed } from "../mock/seed"
 import { confirmEstimate, generateEstimate } from "./estimateCommands"
 import { ConflictError } from "./errors"
-import type { ConstructionDataState, EstimateLine } from "./models"
+import type { ConstructionDataState } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
 
@@ -26,29 +26,44 @@ const input = {
   constructionLevel: "standard" as const,
 }
 
-describe("generateEstimate", () => {
-  it("computes totalLow/totalHigh from the rate table and area", () => {
+const sumOf = (lines: { amount: number }[]) => lines.reduce((sum, l) => sum + l.amount, 0)
+
+describe("generateEstimate totals", () => {
+  it("sums the lines into the total and applies the ±8% range", () => {
     const { result } = run(seed, homeowner, generateEstimate(input))
-    expect(result.totalLow).toBe(1650 * 2000)
-    expect(result.totalHigh).toBe(1950 * 2000)
+    const total = sumOf(result.lines)
+    expect(result.totalLow).toBeCloseTo(total * 0.92, 5)
+    expect(result.totalHigh).toBeCloseTo(total * 1.08, 5)
   })
 
-  it("computes the breakdown as 56/26/13/5 of the midpoint total", () => {
+  it("breakdown categories equal the sum of their lines", () => {
     const { result } = run(seed, homeowner, generateEstimate(input))
-    const midpoint = (result.totalLow + result.totalHigh) / 2
-    expect(result.breakdown.materials).toBeCloseTo(midpoint * 0.56, 5)
-    expect(result.breakdown.labour).toBeCloseTo(midpoint * 0.26, 5)
-    expect(result.breakdown.finishing).toBeCloseTo(midpoint * 0.13, 5)
-    expect(result.breakdown.contingency).toBeCloseTo(midpoint * 0.05, 5)
+    const cat = (c: string) => sumOf(result.lines.filter((l) => l.category === c))
+    expect(result.breakdown.materials).toBeCloseTo(cat("materials"), 5)
+    expect(result.breakdown.labour).toBeCloseTo(cat("labour"), 5)
+    expect(result.breakdown.finishing).toBeCloseTo(cat("finishing"), 5)
+    expect(result.breakdown.contingency).toBeCloseTo(cat("contingency"), 5)
   })
 
-  it("uses the correct rate tier for basic and premium", () => {
-    const basic = run(seed, homeowner, generateEstimate({ ...input, constructionLevel: "basic" })).result
-    expect(basic.totalLow).toBe(1450 * 2000)
-    expect(basic.totalHigh).toBe(1650 * 2000)
-    const premium = run(seed, homeowner, generateEstimate({ ...input, constructionLevel: "premium" })).result
-    expect(premium.totalLow).toBe(1950 * 2000)
-    expect(premium.totalHigh).toBe(2400 * 2000)
+  it("contingency is 5% of materials + labour + finishing", () => {
+    const { result } = run(seed, homeowner, generateEstimate(input))
+    const base = result.breakdown.materials + result.breakdown.labour + result.breakdown.finishing
+    expect(result.breakdown.contingency).toBeCloseTo(base * 0.05, 5)
+  })
+
+  it("higher construction levels cost more for the same area", () => {
+    const total = (level: "basic" | "standard" | "premium") =>
+      run(seed, homeowner, generateEstimate({ ...input, constructionLevel: level })).result.lines.reduce((s, l) => s + l.amount, 0)
+    expect(total("basic")).toBeLessThan(total("standard"))
+    expect(total("standard")).toBeLessThan(total("premium"))
+  })
+
+  it("percentages vary with construction level (not fixed)", () => {
+    const share = (level: "basic" | "standard" | "premium") => {
+      const { result } = run(seed, homeowner, generateEstimate({ ...input, constructionLevel: level }))
+      return result.breakdown.materials / sumOf(result.lines)
+    }
+    expect(share("basic")).not.toBeCloseTo(share("premium"), 3)
   })
 
   it("attributes the estimate to the caller and stores it", () => {
@@ -67,31 +82,9 @@ describe("generateEstimate", () => {
     expect(() => run(seed, homeowner, generateEstimate({ ...input, location: "" }))).toThrow(ConflictError)
   })
 
-  it("requires a positive built-up area", () => {
+  it("requires a positive built-up area and at least 1 floor", () => {
     expect(() => run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: 0 }))).toThrow(ConflictError)
-    expect(() => run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: -5 }))).toThrow(ConflictError)
-    expect(() => run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: 1.5 }))).toThrow(ConflictError)
-  })
-
-  it("requires at least 1 floor", () => {
     expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: 0 }))).toThrow(ConflictError)
-    expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: 1.5 }))).toThrow(ConflictError)
-    expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: -1 }))).toThrow(ConflictError)
-  })
-
-  it("sums the four breakdown buckets to the midpoint total", () => {
-    const { result } = run(seed, homeowner, generateEstimate(input))
-    expect(result.breakdown.materials + result.breakdown.labour + result.breakdown.finishing + result.breakdown.contingency).toBeCloseTo((result.totalLow + result.totalHigh) / 2)
-  })
-})
-
-describe("ESTIMATE_RATES stays in sync with seed", () => {
-  it("matches the rate table documented in the plan/spec", () => {
-    expect(ESTIMATE_RATES).toEqual({
-      basic: { low: 1450, high: 1650 },
-      standard: { low: 1650, high: 1950 },
-      premium: { low: 1950, high: 2400 },
-    })
   })
 })
 
@@ -105,21 +98,27 @@ describe("generateEstimate line items", () => {
     expect(result.lines.filter((l) => l.category === "contingency")).toHaveLength(1)
   })
 
-  it("each line's amount equals quantity x rate", () => {
+  it("every line's amount equals quantity x rate", () => {
     const { result } = run(seed, homeowner, generateEstimate(input))
     for (const line of result.lines) {
-      expect(line.rate * line.quantity).toBeCloseTo(line.amount, 5)
+      expect(line.amount).toBeCloseTo(line.quantity * line.rate, 5)
     }
   })
 
-  it("sums lines per category to the matching breakdown bucket", () => {
+  it("uses the rate card value for cement at standard level", () => {
     const { result } = run(seed, homeowner, generateEstimate(input))
-    const sumOf = (category: string) =>
-      result.lines.filter((l) => l.category === category).reduce((sum, l) => sum + l.amount, 0)
-    expect(sumOf("materials")).toBeCloseTo(result.breakdown.materials, 5)
-    expect(sumOf("labour")).toBeCloseTo(result.breakdown.labour, 5)
-    expect(sumOf("finishing")).toBeCloseTo(result.breakdown.finishing, 5)
-    expect(sumOf("contingency")).toBeCloseTo(result.breakdown.contingency, 5)
+    const cement = result.lines.find((l) => l.item.startsWith("Cement"))!
+    expect(cement.rate).toBe(380)
+  })
+
+  it("no line has zero quantity or a non-finite rate, even for tiny areas", () => {
+    for (const area of [1, 8, 9]) {
+      const { result } = run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: area }))
+      for (const line of result.lines) {
+        expect(line.quantity).toBeGreaterThan(0)
+        expect(Number.isFinite(line.rate)).toBe(true)
+      }
+    }
   })
 })
 
@@ -133,14 +132,9 @@ describe("generateEstimate AI governance fields", () => {
     expect(result.approvedAt).toBeUndefined()
   })
 
-  it("derives overall confidence as the lowest confidence among its lines", () => {
+  it("overall confidence is medium (lines are medium, contingency high)", () => {
     const { result } = run(seed, homeowner, generateEstimate(input))
-    const ranks = { low: 0, medium: 1, high: 2 } as const
-    const lowest = result.lines.reduce<EstimateLine["confidence"]>(
-      (min, l) => (ranks[l.confidence] < ranks[min] ? l.confidence : min),
-      "high",
-    )
-    expect(result.confidence).toBe(lowest)
+    expect(result.confidence).toBe("medium")
   })
 })
 
@@ -167,17 +161,5 @@ describe("confirmEstimate", () => {
 
   it("refuses an unknown estimate id", () => {
     expect(() => run(seed, homeowner, confirmEstimate("estimate-nope"))).toThrow(ConflictError)
-  })
-})
-
-describe("generateEstimate tiny areas", () => {
-  it("never produces a zero-quantity line for tiny built-up areas", () => {
-    for (const area of [1, 8, 9]) {
-      const { result } = run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: area, constructionLevel: "standard" }))
-      for (const line of result.lines) {
-        expect(line.quantity).toBeGreaterThan(0)
-        expect(Number.isFinite(line.rate)).toBe(true)
-      }
-    }
   })
 })

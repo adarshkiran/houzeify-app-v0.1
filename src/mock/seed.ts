@@ -1172,12 +1172,6 @@ const documents: Document[] = [
   },
 ]
 
-export const ESTIMATE_RATES: Record<Estimate["constructionLevel"], { low: number; high: number }> = {
-  basic: { low: 1450, high: 1650 },
-  standard: { low: 1650, high: 1950 },
-  premium: { low: 1950, high: 2400 },
-}
-
 const estimates: Estimate[] = []
 
 export const seedConstructionData: ConstructionDataState = {

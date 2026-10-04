@@ -4,45 +4,31 @@ import type { Command, CommandContext } from "./ports"
 
 const iso = (ctx: CommandContext) => ctx.clock.now().toISOString()
 
-/**
- * ₹/sq-ft. Seeds the generated line items below — not stored on the Estimate
- * record itself (totalLow/totalHigh are, computed directly from this table,
- * unchanged from before line items existed). Kept in sync with the identical
- * table in src/mock/seed.ts — domain code never imports from mock.
- */
-const ESTIMATE_RATES: Record<ConstructionLevel, { low: number; high: number }> = {
-  basic: { low: 1450, high: 1650 },
-  standard: { low: 1650, high: 1950 },
-  premium: { low: 1950, high: 2400 },
-}
-
-const BREAKDOWN_SHARE = {
-  materials: 0.56,
-  labour: 0.26,
-  finishing: 0.13,
-  contingency: 0.05,
-}
-
-/**
- * Fixed rate-card catalog: one representative item per line. Multi-brand
- * selection (e.g. choosing between cement brands at different rates) is
- * explicit future scope — see the Phase 8 spec.
- */
 const CATALOG_EFFECTIVE_DATE = "2026-09-01T00:00:00.000Z"
 const CATALOG_SOURCE = "Houzeify regional rate card"
+const CONTINGENCY_SOURCE = "Houzeify policy — 5% contingency"
+const CONTINGENCY_RATE = 0.05
+const RANGE_LOW = 0.92
+const RANGE_HIGH = 1.08
 
-/** How much of one sq-ft of built-up area each catalog item consumes. Fixed across construction levels — only the rate (derived below) scales with level. */
+/** Unit rate per construction level. Illustrative placeholders, not market data. */
+const RATE_CARD = {
+  cement: { basic: 350, standard: 380, premium: 420 }, // ₹ per bag
+  steel: { basic: 62000, standard: 70000, premium: 78000 }, // ₹ per MT
+  blocks: { basic: 60, standard: 70, premium: 85 }, // ₹ per block
+  mason: { basic: 850, standard: 950, premium: 1100 }, // ₹ per day
+  helper: { basic: 550, standard: 600, premium: 680 }, // ₹ per day
+  finishing: { basic: 180, standard: 234, premium: 320 }, // ₹ per sq ft
+} as const
+
+/** Quantity consumed per sq ft of built-up area. */
 const QTY_PER_SQFT = {
   cement: 0.93, // bags
   steel: 0.006, // MT
-  blocks: 3.6, // AAC blocks
+  blocks: 3.6, // blocks
   mason: 0.27, // days
   helper: 0.35, // days
 }
-
-/** How a category's bucket amount splits across its catalog items. Each group must sum to 1. */
-const MATERIALS_SHARE = { cement: 0.35, steel: 0.4, blocks: 0.25 }
-const LABOUR_SHARE = { mason: 0.55, helper: 0.45 }
 
 const CONFIDENCE_RANK: Record<EstimateLine["confidence"], number> = { low: 0, medium: 1, high: 2 }
 
@@ -55,57 +41,53 @@ export interface GenerateEstimateInput {
   constructionLevel: ConstructionLevel
 }
 
-function buildLines(ctx: CommandContext, area: number, midpoint: number): EstimateLine[] {
-  const materialsBucket = midpoint * BREAKDOWN_SHARE.materials
-  const labourBucket = midpoint * BREAKDOWN_SHARE.labour
-  const finishingBucket = midpoint * BREAKDOWN_SHARE.finishing
-  const contingencyBucket = midpoint * BREAKDOWN_SHARE.contingency
-
-  const line = (
-    category: EstimateLineCategory,
-    item: string,
-    quantity: number,
-    unit: string,
-    amount: number,
-    confidence: EstimateLine["confidence"],
-    source: string = CATALOG_SOURCE,
-  ): EstimateLine => ({
+function catalogLine(
+  ctx: CommandContext,
+  category: EstimateLineCategory,
+  item: string,
+  quantity: number,
+  unit: string,
+  rate: number,
+  confidence: EstimateLine["confidence"],
+): EstimateLine {
+  return {
     id: ctx.ids.next("estimate-line"),
     category,
     item,
     quantity,
     unit,
-    rate: amount / quantity,
-    amount,
-    source,
+    rate,
+    amount: quantity * rate,
+    source: CATALOG_SOURCE,
     effectiveDate: CATALOG_EFFECTIVE_DATE,
     confidence,
-  })
+  }
+}
 
-  // Clamped so no line ever has quantity 0 (tiny areas would otherwise give rate = amount / 0).
-  const cementQty = Math.max(1, Math.round(QTY_PER_SQFT.cement * area))
+function buildLines(ctx: CommandContext, area: number, level: ConstructionLevel): EstimateLine[] {
   const steelQty = Math.max(0.1, Math.round(QTY_PER_SQFT.steel * area * 10) / 10)
-  const blocksQty = Math.max(1, Math.round(QTY_PER_SQFT.blocks * area))
-  const masonQty = Math.max(1, Math.round(QTY_PER_SQFT.mason * area))
-  const helperQty = Math.max(1, Math.round(QTY_PER_SQFT.helper * area))
-
-  return [
-    line("materials", "Cement (OPC 53 Grade)", cementQty, "bags", materialsBucket * MATERIALS_SHARE.cement, "medium"),
-    line("materials", "TMT Steel (Fe 500)", steelQty, "MT", materialsBucket * MATERIALS_SHARE.steel, "medium"),
-    line("materials", "AAC Blocks", blocksQty, "blocks", materialsBucket * MATERIALS_SHARE.blocks, "medium"),
-    line("labour", "Mason (skilled)", masonQty, "days", labourBucket * LABOUR_SHARE.mason, "medium"),
-    line("labour", "Helper (unskilled)", helperQty, "days", labourBucket * LABOUR_SHARE.helper, "medium"),
-    line("finishing", "Finishing works (flooring, painting, fixtures)", area, "sqft", finishingBucket, "medium"),
-    line(
-      "contingency",
-      "Contingency (5% policy buffer)",
-      1,
-      "lump sum",
-      contingencyBucket,
-      "high",
-      "Houzeify policy — 5% contingency",
-    ),
+  const body: EstimateLine[] = [
+    catalogLine(ctx, "materials", "Cement (OPC 53 Grade)", Math.max(1, Math.round(QTY_PER_SQFT.cement * area)), "bags", RATE_CARD.cement[level], "medium"),
+    catalogLine(ctx, "materials", "TMT Steel (Fe 500)", steelQty, "MT", RATE_CARD.steel[level], "medium"),
+    catalogLine(ctx, "materials", "AAC Blocks", Math.max(1, Math.round(QTY_PER_SQFT.blocks * area)), "blocks", RATE_CARD.blocks[level], "medium"),
+    catalogLine(ctx, "labour", "Mason (skilled)", Math.max(1, Math.round(QTY_PER_SQFT.mason * area)), "days", RATE_CARD.mason[level], "medium"),
+    catalogLine(ctx, "labour", "Helper (unskilled)", Math.max(1, Math.round(QTY_PER_SQFT.helper * area)), "days", RATE_CARD.helper[level], "medium"),
+    catalogLine(ctx, "finishing", "Finishing works (flooring, painting, fixtures)", area, "sqft", RATE_CARD.finishing[level], "medium"),
   ]
+  const subtotal = body.reduce((sum, l) => sum + l.amount, 0)
+  const contingency: EstimateLine = {
+    id: ctx.ids.next("estimate-line"),
+    category: "contingency",
+    item: "Contingency (5% policy buffer)",
+    quantity: 1,
+    unit: "lump sum",
+    rate: subtotal * CONTINGENCY_RATE,
+    amount: subtotal * CONTINGENCY_RATE,
+    source: CONTINGENCY_SOURCE,
+    effectiveDate: CATALOG_EFFECTIVE_DATE,
+    confidence: "high",
+  }
+  return [...body, contingency]
 }
 
 function sumCategory(lines: EstimateLine[], category: EstimateLineCategory): number {
@@ -113,10 +95,10 @@ function sumCategory(lines: EstimateLine[], category: EstimateLineCategory): num
 }
 
 /**
- * Computes a self-serve homeowner estimate: rate table x built-up area,
- * decomposed into real line items under the standard four cost buckets. Not
- * a Project — no company involved yet. Governance fields mark this as an
- * unconfirmed AI-generated draft — see confirmEstimate below.
+ * Computes a self-serve homeowner estimate from a per-item rate card × quantity
+ * × built-up area. Totals and category breakdown are summed from the lines.
+ * Not a Project — no company involved yet. Governance fields mark it as an
+ * unconfirmed AI-generated draft — see confirmEstimate.
  */
 export const generateEstimate =
   (input: GenerateEstimateInput): Command<Estimate> =>
@@ -136,12 +118,8 @@ export const generateEstimate =
     }
 
     const id = ctx.ids.next("estimate")
-    const rate = ESTIMATE_RATES[input.constructionLevel]
-    const totalLow = rate.low * input.builtUpAreaSqft
-    const totalHigh = rate.high * input.builtUpAreaSqft
-    const midpoint = (totalLow + totalHigh) / 2
-
-    const lines = buildLines(ctx, input.builtUpAreaSqft, midpoint)
+    const lines = buildLines(ctx, input.builtUpAreaSqft, input.constructionLevel)
+    const total = lines.reduce((sum, l) => sum + l.amount, 0)
     const breakdown = {
       materials: sumCategory(lines, "materials"),
       labour: sumCategory(lines, "labour"),
@@ -162,8 +140,8 @@ export const generateEstimate =
       builtUpAreaSqft: input.builtUpAreaSqft,
       floors: input.floors,
       constructionLevel: input.constructionLevel,
-      totalLow,
-      totalHigh,
+      totalLow: total * RANGE_LOW,
+      totalHigh: total * RANGE_HIGH,
       breakdown,
       lines,
       source: "ai",
@@ -177,8 +155,7 @@ export const generateEstimate =
 
 /**
  * Marks a draft AI estimate as reviewed by the homeowner it belongs to.
- * Idempotency is deliberately refused (not silently accepted) — confirming
- * twice almost always means the caller lost track of the estimate's state.
+ * Confirming twice is refused rather than accepted silently.
  */
 export const confirmEstimate =
   (estimateId: EntityId): Command<Estimate> =>
