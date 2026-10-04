@@ -12,6 +12,9 @@ import * as conversationCommands from "../domain/conversationCommands"
 import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
 import * as estimateCommands from "../domain/estimateCommands"
 import type { GenerateEstimateInput } from "../domain/estimateCommands"
+import * as marketplaceCommands from "../domain/marketplaceCommands"
+import { viewRequirement as selectViewRequirement } from "../domain/marketplaceVisibility"
+import type { SubmitProposalInput } from "../domain/marketplaceCommands"
 import * as commands from "../domain/constructionCommands"
 import type {
   CallLog,
@@ -23,10 +26,13 @@ import type {
   Estimate,
   Evidence,
   Issue,
+  MarketplaceRequirement,
+  MarketplaceUnlock,
   Message,
   Project,
   ProjectMembership,
   ProjectUnit,
+  Proposal,
   ReviewDecision,
   Task,
   TaskAssignment,
@@ -139,6 +145,11 @@ interface ConstructionDataContextValue {
   publishDocument: (documentId: EntityId, visible: boolean) => Document
   generateEstimate: (input: GenerateEstimateInput) => Estimate
   confirmEstimate: (estimateId: EntityId) => Estimate
+  postRequirement: (estimateId: EntityId) => MarketplaceRequirement
+  unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => MarketplaceUnlock
+  submitProposal: (requirementId: EntityId, partnerOrganizationId: EntityId, input: SubmitProposalInput) => Proposal
+  selectProposal: (proposalId: EntityId) => Project
+  viewRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => ReturnType<typeof selectViewRequirement>
   postMessage: (input: PostMessageInput) => Message
   logCall: (input: LogCallInput) => CallLog
   openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
@@ -243,6 +254,14 @@ export default function ConstructionDataProvider({
       publishDocument: (id, visible) => run(commands.publishDocument(id, visible)),
       generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
       confirmEstimate: (estimateId) => run(estimateCommands.confirmEstimate(estimateId)),
+      postRequirement: (estimateId) => run(marketplaceCommands.postRequirement(estimateId)),
+      unlockRequirement: (requirementId, partnerOrganizationId) =>
+        run(marketplaceCommands.unlockRequirement(requirementId, partnerOrganizationId)),
+      submitProposal: (requirementId, partnerOrganizationId, input) =>
+        run(marketplaceCommands.submitProposal(requirementId, partnerOrganizationId, input)),
+      selectProposal: (proposalId) => run(marketplaceCommands.selectProposal(proposalId)),
+      viewRequirement: (requirementId, partnerOrganizationId) =>
+        selectViewRequirement(state, requirementId, partnerOrganizationId),
       postMessage: (input) => run(conversationCommands.postMessage(input)),
       logCall: (input) => run(conversationCommands.logCall(input)),
       openDirectThread: (projectId, otherId) =>
