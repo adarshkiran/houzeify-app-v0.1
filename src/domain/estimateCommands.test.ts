@@ -84,7 +84,11 @@ describe("generateEstimate totals", () => {
 
   it("requires a positive built-up area and at least 1 floor", () => {
     expect(() => run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: 0 }))).toThrow(ConflictError)
+    expect(() => run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: -5 }))).toThrow(ConflictError)
+    expect(() => run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: 1.5 }))).toThrow(ConflictError)
     expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: 0 }))).toThrow(ConflictError)
+    expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: -1 }))).toThrow(ConflictError)
+    expect(() => run(seed, homeowner, generateEstimate({ ...input, floors: 1.5 }))).toThrow(ConflictError)
   })
 })
 
