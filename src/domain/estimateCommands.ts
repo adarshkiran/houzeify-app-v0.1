@@ -82,11 +82,12 @@ function buildLines(ctx: CommandContext, area: number, midpoint: number): Estima
     confidence,
   })
 
-  const cementQty = Math.round(QTY_PER_SQFT.cement * area)
-  const steelQty = Math.round(QTY_PER_SQFT.steel * area * 10) / 10
-  const blocksQty = Math.round(QTY_PER_SQFT.blocks * area)
-  const masonQty = Math.round(QTY_PER_SQFT.mason * area)
-  const helperQty = Math.round(QTY_PER_SQFT.helper * area)
+  // Clamped so no line ever has quantity 0 (tiny areas would otherwise give rate = amount / 0).
+  const cementQty = Math.max(1, Math.round(QTY_PER_SQFT.cement * area))
+  const steelQty = Math.max(0.1, Math.round(QTY_PER_SQFT.steel * area * 10) / 10)
+  const blocksQty = Math.max(1, Math.round(QTY_PER_SQFT.blocks * area))
+  const masonQty = Math.max(1, Math.round(QTY_PER_SQFT.mason * area))
+  const helperQty = Math.max(1, Math.round(QTY_PER_SQFT.helper * area))
 
   return [
     line("materials", "Cement (OPC 53 Grade)", cementQty, "bags", materialsBucket * MATERIALS_SHARE.cement, "medium"),

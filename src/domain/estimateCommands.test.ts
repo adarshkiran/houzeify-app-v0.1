@@ -169,3 +169,15 @@ describe("confirmEstimate", () => {
     expect(() => run(seed, homeowner, confirmEstimate("estimate-nope"))).toThrow(ConflictError)
   })
 })
+
+describe("generateEstimate tiny areas", () => {
+  it("never produces a zero-quantity line for tiny built-up areas", () => {
+    for (const area of [1, 8, 9]) {
+      const { result } = run(seed, homeowner, generateEstimate({ ...input, builtUpAreaSqft: area, constructionLevel: "standard" }))
+      for (const line of result.lines) {
+        expect(line.quantity).toBeGreaterThan(0)
+        expect(Number.isFinite(line.rate)).toBe(true)
+      }
+    }
+  })
+})
