@@ -7,13 +7,14 @@ import {
   ProjectOutlined,
   TeamOutlined,
 } from '@ant-design/icons'
-import { Button, Card, Col, Empty, Flex, Row, Statistic, Typography } from 'antd'
+import { Alert, Button, Card, Col, Empty, Flex, Row, Statistic, Typography } from 'antd'
 import AmbientBg from '../components/homeowner/AmbientBg'
 import EstimateTotalSummary, { formatRupees } from '../components/homeowner/EstimateTotalSummary'
 import HIcon from '../components/HIcon'
 import HomeownerLayout from '../components/homeowner/HomeownerLayout'
 import { useConstructionData } from '../mock/ConstructionDataProvider'
 import { getEstimate, getLatestEstimate } from '../mock/selectors'
+import { useCommand } from '../session/useCommand'
 import { useSession } from '../session/SessionProvider'
 
 const { Text, Title } = Typography
@@ -76,13 +77,6 @@ function HozieInsightCard({ onNavigate, estimateId }: { onNavigate: (s: string, 
   )
 }
 
-const nextActions = [
-  { icon: <FileOutlined />, title: 'View BOQ', desc: 'See materials and quantities.' },
-  { icon: <ToolOutlined />, title: 'Material Calculator', desc: 'Check material requirements.' },
-  { icon: <ProjectOutlined />, title: 'Analyze Plan', desc: 'Upload your floor plan.' },
-  { icon: <TeamOutlined />, title: 'Find Contractors', desc: 'Get project bids.' },
-]
-
 export default function EstimateDashboardScreen({
   onNavigate,
   estimateId,
@@ -90,8 +84,9 @@ export default function EstimateDashboardScreen({
   onNavigate: (s: string, data?: Record<string, string>) => void
   estimateId?: string
 }) {
-  const { state } = useConstructionData()
+  const { state, confirmEstimate } = useConstructionData()
   const { session } = useSession()
+  const run = useCommand()
   const estimate = estimateId
     ? getEstimate(state, estimateId)
     : session?.personId
@@ -112,6 +107,23 @@ export default function EstimateDashboardScreen({
   }
 
   const areaLabel = `${estimate.builtUpAreaSqft.toLocaleString('en-IN')} sq ft`
+  const midpoint = (estimate.totalLow + estimate.totalHigh) / 2
+  const pct = (amount: number) => Math.round((amount / midpoint) * 100)
+  const nextActions = [
+    {
+      icon: <FileOutlined />,
+      title: 'View BOQ',
+      desc: 'See materials and quantities.',
+      onClick: () => onNavigate('boq', { estimate_id: estimate.id }),
+    },
+    { icon: <ToolOutlined />, title: 'Material Calculator', desc: 'Check material requirements.' },
+    { icon: <ProjectOutlined />, title: 'Analyze Plan', desc: 'Upload your floor plan.' },
+    { icon: <TeamOutlined />, title: 'Find Contractors', desc: 'Get project bids.' },
+  ]
+
+  const handleConfirm = () => {
+    run(() => confirmEstimate(estimate.id), { success: 'Estimate confirmed.' })
+  }
 
   return (
     <HomeownerLayout active="estimates" onNavigate={onNavigate}>
@@ -130,6 +142,24 @@ export default function EstimateDashboardScreen({
             </Flex>
           </Flex>
 
+          <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.08s both' }}>
+            {estimate.reviewStatus === 'draft' ? (
+              <Alert
+                type="info"
+                showIcon
+                message="This is Hozie's AI-generated draft estimate."
+                description="Review the numbers below, then confirm the estimate once you're happy with it."
+                action={<Button size="small" type="primary" onClick={handleConfirm}>Confirm estimate</Button>}
+              />
+            ) : (
+              <Alert
+                type="success"
+                showIcon
+                message={`Confirmed by you on ${new Date(estimate.approvedAt!).toLocaleDateString('en-IN')}.`}
+              />
+            )}
+          </div>
+
           <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.12s both' }}>
             <EstimateTotalSummary estimate={estimate} />
           </div>
@@ -139,19 +169,19 @@ export default function EstimateDashboardScreen({
             <Col xs={12} lg={6}>
               <Card>
                 <Statistic title="Materials" value={formatRupees(estimate.breakdown.materials)} valueStyle={{ color: '#E14B19' }} />
-                <Text type="secondary" className="text-[11px]!">56% of total</Text>
+                <Text type="secondary" className="text-[11px]!">{pct(estimate.breakdown.materials)}% of total</Text>
               </Card>
             </Col>
             <Col xs={12} lg={6}>
               <Card>
                 <Statistic title="Labour" value={formatRupees(estimate.breakdown.labour)} valueStyle={{ color: '#E19C12' }} />
-                <Text type="secondary" className="text-[11px]!">26% of total</Text>
+                <Text type="secondary" className="text-[11px]!">{pct(estimate.breakdown.labour)}% of total</Text>
               </Card>
             </Col>
             <Col xs={12} lg={6}>
               <Card>
                 <Statistic title="Finishing" value={formatRupees(estimate.breakdown.finishing)} valueStyle={{ color: '#4AB017' }} />
-                <Text type="secondary" className="text-[11px]!">13% of total</Text>
+                <Text type="secondary" className="text-[11px]!">{pct(estimate.breakdown.finishing)}% of total</Text>
               </Card>
             </Col>
           </Row>
@@ -159,10 +189,10 @@ export default function EstimateDashboardScreen({
           <div style={{ animation: 'welcomeFadeUp 0.45s ease-out 0.24s both' }}>
             <CostBreakdownCard
               items={[
-                { label: 'Materials', percent: 56, amount: formatRupees(estimate.breakdown.materials), color: '#E14B19' },
-                { label: 'Labour', percent: 26, amount: formatRupees(estimate.breakdown.labour), color: '#E19C12' },
-                { label: 'Finishing', percent: 13, amount: formatRupees(estimate.breakdown.finishing), color: '#4AB017' },
-                { label: 'Contingency', percent: 5, amount: formatRupees(estimate.breakdown.contingency), color: '#7E7E7E' },
+                { label: 'Materials', percent: pct(estimate.breakdown.materials), amount: formatRupees(estimate.breakdown.materials), color: '#E14B19' },
+                { label: 'Labour', percent: pct(estimate.breakdown.labour), amount: formatRupees(estimate.breakdown.labour), color: '#E19C12' },
+                { label: 'Finishing', percent: pct(estimate.breakdown.finishing), amount: formatRupees(estimate.breakdown.finishing), color: '#4AB017' },
+                { label: 'Contingency', percent: pct(estimate.breakdown.contingency), amount: formatRupees(estimate.breakdown.contingency), color: '#7E7E7E' },
               ]}
             />
           </div>
@@ -176,7 +206,7 @@ export default function EstimateDashboardScreen({
             <Row gutter={[12, 12]}>
               {nextActions.map((a) => (
                 <Col key={a.title} xs={12} lg={6}>
-                  <Card hoverable>
+                  <Card hoverable onClick={a.onClick}>
                     <Flex vertical gap={8}>
                       <span className="text-[#722ED1] text-[20px]">{a.icon}</span>
                       <Text strong>{a.title}</Text>
