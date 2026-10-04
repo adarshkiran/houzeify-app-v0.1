@@ -13,6 +13,7 @@ import CreateProjectScreen from './screens/CreateProjectScreen'
 import EstimateLoadingScreen from './screens/EstimateLoadingScreen'
 import EstimateDashboardScreen from './screens/EstimateDashboardScreen'
 import CostBreakdownScreen from './screens/CostBreakdownScreen'
+import BOQScreen from './screens/BOQScreen'
 import {
   buildHash,
   homeScreenFor,
@@ -277,6 +278,14 @@ export default function App() {
       {screen === 'cost-breakdown' && (
         <div style={{ ...slide }}>
           <CostBreakdownScreen
+            onNavigate={navigateTo}
+            estimateId={params.estimate_id}
+          />
+        </div>
+      )}
+      {screen === 'boq' && (
+        <div style={{ ...slide }}>
+          <BOQScreen
             onNavigate={navigateTo}
             estimateId={params.estimate_id}
           />
