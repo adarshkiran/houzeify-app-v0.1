@@ -23,7 +23,7 @@ export const postRequirement =
   (estimateId: EntityId): Command<MarketplaceRequirement> =>
   (state, ctx) => {
     if (ctx.actor?.accountType !== "homeowner") {
-      throw new Error("Only homeowners can post a requirement.")
+      throw new ConflictError("Only homeowners can post a requirement.")
     }
     const estimate = state.estimates.find((item) => item.id === estimateId)
     if (!estimate) throw new ConflictError("That estimate no longer exists.")

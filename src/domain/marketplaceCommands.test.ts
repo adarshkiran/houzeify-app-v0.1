@@ -69,6 +69,11 @@ describe("postRequirement", () => {
     expect(() => run(posted.state, homeowner, postRequirement(estimateId))).toThrow(ConflictError)
   })
 
+  it("refuses a business actor posting a requirement", () => {
+    const { state, estimateId } = confirmedState(withPartner)
+    expect(() => run(state, contractorPartner, postRequirement(estimateId))).toThrow(ConflictError)
+  })
+
   it("refuses an estimate the caller does not own", () => {
     const { state, estimateId } = confirmedState()
     const other: Session = { accountType: "homeowner", personId: "person-someone-else" }
@@ -101,9 +106,15 @@ describe("unlockRequirement", () => {
     expect(() => run(state, contractorPartner, unlockRequirement(requirementId, "org-other"))).toThrow(ConflictError)
   })
 
+  it("refuses an unlock on a requirement that is no longer posted", () => {
+    const { state, requirementId } = postedState()
+    const awarded = { ...state, requirements: state.requirements.map((r) => (r.id === requirementId ? { ...r, status: "awarded" as const } : r)) }
+    expect(() => run(awarded, contractorPartner, unlockRequirement(requirementId, "org-contractor"))).toThrow(ConflictError)
+  })
+
   it("refuses a homeowner trying to unlock", () => {
     const { state, requirementId } = postedState()
-    expect(() => run(state, homeowner, unlockRequirement(requirementId, "org-contractor"))).toThrow()
+    expect(() => run(state, homeowner, unlockRequirement(requirementId, "org-contractor"))).toThrow(ConflictError)
   })
 })
 
@@ -128,6 +139,17 @@ describe("submitProposal", () => {
     const { state, estimateId } = confirmedState(withPartner)
     const posted = run(state, homeowner, postRequirement(estimateId))
     expect(() => run(posted.state, contractorPartner, submitProposal(posted.result.id, "org-contractor", { assumptions: [], exclusions: [] }))).toThrow(ConflictError)
+  })
+
+  it("refuses a proposal on a requirement that is not posted", () => {
+    const { state, requirementId } = unlockedState()
+    const closed = { ...state, requirements: state.requirements.map((r) => (r.id === requirementId ? { ...r, status: "closed" as const } : r)) }
+    expect(() => run(closed, contractorPartner, submitProposal(requirementId, "org-contractor", { assumptions: [], exclusions: [] }))).toThrow(ConflictError)
+  })
+
+  it("refuses a business actor submitting for another organization", () => {
+    const { state, requirementId } = unlockedState()
+    expect(() => run(state, contractorPartner, submitProposal(requirementId, "org-buildright", { assumptions: [], exclusions: [] }))).toThrow(ConflictError)
   })
 
   it("refuses a second proposal from the same organization", () => {
