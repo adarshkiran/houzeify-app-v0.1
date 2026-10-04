@@ -116,7 +116,7 @@ export const selectProposal =
   (proposalId: EntityId): Command<Project> =>
   (state, ctx) => {
     if (ctx.actor?.accountType !== "homeowner") {
-      throw new Error("Only homeowners can select a proposal.")
+      throw new ConflictError("Only homeowners can select a proposal.")
     }
     const proposal = state.proposals.find((p) => p.id === proposalId)
     if (!proposal) throw new ConflictError("That proposal no longer exists.")

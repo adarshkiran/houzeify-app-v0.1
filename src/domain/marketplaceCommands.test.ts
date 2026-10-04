@@ -200,6 +200,11 @@ describe("selectProposal", () => {
     const other: Session = { accountType: "homeowner", personId: "person-someone-else" }
     expect(() => run(state, other, selectProposal(proposalId))).toThrow(ConflictError)
   })
+
+  it("refuses a business actor selecting a proposal", () => {
+    const { state, proposalId } = proposedState()
+    expect(() => run(state, contractorPartner, selectProposal(proposalId))).toThrow(ConflictError)
+  })
 })
 
 describe("viewRequirement visibility", () => {
