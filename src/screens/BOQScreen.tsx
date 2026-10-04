@@ -1,5 +1,6 @@
-import { Button, Empty, Flex, Table, Typography } from "antd"
+import { Button, Card, Empty, Flex, Table, Typography } from "antd"
 import AmbientBg from "../components/homeowner/AmbientBg"
+import HIcon from "../components/HIcon"
 import HomeownerLayout from "../components/homeowner/HomeownerLayout"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getEstimate } from "../mock/selectors"
@@ -68,6 +69,23 @@ export default function BOQScreen({
               {estimate.projectName} · {estimate.location} · {estimate.builtUpAreaSqft.toLocaleString("en-IN")} sq ft
             </Text>
           </Flex>
+
+          <Card
+            className="bg-[#F3EAFF]! border-0!"
+            style={{ animation: "welcomeFadeUp 0.4s ease-out 0.08s both" }}
+          >
+            <Flex vertical gap={12}>
+              <Flex align="center" gap={10}>
+                <div className="w-8 h-8 rounded-[10px] bg-white flex items-center justify-center shrink-0">
+                  <HIcon size={20} />
+                </div>
+                <Text className="text-[10px] tracking-[0.10em] uppercase text-[#722ED1]!">Hozie Insight</Text>
+              </Flex>
+              <Text>
+                These quantities scale with your built-up area. Confirm the estimate on the dashboard before you share this list.
+              </Text>
+            </Flex>
+          </Card>
 
           {CATEGORY_ORDER.map((category, i) => {
             const rows = estimate.lines.filter((line) => line.category === category)
