@@ -1,4 +1,5 @@
 import { ConflictError } from "./errors"
+import { permissionsForRole } from "./permissions"
 import { buildCatalogLines } from "./rateCard"
 import type { EntityId, MarketplaceRequirement, MarketplaceUnlock, Project, ProjectMembership, Proposal } from "./models"
 import type { Command, CommandContext } from "./ports"
@@ -126,7 +127,7 @@ export const selectProposal =
       throw new ConflictError("You can only select proposals for your own requirement.")
     }
     if (requirement.status !== "posted") {
-      throw new ConflictError("This requirement has already been awarded.")
+      throw new ConflictError("This requirement is no longer open.")
     }
 
     const timestamp = iso(ctx)
@@ -152,7 +153,7 @@ export const selectProposal =
       principalId: requirement.homeownerPersonId,
       role: "homeowner",
       scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
-      permissions: [],
+      permissions: permissionsForRole("homeowner"),
       status: "active",
     }
     const proposals = state.proposals.map((p) => {

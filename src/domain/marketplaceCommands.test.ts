@@ -4,6 +4,7 @@ import { generateEstimate, confirmEstimate } from "./estimateCommands"
 import { ConflictError } from "./errors"
 import { postRequirement, selectProposal, submitProposal, unlockRequirement } from "./marketplaceCommands"
 import { viewRequirement } from "./marketplaceVisibility"
+import { permissionsForRole } from "./permissions"
 import type { ConstructionDataState } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
@@ -182,7 +183,17 @@ describe("selectProposal", () => {
 
   it("rejects the other proposals on the same requirement", () => {
     const { state, requirementId, proposalId } = proposedState()
-    const other = { ...state.proposals[0], id: "proposal-other", partnerOrganizationId: "org-other", status: "submitted" as const }
+    const other = {
+      id: "proposal-other",
+      requirementId,
+      partnerOrganizationId: "org-other",
+      lines: [],
+      total: 0,
+      assumptions: [],
+      exclusions: [],
+      status: "submitted" as const,
+      submittedAt: "2026-10-04T10:00:00.000Z",
+    }
     const seeded = { ...state, proposals: [...state.proposals, other] }
     const { state: after } = run(seeded, homeowner, selectProposal(proposalId))
     expect(after.proposals.find((p) => p.id === "proposal-other")?.status).toBe("rejected")
@@ -199,6 +210,13 @@ describe("selectProposal", () => {
     const { state, proposalId } = proposedState()
     const other: Session = { accountType: "homeowner", personId: "person-someone-else" }
     expect(() => run(state, other, selectProposal(proposalId))).toThrow(ConflictError)
+  })
+
+  it("gives the homeowner membership the homeowner role permissions", () => {
+    const { state, proposalId } = proposedState()
+    const { state: after, result } = run(state, homeowner, selectProposal(proposalId))
+    const link = after.memberships.find((m) => m.projectId === result.id && m.principalId === "person-demo-homeowner")
+    expect(link?.permissions).toEqual(permissionsForRole("homeowner"))
   })
 
   it("refuses a business actor selecting a proposal", () => {
