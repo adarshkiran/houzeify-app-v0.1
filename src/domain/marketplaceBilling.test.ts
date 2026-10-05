@@ -55,6 +55,16 @@ describe("unlockRequirement billing", () => {
     expect(() => unlockRequirement(requirementId, ORG)(noPlan, as(business))).toThrow(ConflictError)
   })
 
+  it("checks the entitlement before the already-unlocked rule", () => {
+    const { state, requirementId } = postedState()
+    const unlocked = unlockRequirement(requirementId, ORG)(state, as(business)).state
+    const noPlan: ConstructionDataState = {
+      ...unlocked,
+      subscriptions: unlocked.subscriptions.map((s) => ({ ...s, status: "cancelled" as const })),
+    }
+    expect(() => unlockRequirement(requirementId, ORG)(noPlan, as(business))).toThrow(/plan/i)
+  })
+
   it("refuses at 9 credits and succeeds at 10, leaving the balance at 0", () => {
     const { state, requirementId } = postedState()
     const nine: ConstructionDataState = { ...state, wallets: [{ organizationId: ORG, balance: 9 }] }

@@ -28,7 +28,13 @@ const withPartner: ConstructionDataState = {
   organizations: [...seed.organizations, contractorOrg],
   subscriptions: [
     ...seed.subscriptions,
-    { id: "subscription-contractor", organizationId: "org-contractor", planId: "plan-contractor-starter", status: "active", startedAt: "2026-01-10T09:00:00+05:30" },
+    {
+      id: "subscription-contractor",
+      organizationId: "org-contractor",
+      planId: "plan-contractor-starter",
+      status: "active",
+      startedAt: "2026-01-10T09:00:00+05:30",
+    },
   ],
   wallets: [...seed.wallets, { organizationId: "org-contractor", balance: 30 }],
 }

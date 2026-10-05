@@ -62,6 +62,9 @@ export const postRequirement =
 export const unlockRequirement =
   (requirementId: EntityId, partnerOrganizationId: EntityId): Command<MarketplaceUnlock> =>
   (state, ctx) => {
+    if (!hasEntitlement(state, partnerOrganizationId, "marketplace.unlock")) {
+      throw new ConflictError("Your plan doesn't include marketplace unlocks. Upgrade to Contractor Starter.")
+    }
     requireBusinessFor(ctx, partnerOrganizationId)
     const org = state.organizations.find((o) => o.id === partnerOrganizationId)
     if (!org || !(CONTRACTOR_KINDS as readonly string[]).includes(org.kind)) {
@@ -74,9 +77,6 @@ export const unlockRequirement =
     }
     if (state.unlocks.some((u) => u.requirementId === requirementId && u.partnerOrganizationId === partnerOrganizationId)) {
       throw new ConflictError("You have already unlocked this requirement.")
-    }
-    if (!hasEntitlement(state, partnerOrganizationId, "marketplace.unlock")) {
-      throw new ConflictError("Your plan doesn't include marketplace unlocks. Upgrade to Contractor Starter.")
     }
     const debit = debitCredits(state, ctx, partnerOrganizationId, UNLOCK_COST_CREDITS, "unlock", requirementId)
     const unlock: MarketplaceUnlock = {
