@@ -110,8 +110,8 @@ export default function MarketplacePostScreen({
                 <Text className="text-[10px] tracking-[0.10em] uppercase text-[#722ED1]!">Hozie Insight</Text>
               </Flex>
               <Text>
-                Partners see your location, property type, a size range, and your estimate range. Your exact project
-                name and address stay private until a partner unlocks.
+                Partners see your location, property type, a size range, and your estimate range. Your project name
+                stays private until a partner unlocks it.
               </Text>
             </Flex>
           </Card>

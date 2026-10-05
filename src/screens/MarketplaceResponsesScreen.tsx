@@ -1,6 +1,7 @@
 import { Button, Card, Empty, Flex, Table, Tag, Typography } from "antd"
 import AmbientBg from "../components/homeowner/AmbientBg"
 import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
+import HIcon from "../components/HIcon"
 import HomeownerLayout from "../components/homeowner/HomeownerLayout"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useCommand } from "../session/useCommand"
@@ -91,6 +92,21 @@ export default function MarketplaceResponsesScreen({
               {formatRupees(requirement.estimateTotalHigh)}
             </Text>
           </Flex>
+
+          <Card className="bg-[#F3EAFF]! border-0!" style={{ animation: "welcomeFadeUp 0.4s ease-out 0.06s both" }}>
+            <Flex vertical gap={12}>
+              <Flex align="center" gap={10}>
+                <div className="w-8 h-8 rounded-[10px] bg-white flex items-center justify-center shrink-0">
+                  <HIcon size={20} />
+                </div>
+                <Text className="text-[10px] tracking-[0.10em] uppercase text-[#722ED1]!">Hozie Insight</Text>
+              </Flex>
+              <Text>
+                Partners' proposals are priced from the same rate card as your estimate. Compare the totals and
+                assumptions before you select one.
+              </Text>
+            </Flex>
+          </Card>
 
           {proposals.length === 0 ? (
             <Flex align="center" justify="center" style={{ animation: "welcomeFadeUp 0.4s ease-out 0.08s both" }}>
