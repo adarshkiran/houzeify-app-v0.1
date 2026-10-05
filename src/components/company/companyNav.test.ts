@@ -20,7 +20,7 @@ describe("company navigation", () => {
 
   it("keeps the DESIGN.md order and scopes project items to the project", () => {
     expect(COMPANY_NAV.map((item) => item.label)).toEqual([
-      "Dashboard", "Projects", "Work Library", "Opportunities", "Progress", "Site Operations", "Workforce",
+      "Dashboard", "Projects", "Work Library", "Opportunities", "Billing", "Progress", "Site Operations", "Workforce",
       "Live Site", "Documents", "Reports", "Team", "Hozie AI",
     ])
     for (const item of project) {

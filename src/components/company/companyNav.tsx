@@ -19,6 +19,7 @@ import {
   TeamOutlined,
   UsergroupAddOutlined,
   VideoCameraOutlined,
+  WalletOutlined,
 } from "@ant-design/icons"
 import type { AppScreen, NavigationData } from "../../domain/navigation"
 
@@ -38,6 +39,7 @@ export type CompanyNavKey =
   | "projects"
   | "library"
   | "opportunities"
+  | "billing"
   | "progress"
   | "site-ops"
   | "workforce"
@@ -77,6 +79,7 @@ export const COMPANY_NAV: NavItem<CompanyNavKey>[] = [
   { key: "projects", label: "Projects", icon: <ProjectOutlined />, to: { screen: "company-projects" } },
   { key: "library", label: "Work Library", icon: <SnippetsOutlined />, to: { screen: "work-library" } },
   { key: "opportunities", label: "Opportunities", icon: <ShopOutlined />, to: { screen: "marketplace-opportunities" } },
+  { key: "billing", label: "Billing", icon: <WalletOutlined />, to: { screen: "billing" } },
   { key: "progress", label: "Progress", icon: <LineChartOutlined />, to: { screen: "daily-progress-review" } },
   { key: "site-ops", label: "Site Operations", icon: <SafetyCertificateOutlined /> },
   { key: "workforce", label: "Workforce", icon: <TeamOutlined />, to: { screen: "workforce" } },

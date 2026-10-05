@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react"
 import type * as Inputs from "../domain/commandInputs"
+import * as billingCommands from "../domain/billingCommands"
+import type { CreditWallet } from "../domain/models"
 import * as conversationCommands from "../domain/conversationCommands"
 import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
 import * as estimateCommands from "../domain/estimateCommands"
@@ -147,6 +149,7 @@ interface ConstructionDataContextValue {
   confirmEstimate: (estimateId: EntityId) => Estimate
   postRequirement: (estimateId: EntityId) => MarketplaceRequirement
   unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => MarketplaceUnlock
+  purchaseCredits: (organizationId: EntityId, credits: number) => CreditWallet
   submitProposal: (requirementId: EntityId, partnerOrganizationId: EntityId, input: SubmitProposalInput) => Proposal
   selectProposal: (proposalId: EntityId) => Project
   viewRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => ReturnType<typeof selectViewRequirement>
@@ -257,6 +260,8 @@ export default function ConstructionDataProvider({
       postRequirement: (estimateId) => run(marketplaceCommands.postRequirement(estimateId)),
       unlockRequirement: (requirementId, partnerOrganizationId) =>
         run(marketplaceCommands.unlockRequirement(requirementId, partnerOrganizationId)),
+      purchaseCredits: (organizationId, credits) =>
+        run(billingCommands.purchaseCredits(organizationId, credits)),
       submitProposal: (requirementId, partnerOrganizationId, input) =>
         run(marketplaceCommands.submitProposal(requirementId, partnerOrganizationId, input)),
       selectProposal: (proposalId) => run(marketplaceCommands.selectProposal(proposalId)),

@@ -86,6 +86,7 @@ export const routes = {
   workforce: { access: BUSINESS },
   "marketplace-opportunities": { access: BUSINESS },
   "marketplace-requirement": { access: BUSINESS, requires: ["requirement_id"] },
+  billing: { access: BUSINESS },
 
   "worker-today": { access: WORKER },
   "worker-task": {
