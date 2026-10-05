@@ -265,3 +265,30 @@ describe("viewRequirement visibility", () => {
     expect(view).toHaveProperty("builtUpAreaSqft", 2000)
   })
 })
+
+describe("selectProposal project kind", () => {
+  function kindFor(propertyType: string) {
+    const { state: s, estimateId } = (() => {
+      const generated = run(withPartner, homeowner, generateEstimate({ ...input, propertyType }))
+      const confirmed = run(generated.state, homeowner, confirmEstimate(generated.result.id))
+      return { state: confirmed.state, estimateId: generated.result.id }
+    })()
+    const posted = run(s, homeowner, postRequirement(estimateId))
+    const unlocked = run(posted.state, contractorPartner, unlockRequirement(posted.result.id, "org-contractor"))
+    const proposed = run(unlocked.state, contractorPartner, submitProposal(posted.result.id, "org-contractor", { assumptions: [], exclusions: [] }))
+    const { result } = run(proposed.state, homeowner, selectProposal(proposed.result.id))
+    return result.kind
+  }
+
+  it("maps Apartment to apartment", () => {
+    expect(kindFor("Apartment")).toBe("apartment")
+  })
+
+  it("maps Villa to villa-development", () => {
+    expect(kindFor("Villa")).toBe("villa-development")
+  })
+
+  it("maps any other property type to individual-house", () => {
+    expect(kindFor("House")).toBe("individual-house")
+  })
+})

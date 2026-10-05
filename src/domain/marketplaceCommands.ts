@@ -16,6 +16,13 @@ function requireBusinessFor(ctx: CommandContext, organizationId: EntityId) {
   }
 }
 
+/** Project kind created when a proposal is selected, from the requirement's property type. */
+export function projectKindForPropertyType(propertyType: string): Project["kind"] {
+  if (propertyType === "Apartment") return "apartment"
+  if (propertyType === "Villa") return "villa-development"
+  return "individual-house"
+}
+
 export interface SubmitProposalInput {
   assumptions: string[]
   exclusions: string[]
@@ -149,7 +156,7 @@ export const selectProposal =
       organizationId: proposal.partnerOrganizationId,
       code: `MKT-${projectId.slice(-6).toUpperCase()}`,
       name: requirement.projectName,
-      kind: "individual-house",
+      kind: projectKindForPropertyType(requirement.propertyType),
       status: "planning",
       location: requirement.location,
       progress: 0,
