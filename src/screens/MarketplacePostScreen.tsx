@@ -6,6 +6,7 @@ import HomeownerLayout from "../components/homeowner/HomeownerLayout"
 import { areaBand } from "../domain/marketplaceVisibility"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getEstimate } from "../mock/selectors"
+import { cityOf } from "../domain/marketplaceVisibility"
 import { useCommand } from "../session/useCommand"
 
 const { Text, Title } = Typography
@@ -74,7 +75,7 @@ export default function MarketplacePostScreen({
             <Flex vertical gap={12}>
               <Flex justify="space-between" wrap gap={8}>
                 <Text type="secondary">Location</Text>
-                <Text strong>{estimate.location}</Text>
+                <Text strong>{cityOf(estimate.location)}</Text>
               </Flex>
               <Flex justify="space-between" wrap gap={8}>
                 <Text type="secondary">Property type</Text>
