@@ -18,7 +18,7 @@ Organizations hold a plan. The plan decides what features they can use. Partners
 
 ## Global constraints
 
-- `src/domain/*.ts` never imports from `src/mock/*`.
+- `src/domain/*.ts` never imports from `src/mock/*`. Test files may import `../mock/seed`.
 - Legacy-style files keep single quotes and no semicolons; new files use double quotes and no semicolons.
 - Ambient background and the Hozie mascot are preserved on every new or changed screen. Each new screen gets a Hozie insight card with factual copy only.
 - Partner screens reuse `CompanyLayout`. No new layout components.
@@ -96,7 +96,7 @@ Commands call `hasEntitlement` as a guard and throw `ConflictError` with a plain
 New file `src/domain/billingCommands.ts`:
 
 - `purchaseCredits(organizationId, credits)` — simulated top-up. Business accounts for that organization only. Accepts the pack sizes 50, 150, and 500 (from master plan §22.4.5). Adds the credits to the wallet and appends a `purchase` transaction. No money moves.
-- `debitCredits(state, organizationId, amount, reason)` — internal helper, not a screen command. Refuses with a plain message if the balance is less than `amount`. Writes the transaction and the new balance together.
+- `debitCredits(state, ctx, organizationId, amount, kind, requirementId?)` — internal helper, not a screen command. Refuses with a plain message if the balance is less than `amount`. Writes the transaction and the new balance together.
 
 Changes to `src/domain/marketplaceCommands.ts`:
 
@@ -114,7 +114,7 @@ Every refusal is a `ConflictError`. The 10-credit unlock cost is a constant in `
 
 In `src/mock/seed.ts`:
 
-- The demo contractor `org-buildright` gets an active **Contractor Starter** subscription and a wallet with a **starting balance of 30 credits**, enough for three unlocks.
+- The demo contractor `org-buildright` gets an active **Contractor Starter** subscription and a wallet with a **starting balance of 30 credits**, enough for three unlocks. The seed also has one `grant` credit transaction of 30 for `org-buildright` (balanceAfter 30), so the wallet balance equals the sum of its transactions from the seed onward.
 - A second demo contractor is not added. The partner flow has only one organization to test with.
 - The homeowner has no subscription and no wallet. Homeowner billing is out of scope.
 

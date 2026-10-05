@@ -149,9 +149,12 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
                 </Flex>
               ) : (
                 <Flex vertical gap="small">
-                  <Button type="primary" disabled={!canAfford} onClick={handleUnlock}>
-                    Unlock · {UNLOCK_COST_CREDITS} credits
-                  </Button>
+                  <Flex align="center" justify="space-between" wrap gap={8}>
+                    <Button type="primary" disabled={!canAfford} onClick={handleUnlock}>
+                      Unlock · {UNLOCK_COST_CREDITS} credits
+                    </Button>
+                    <Text type="secondary">Balance: {wallet.balance} credits</Text>
+                  </Flex>
                   {!canAfford && (
                     <Flex align="center" justify="space-between" wrap gap={8}>
                       <Text type="secondary">
