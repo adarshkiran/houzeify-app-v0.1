@@ -3,6 +3,8 @@ import { Button, Card, Empty, Flex, Input, Table, Tag, Typography } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
+import { UNLOCK_COST_CREDITS } from "../domain/billingCommands"
+import { getWallet, hasEntitlement } from "../domain/entitlements"
 import type { Navigate } from "../domain/navigation"
 import type { EstimateLine } from "../domain/models"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
@@ -34,6 +36,10 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
             proposal.requirementId === view.id && proposal.partnerOrganizationId === organizationId,
         )
       : undefined
+
+  const wallet = getWallet(state, organizationId ?? "")
+  const canUnlockPlan = hasEntitlement(state, organizationId ?? "", "marketplace.unlock")
+  const canAfford = wallet.balance >= UNLOCK_COST_CREDITS
 
   const handleUnlock = () => {
     if (!view || !organizationId) return
@@ -136,9 +142,28 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
               <Text type="secondary">
                 Unlock this requirement to see the project scope and line items.
               </Text>
-              <Button type="primary" onClick={handleUnlock}>
-                Unlock requirement
-              </Button>
+              {!canUnlockPlan ? (
+                <Flex align="center" justify="space-between" wrap gap={8}>
+                  <Text type="secondary">Your plan doesn't include marketplace unlocks.</Text>
+                  <Button onClick={() => onNavigate("billing")}>View plan</Button>
+                </Flex>
+              ) : (
+                <Flex vertical gap="small">
+                  <Button type="primary" disabled={!canAfford} onClick={handleUnlock}>
+                    Unlock · {UNLOCK_COST_CREDITS} credits
+                  </Button>
+                  {!canAfford && (
+                    <Flex align="center" justify="space-between" wrap gap={8}>
+                      <Text type="secondary">
+                        You need {UNLOCK_COST_CREDITS} credits. You have {wallet.balance}.
+                      </Text>
+                      <Button type="link" className="p-0!" onClick={() => onNavigate("billing")}>
+                        Buy credits
+                      </Button>
+                    </Flex>
+                  )}
+                </Flex>
+              )}
             </Flex>
           </Card>
         ) : (
