@@ -1,6 +1,6 @@
 # Phase 9 — Homeowner Construction Marketplace Design
 
-**Status:** Approved in brainstorming — pending final spec review
+**Status:** Implemented
 
 **Source of truth:** `HOUZEIFY_CURSOR_MASTER_BUILD_PLAN_v0_1.md` §11 (Phase 9). Product rules from `Houzeify_Master_Plan_v0_2_FINAL.md` §5 Scenario A, §13 (visibility and paid unlock), FR-021 to FR-026, and §30.2/§30.4 screens.
 
