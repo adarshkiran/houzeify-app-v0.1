@@ -125,6 +125,7 @@ function TaskDetail({
   const canReportIssue = can(ISSUE_REPORT_PERMISSIONS, projectId, task)
   const taskIssues = scoped.issues.filter((issue) => issue.taskId === task.id)
   const transitions = getAllowedTaskTransitions(task.status)
+  const nextActions = transitions.filter(canMoveTo)
   const assignments = state.assignments.filter(
     (assignment) => assignment.taskId === task.id,
   )
@@ -271,6 +272,24 @@ function TaskDetail({
                     },
                   ]}
                 />
+              </Card>
+
+              <Card
+                title={
+                  <Title level={5} className="company-heading! m-0!">Next actions</Title>
+                }
+              >
+                {nextActions.length ? (
+                  <Flex vertical gap="small">
+                    {nextActions.map((nextStatus) => (
+                      <Text key={nextStatus}>Move to {nextStatus}</Text>
+                    ))}
+                  </Flex>
+                ) : (
+                  <Paragraph type="secondary" className="m-0!">
+                    No next actions for this task.
+                  </Paragraph>
+                )}
               </Card>
 
               <Card
