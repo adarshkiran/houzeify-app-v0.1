@@ -6,12 +6,18 @@ import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
 import { UNLOCK_COST_CREDITS } from "../domain/billingCommands"
 import { getWallet, hasEntitlement } from "../domain/entitlements"
 import type { Navigate } from "../domain/navigation"
-import type { EstimateLine } from "../domain/models"
+import type { EstimateLine, ProposalStatus } from "../domain/models"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useCommand } from "../session/useCommand"
 import { useSession } from "../session/SessionProvider"
 
 const { Text, Title } = Typography
+
+const PROPOSAL_TAG: Record<ProposalStatus, { color: string; label: string }> = {
+  submitted: { color: "blue", label: "Submitted" },
+  selected: { color: "green", label: "Selected" },
+  rejected: { color: "default", label: "Not selected" },
+}
 
 const splitLines = (value: string) =>
   value
@@ -214,7 +220,7 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
               <Card
                 size="small"
                 title={<Title level={5} className="company-heading! m-0!">Your proposal</Title>}
-                extra={<Tag color="blue" className="m-0!">Submitted</Tag>}
+                extra={<Tag color={PROPOSAL_TAG[submitted.status].color} className="m-0!">{PROPOSAL_TAG[submitted.status].label}</Tag>}
               >
                 <Flex vertical gap="small">
                   <Flex justify="space-between" wrap gap={8}>
