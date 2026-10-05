@@ -6,7 +6,6 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import HIcon from "../components/HIcon"
 import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
 import { countLabel } from "../components/countLabel"
-import { viewRequirement } from "../domain/marketplaceVisibility"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useSession } from "../session/SessionProvider"
@@ -14,7 +13,7 @@ import { useSession } from "../session/SessionProvider"
 const { Text, Title } = Typography
 
 function Opportunities({ onNavigate }: { onNavigate: Navigate }) {
-  const { state } = useConstructionData()
+  const { state, viewRequirement } = useConstructionData()
   const { session } = useSession()
   const organizationId = session?.organizationId
   const [locationFilter, setLocationFilter] = useState("")
@@ -23,10 +22,10 @@ function Opportunities({ onNavigate }: { onNavigate: Navigate }) {
     if (!organizationId) return []
     return state.requirements
       .filter((requirement) => requirement.status === "posted")
-      .map((requirement) => viewRequirement(state, requirement.id, organizationId))
+      .map((requirement) => viewRequirement(requirement.id, organizationId))
       .filter((view) => view !== undefined)
       .filter((view) => view.location.toLowerCase().includes(locationFilter.trim().toLowerCase()))
-  }, [state, organizationId, locationFilter])
+  }, [state, viewRequirement, organizationId, locationFilter])
 
   return (
     <CompanyLayout
