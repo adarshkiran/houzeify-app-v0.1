@@ -48,6 +48,10 @@ export default function MarketplaceResponsesScreen({
 
   const proposals = state.proposals.filter((p) => p.requirementId === requirement.id)
   const selected = proposalId ? proposals.find((p) => p.id === proposalId) : undefined
+  const awardedProject =
+    requirement.status === "awarded"
+      ? state.projects.find((p) => p.name === requirement.projectName && p.location === requirement.location)
+      : undefined
   const organizationName = (id: string) => state.organizations.find((o) => o.id === id)?.name ?? "Partner"
 
   const handleSelect = (proposal: Proposal) => {
@@ -156,6 +160,12 @@ export default function MarketplaceResponsesScreen({
                 )}
               </Flex>
             </Card>
+          )}
+
+          {awardedProject && (
+            <Button type="primary" block onClick={() => onNavigate("customer-daily-update", { project_id: awardedProject.id })}>
+              View your project
+            </Button>
           )}
 
           <Button block onClick={() => onNavigate("marketplace-post", { estimate_id: requirement.estimateId })}>
