@@ -599,15 +599,16 @@ export const transitionTask =
     const projectId = projectIdOfTask(state, taskId, Permissions.TASK_MANAGE)
     const task = state.tasks.find((item) => item.id === taskId)!
     authorizeTaskMove(state, ctx, task, nextStatus)
+    if (!canTransitionTask(task.status, nextStatus)) {
+      throw new ConflictError(`A task can't move from ${task.status} to ${nextStatus}.`)
+    }
     const timestamp = iso(ctx)
     return {
       state: withProjectProgress(
         {
           ...state,
           tasks: state.tasks.map((task) =>
-            task.id !== taskId || !canTransitionTask(task.status, nextStatus)
-              ? task
-              : { ...task, status: nextStatus, updatedAt: timestamp },
+            task.id !== taskId ? task : { ...task, status: nextStatus, updatedAt: timestamp },
           ),
         },
         projectId,
