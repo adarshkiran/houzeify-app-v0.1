@@ -41,6 +41,16 @@ export function areaBand(area: number): string {
 }
 
 /**
+ * Estimate range shown to partners before unlock. Low rounds down and high
+ * rounds up to the nearest ₹1 lakh (100000), so the range always contains the
+ * exact estimate while the exact figures stay hidden until unlock.
+ */
+export function previewRange(low: number, high: number): { low: number; high: number } {
+  const lakh = 100_000
+  return { low: Math.floor(low / lakh) * lakh, high: Math.ceil(high / lakh) * lakh }
+}
+
+/**
  * What an organization may see of a requirement: a preview by default, full
  * details only after that organization has unlocked it. Enforced here so the
  * UI cannot reveal what the domain withholds.
@@ -59,17 +69,27 @@ export function viewRequirement(
     id: requirement.id,
     location: cityOf(requirement.location),
     propertyType: requirement.propertyType,
-    estimateTotalLow: requirement.estimateTotalLow,
-    estimateTotalHigh: requirement.estimateTotalHigh,
     status: requirement.status,
   }
   if (!unlocked) {
-    return { kind: "preview", ...base, areaBand: areaBand(requirement.builtUpAreaSqft) }
+    const range = previewRange(requirement.estimateTotalLow, requirement.estimateTotalHigh)
+    return {
+      kind: "preview",
+      ...base,
+      estimateTotalLow: range.low,
+      estimateTotalHigh: range.high,
+      areaBand: areaBand(requirement.builtUpAreaSqft),
+    }
+  }
+  const exact = {
+    estimateTotalLow: requirement.estimateTotalLow,
+    estimateTotalHigh: requirement.estimateTotalHigh,
   }
   const estimate = state.estimates.find((e) => e.id === requirement.estimateId)
   return {
     kind: "full",
     ...base,
+    ...exact,
     projectName: requirement.projectName,
     builtUpAreaSqft: requirement.builtUpAreaSqft,
     constructionLevel: requirement.constructionLevel,
