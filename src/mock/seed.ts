@@ -2,14 +2,18 @@ import type {
   CallLog,
   ConstructionDataState,
   ConstructionStage,
+  CreditTransaction,
+  CreditWallet,
   DailyProgress,
   Document,
   Estimate,
   Issue,
   Message,
+  Plan,
   Project,
   ProjectMembership,
   ProjectUnit,
+  Subscription,
   Task,
   Thread,
   ThreadRead,
@@ -1174,6 +1178,23 @@ const documents: Document[] = [
 
 const estimates: Estimate[] = []
 
+const plans: Plan[] = [
+  {
+    id: "plan-contractor-starter",
+    name: "Contractor Starter",
+    priceLabel: "₹999 / month",
+    entitlements: ["marketplace.unlock", "marketplace.propose"],
+    monthlyCredits: 30,
+  },
+  {
+    id: "plan-contractor-pro",
+    name: "Contractor Pro",
+    priceLabel: "₹2,499 / month",
+    entitlements: ["marketplace.unlock", "marketplace.propose", "team.members.unlimited"],
+    monthlyCredits: 100,
+  },
+]
+
 export const seedConstructionData: ConstructionDataState = {
   organizations: [
     {
@@ -1443,4 +1464,25 @@ export const seedConstructionData: ConstructionDataState = {
   requirements: [],
   unlocks: [],
   proposals: [],
+  plans,
+  subscriptions: [
+    {
+      id: "subscription-buildright",
+      organizationId: ACTIVE_ORGANIZATION_ID,
+      planId: "plan-contractor-starter",
+      status: "active",
+      startedAt: "2026-01-10T09:00:00+05:30",
+    },
+  ],
+  wallets: [{ organizationId: ACTIVE_ORGANIZATION_ID, balance: 30 }],
+  creditTransactions: [
+    {
+      id: "credit-grant-buildright",
+      organizationId: ACTIVE_ORGANIZATION_ID,
+      kind: "grant",
+      amount: 30,
+      balanceAfter: 30,
+      createdAt: "2026-01-10T09:00:00+05:30",
+    },
+  ],
 }

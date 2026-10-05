@@ -406,6 +406,7 @@ export interface MarketplaceUnlock {
   requirementId: EntityId
   partnerOrganizationId: EntityId
   unlockedAt: ISODateTime
+  creditTransactionId?: EntityId
 }
 
 export interface Proposal {
@@ -419,6 +420,43 @@ export interface Proposal {
   exclusions: string[]
   status: ProposalStatus
   submittedAt: ISODateTime
+}
+
+export type PlanId = EntityId
+export type EntitlementKey = "marketplace.unlock" | "marketplace.propose" | "team.members.unlimited"
+export type SubscriptionStatus = "active" | "cancelled"
+export type CreditTransactionKind = "grant" | "purchase" | "unlock"
+
+export interface Plan {
+  id: PlanId
+  name: string
+  priceLabel: string
+  entitlements: EntitlementKey[]
+  monthlyCredits: number
+}
+
+export interface Subscription {
+  id: EntityId
+  organizationId: EntityId
+  planId: PlanId
+  status: SubscriptionStatus
+  startedAt: ISODateTime
+}
+
+export interface CreditTransaction {
+  id: EntityId
+  organizationId: EntityId
+  kind: CreditTransactionKind
+  /** Positive for grants and purchases, negative for unlocks. */
+  amount: number
+  balanceAfter: number
+  requirementId?: EntityId
+  createdAt: ISODateTime
+}
+
+export interface CreditWallet {
+  organizationId: EntityId
+  balance: number
 }
 
 /** What a conversation is attached to. */
@@ -502,4 +540,8 @@ export interface ConstructionDataState {
   requirements: MarketplaceRequirement[]
   unlocks: MarketplaceUnlock[]
   proposals: Proposal[]
+  plans: Plan[]
+  subscriptions: Subscription[]
+  wallets: CreditWallet[]
+  creditTransactions: CreditTransaction[]
 }
