@@ -1179,7 +1179,7 @@ export const seedConstructionData: ConstructionDataState = {
     {
       id: ACTIVE_ORGANIZATION_ID,
       name: "BuildRight Construction",
-      kind: "construction-company",
+      kind: "contractor",
       status: "active",
       city: "Hyderabad",
       phone: "+91 98765 43210",
