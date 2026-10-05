@@ -181,12 +181,21 @@ describe("selectProposal", () => {
     expect(link?.role).toBe("homeowner")
   })
 
+  it("gives the submitting partner a project-manager membership on the new project", () => {
+    const { state, proposalId } = proposedState()
+    const { state: after, result } = run(state, homeowner, selectProposal(proposalId))
+    const link = after.memberships.find((m) => m.projectId === result.id && m.principalId === "person-arjun")
+    expect(link?.role).toBe("project-manager")
+    expect(link?.permissions).toEqual(permissionsForRole("project-manager"))
+  })
+
   it("rejects the other proposals on the same requirement", () => {
     const { state, requirementId, proposalId } = proposedState()
     const other = {
       id: "proposal-other",
       requirementId,
       partnerOrganizationId: "org-other",
+      submittedByPersonId: "person-arjun",
       lines: [],
       total: 0,
       assumptions: [],

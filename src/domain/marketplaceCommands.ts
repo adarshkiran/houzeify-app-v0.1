@@ -87,6 +87,7 @@ export const submitProposal =
   (requirementId: EntityId, partnerOrganizationId: EntityId, input: SubmitProposalInput): Command<Proposal> =>
   (state, ctx) => {
     requireBusinessFor(ctx, partnerOrganizationId)
+    if (!ctx.actor) throw new ConflictError("Sign in to submit a proposal.")
     const requirement = state.requirements.find((r) => r.id === requirementId)
     if (!requirement) throw new ConflictError("That requirement no longer exists.")
     if (requirement.status !== "posted") {
@@ -102,6 +103,7 @@ export const submitProposal =
       id: ctx.ids.next("proposal"),
       requirementId,
       partnerOrganizationId,
+      submittedByPersonId: ctx.actor.personId,
       lines,
       total: lines.reduce((sum, l) => sum + l.amount, 0),
       assumptions: input.assumptions,
@@ -156,6 +158,16 @@ export const selectProposal =
       permissions: permissionsForRole("homeowner"),
       status: "active",
     }
+    const partnerLink: ProjectMembership = {
+      id: ctx.ids.next("membership"),
+      projectId,
+      principalType: "person",
+      principalId: proposal.submittedByPersonId,
+      role: "project-manager",
+      scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+      permissions: permissionsForRole("project-manager"),
+      status: "active",
+    }
     const proposals = state.proposals.map((p) => {
       if (p.requirementId !== requirement.id) return p
       return p.id === proposalId ? { ...p, status: "selected" as const } : { ...p, status: "rejected" as const }
@@ -167,7 +179,7 @@ export const selectProposal =
       state: {
         ...state,
         projects: [...state.projects, project],
-        memberships: [...state.memberships, homeownerLink],
+        memberships: [...state.memberships, homeownerLink, partnerLink],
         proposals,
         requirements,
       },

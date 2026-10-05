@@ -3,20 +3,12 @@ import AmbientBg from "../components/homeowner/AmbientBg"
 import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
 import HIcon from "../components/HIcon"
 import HomeownerLayout from "../components/homeowner/HomeownerLayout"
+import { areaBand } from "../domain/marketplaceVisibility"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getEstimate } from "../mock/selectors"
 import { useCommand } from "../session/useCommand"
 
 const { Text, Title } = Typography
-
-/**
- * Same rounding rule as `areaBand` in domain/marketplaceVisibility.ts, so the
- * preview here matches what partners see before they unlock.
- */
-function areaBand(area: number): string {
-  const low = Math.floor(area / 500) * 500
-  return `${low.toLocaleString("en-IN")}–${(low + 500).toLocaleString("en-IN")} sq ft`
-}
 
 export default function MarketplacePostScreen({
   onNavigate,

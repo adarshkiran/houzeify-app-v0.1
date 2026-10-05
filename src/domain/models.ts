@@ -412,6 +412,7 @@ export interface Proposal {
   id: EntityId
   requirementId: EntityId
   partnerOrganizationId: EntityId
+  submittedByPersonId: EntityId
   lines: EstimateLine[]
   total: number
   assumptions: string[]

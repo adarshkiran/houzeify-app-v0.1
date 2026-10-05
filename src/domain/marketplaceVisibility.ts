@@ -19,8 +19,19 @@ export interface RequirementFull extends Omit<RequirementPreview, "kind" | "area
   lines: EstimateLine[]
 }
 
+/**
+ * Location shown to partners before unlock: the text before the first comma, so
+ * "Hyderabad, Telangana" shows as "Hyderabad". Without a comma, the trimmed input.
+ * Note: this does not extract the city from long addresses; "Plot 12, Road 3, ..."
+ * yields "Plot 12".
+ */
+export function cityOf(location: string): string {
+  const comma = location.indexOf(",")
+  return (comma === -1 ? location : location.slice(0, comma)).trim()
+}
+
 /** Area shown to partners before unlock, rounded to a band so exact size is not revealed. */
-function areaBand(area: number): string {
+export function areaBand(area: number): string {
   const low = Math.floor(area / 500) * 500
   return `${low.toLocaleString("en-IN")}–${(low + 500).toLocaleString("en-IN")} sq ft`
 }
@@ -42,7 +53,7 @@ export function viewRequirement(
   )
   const base = {
     id: requirement.id,
-    location: requirement.location,
+    location: cityOf(requirement.location),
     propertyType: requirement.propertyType,
     estimateTotalLow: requirement.estimateTotalLow,
     estimateTotalHigh: requirement.estimateTotalHigh,
