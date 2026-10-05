@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
-import { cityOf, viewRequirement } from "./marketplaceVisibility"
+import { areaBand, cityOf, viewRequirement } from "./marketplaceVisibility"
 import type { ConstructionDataState, MarketplaceRequirement } from "./models"
 
 describe("cityOf", () => {
@@ -42,5 +42,16 @@ describe("viewRequirement preview location", () => {
     expect(view?.kind).toBe("preview")
     expect(view?.location).toBe("Hyderabad")
     expect(view).not.toHaveProperty("projectName")
+  })
+})
+
+describe("areaBand", () => {
+  it("rounds down to a 500 sq ft band with en-IN separators", () => {
+    expect(areaBand(1500)).toBe("1,500–2,000 sq ft")
+  })
+
+  it("uses the band that contains the area, including on a boundary", () => {
+    expect(areaBand(1999)).toBe("1,500–2,000 sq ft")
+    expect(areaBand(2000)).toBe("2,000–2,500 sq ft")
   })
 })

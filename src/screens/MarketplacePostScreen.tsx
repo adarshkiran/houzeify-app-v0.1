@@ -3,10 +3,9 @@ import AmbientBg from "../components/homeowner/AmbientBg"
 import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
 import HIcon from "../components/HIcon"
 import HomeownerLayout from "../components/homeowner/HomeownerLayout"
-import { areaBand } from "../domain/marketplaceVisibility"
+import { areaBand, cityOf } from "../domain/marketplaceVisibility"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getEstimate } from "../mock/selectors"
-import { cityOf } from "../domain/marketplaceVisibility"
 import { useCommand } from "../session/useCommand"
 
 const { Text, Title } = Typography
