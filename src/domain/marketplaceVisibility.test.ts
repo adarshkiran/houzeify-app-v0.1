@@ -4,18 +4,25 @@ import { cityOf, viewRequirement } from "./marketplaceVisibility"
 import type { ConstructionDataState, MarketplaceRequirement } from "./models"
 
 describe("cityOf", () => {
-  it("returns the text before the first comma", () => {
+  it("returns the segment before the state", () => {
     expect(cityOf("Hyderabad, Telangana")).toBe("Hyderabad")
   })
 
-  it("returns the trimmed input when there is no comma", () => {
+  it("returns the single part when there is no comma", () => {
     expect(cityOf("Hyderabad")).toBe("Hyderabad")
-    expect(cityOf("  Hyderabad  ")).toBe("Hyderabad")
+  })
+
+  it("trims parts and ignores spacing and empty segments", () => {
+    expect(cityOf("  Plot 12 ,  Hyderabad ,Telangana ")).toBe("Hyderabad")
+  })
+
+  it("picks the city from a street-level address, not the street", () => {
+    expect(cityOf("Plot 12, Road 3, Hyderabad, Telangana")).toBe("Hyderabad")
   })
 })
 
 describe("viewRequirement preview location", () => {
-  it("shows only the text before the first comma, not the raw street-level location", () => {
+  it("shows the city segment, not the raw street-level location", () => {
     const requirement: MarketplaceRequirement = {
       id: "requirement-vis-test",
       estimateId: "estimate-vis-test",
@@ -33,7 +40,7 @@ describe("viewRequirement preview location", () => {
     const state: ConstructionDataState = { ...seed, requirements: [requirement], unlocks: [] }
     const view = viewRequirement(state, requirement.id, "org-other")
     expect(view?.kind).toBe("preview")
-    expect(view?.location).toBe("Plot 12")
+    expect(view?.location).toBe("Hyderabad")
     expect(view).not.toHaveProperty("projectName")
   })
 })

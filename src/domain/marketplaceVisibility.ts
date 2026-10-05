@@ -20,14 +20,18 @@ export interface RequirementFull extends Omit<RequirementPreview, "kind" | "area
 }
 
 /**
- * Location shown to partners before unlock: the text before the first comma, so
- * "Hyderabad, Telangana" shows as "Hyderabad". Without a comma, the trimmed input.
- * Note: this does not extract the city from long addresses; "Plot 12, Road 3, ..."
- * yields "Plot 12".
+ * Location shown to partners before unlock: the city segment before the state.
+ * Splits on commas, trims each part, and drops empty parts. With two or more
+ * parts it returns the second-to-last ("Plot 12, Road 3, Hyderabad, Telangana"
+ * gives "Hyderabad"); with one part it returns that part.
  */
 export function cityOf(location: string): string {
-  const comma = location.indexOf(",")
-  return (comma === -1 ? location : location.slice(0, comma)).trim()
+  const parts = location
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+  if (parts.length === 0) return ""
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[0]
 }
 
 /** Area shown to partners before unlock, rounded to a band so exact size is not revealed. */
