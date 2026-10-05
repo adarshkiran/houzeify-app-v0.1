@@ -37,6 +37,8 @@ const ProjectStructureScreen = lazy(() => import('./screens/ProjectStructureScre
 const ProjectTeamScreen = lazy(() => import('./screens/ProjectTeamScreen'))
 const WorkLibraryScreen = lazy(() => import('./screens/WorkLibraryScreen'))
 const WorkforceScreen = lazy(() => import('./screens/WorkforceScreen'))
+const MarketplaceOpportunitiesScreen = lazy(() => import('./screens/MarketplaceOpportunitiesScreen'))
+const MarketplaceRequirementScreen = lazy(() => import('./screens/MarketplaceRequirementScreen'))
 const WorkPlanScreen = lazy(() => import('./screens/WorkPlanScreen'))
 const TasksScreen = lazy(() => import('./screens/TasksScreen'))
 const TaskDetailScreen = lazy(() => import('./screens/TaskDetailScreen'))
@@ -374,6 +376,23 @@ export default function App() {
         <div style={{ ...slide }}>
           <Suspense fallback={null}>
             <WorkforceScreen onNavigate={navigateTo} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'marketplace-opportunities' && (
+        <div style={{ ...slide }}>
+          <Suspense fallback={null}>
+            <MarketplaceOpportunitiesScreen onNavigate={navigateTo} />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'marketplace-requirement' && (
+        <div style={{ ...slide }}>
+          <Suspense fallback={null}>
+            <MarketplaceRequirementScreen
+              onNavigate={navigateTo}
+              requirementId={params.requirement_id}
+            />
           </Suspense>
         </div>
       )}
