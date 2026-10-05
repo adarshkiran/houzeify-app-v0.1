@@ -1,4 +1,6 @@
+import { UNLOCK_COST_CREDITS, debitCredits } from "./billingCommands"
 import { ConflictError } from "./errors"
+import { hasEntitlement } from "./entitlements"
 import { permissionsForRole } from "./permissions"
 import { buildCatalogLines } from "./rateCard"
 import type { EntityId, MarketplaceRequirement, MarketplaceUnlock, Project, ProjectMembership, Proposal } from "./models"
@@ -73,13 +75,18 @@ export const unlockRequirement =
     if (state.unlocks.some((u) => u.requirementId === requirementId && u.partnerOrganizationId === partnerOrganizationId)) {
       throw new ConflictError("You have already unlocked this requirement.")
     }
+    if (!hasEntitlement(state, partnerOrganizationId, "marketplace.unlock")) {
+      throw new ConflictError("Your plan doesn't include marketplace unlocks. Upgrade to Contractor Starter.")
+    }
+    const debit = debitCredits(state, ctx, partnerOrganizationId, UNLOCK_COST_CREDITS, "unlock", requirementId)
     const unlock: MarketplaceUnlock = {
       id: ctx.ids.next("unlock"),
       requirementId,
       partnerOrganizationId,
       unlockedAt: iso(ctx),
+      creditTransactionId: debit.transaction.id,
     }
-    return { state: { ...state, unlocks: [...state.unlocks, unlock] }, result: unlock }
+    return { state: { ...debit.state, unlocks: [...debit.state.unlocks, unlock] }, result: unlock }
   }
 
 /** An unlocking organization submits a proposal priced from the shared rate card. */
@@ -88,6 +95,9 @@ export const submitProposal =
   (state, ctx) => {
     requireBusinessFor(ctx, partnerOrganizationId)
     if (!ctx.actor) throw new ConflictError("Sign in to submit a proposal.")
+    if (!hasEntitlement(state, partnerOrganizationId, "marketplace.propose")) {
+      throw new ConflictError("Your plan doesn't include submitting proposals. Upgrade to Contractor Starter.")
+    }
     const requirement = state.requirements.find((r) => r.id === requirementId)
     if (!requirement) throw new ConflictError("That requirement no longer exists.")
     if (requirement.status !== "posted") {

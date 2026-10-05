@@ -23,7 +23,15 @@ const contractorOrg = {
   teamSize: "1–20",
   createdAt: "2026-01-10T09:00:00+05:30",
 }
-const withPartner: ConstructionDataState = { ...seed, organizations: [...seed.organizations, contractorOrg] }
+const withPartner: ConstructionDataState = {
+  ...seed,
+  organizations: [...seed.organizations, contractorOrg],
+  subscriptions: [
+    ...seed.subscriptions,
+    { id: "subscription-contractor", organizationId: "org-contractor", planId: "plan-contractor-starter", status: "active", startedAt: "2026-01-10T09:00:00+05:30" },
+  ],
+  wallets: [...seed.wallets, { organizationId: "org-contractor", balance: 30 }],
+}
 const contractorPartner: Session = { accountType: "business", personId: "person-arjun", organizationId: "org-contractor" }
 const clock: Clock = { now: () => new Date("2026-10-04T10:00:00.000Z") }
 const ids = (): IdGenerator => {

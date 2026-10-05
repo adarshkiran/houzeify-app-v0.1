@@ -406,7 +406,7 @@ export interface MarketplaceUnlock {
   requirementId: EntityId
   partnerOrganizationId: EntityId
   unlockedAt: ISODateTime
-  creditTransactionId?: EntityId
+  creditTransactionId: EntityId
 }
 
 export interface Proposal {
