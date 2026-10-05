@@ -5,7 +5,7 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import HIcon from "../components/HIcon"
 import { countLabel } from "../components/countLabel"
 import { UNLOCK_COST_CREDITS, CREDIT_PACKS } from "../domain/billingCommands"
-import { getEntitlements, getWallet } from "../domain/entitlements"
+import { getActivePlan, getEntitlements, getWallet } from "../domain/entitlements"
 import type { Navigate } from "../domain/navigation"
 import type { CreditTransaction, EntitlementKey } from "../domain/models"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
@@ -36,14 +36,7 @@ function Billing({ onNavigate }: { onNavigate: Navigate }) {
   const run = useCommand()
   const organizationId = session?.organizationId ?? ""
 
-  const subscription = useMemo(
-    () => state.subscriptions.find((s) => s.organizationId === organizationId && s.status === "active"),
-    [state, organizationId],
-  )
-  const plan = useMemo(
-    () => (subscription ? state.plans.find((p) => p.id === subscription.planId) : undefined),
-    [state, subscription],
-  )
+  const plan = useMemo(() => getActivePlan(state, organizationId), [state, organizationId])
   const entitlements = getEntitlements(state, organizationId)
   const balance = getWallet(state, organizationId).balance
   const unlocksLeft = Math.floor(balance / UNLOCK_COST_CREDITS)
@@ -143,9 +136,11 @@ function Billing({ onNavigate }: { onNavigate: Navigate }) {
               ]}
             />
           )}
-          <Text type="secondary" className="block mt-2 text-[12px]!">
-            {countLabel(transactions.length, "entry", "entries")}
-          </Text>
+          {transactions.length > 0 && (
+            <Text type="secondary" className="block mt-2 text-[12px]!">
+              {countLabel(transactions.length, "entry", "entries")}
+            </Text>
+          )}
         </Card>
 
         <Card size="small" className="bg-[#F3EAFF]! border-0!">

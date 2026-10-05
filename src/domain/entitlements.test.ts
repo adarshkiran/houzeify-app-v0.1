@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import type { ConstructionDataState } from "./models"
-import { getEntitlements, getWallet, hasEntitlement } from "./entitlements"
+import { getActivePlan, getEntitlements, getWallet, hasEntitlement } from "./entitlements"
 
 const ORG = "org-buildright"
 
@@ -20,6 +20,24 @@ describe("getEntitlements", () => {
 
   it("returns none for an organization without a subscription", () => {
     expect(getEntitlements(seed, "org-nobody")).toEqual([])
+  })
+})
+
+describe("getActivePlan", () => {
+  it("returns the Starter plan for the organization's active subscription", () => {
+    expect(getActivePlan(seed, ORG)?.id).toBe("plan-contractor-starter")
+  })
+
+  it("returns undefined when the subscription is cancelled", () => {
+    const state: ConstructionDataState = {
+      ...seed,
+      subscriptions: seed.subscriptions.map((s) => ({ ...s, status: "cancelled" as const })),
+    }
+    expect(getActivePlan(state, ORG)).toBeUndefined()
+  })
+
+  it("returns undefined for an organization without a subscription", () => {
+    expect(getActivePlan(seed, "org-nobody")).toBeUndefined()
   })
 })
 
