@@ -4,6 +4,7 @@ import {
   ApartmentOutlined,
   ArrowLeftOutlined,
   BarChartOutlined,
+  CalendarOutlined,
   CheckSquareOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
@@ -54,6 +55,7 @@ export type ProjectNavKey =
   | "structure"
   | "work-plan"
   | "tasks"
+  | "attendance"
   | "progress"
   | "issues"
   | "messages"
@@ -97,6 +99,7 @@ export function projectNav(projectId: string): NavItem<ProjectNavKey>[] {
     { key: "structure", label: "Structure", icon: <ApartmentOutlined />, to: { screen: "project-structure", params: p } },
     { key: "work-plan", label: "Work Plan", icon: <ScheduleOutlined />, to: { screen: "work-plan", params: p } },
     { key: "tasks", label: "Tasks", icon: <CheckSquareOutlined />, to: { screen: "tasks", params: p } },
+    { key: "attendance", label: "Attendance", icon: <CalendarOutlined />, to: { screen: "attendance-history", params: p } },
     { key: "progress", label: "Progress", icon: <LineChartOutlined />, to: { screen: "daily-progress-review", params: p } },
     { key: "issues", label: "Issues", icon: <ExclamationCircleOutlined />, to: { screen: "issues", params: p } },
     { key: "messages", label: "Messages", icon: <MessageOutlined />, to: { screen: "project-messages", params: p } },

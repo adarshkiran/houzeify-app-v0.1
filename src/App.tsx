@@ -43,6 +43,7 @@ const BillingScreen = lazy(() => import('./screens/BillingScreen'))
 const WorkPlanScreen = lazy(() => import('./screens/WorkPlanScreen'))
 const TasksScreen = lazy(() => import('./screens/TasksScreen'))
 const TaskDetailScreen = lazy(() => import('./screens/TaskDetailScreen'))
+const AttendanceHistoryScreen = lazy(() => import('./screens/AttendanceHistoryScreen'))
 const DailyProgressSubmitScreen = lazy(() => import('./screens/DailyProgressSubmitScreen'))
 const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressReviewScreen'))
 const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
@@ -418,6 +419,16 @@ export default function App() {
         <div style={{ ...slide, overflowY: 'auto' }}>
           <Suspense fallback={null}>
             <TasksScreen
+              onNavigate={navigateTo}
+              projectId={projectId}
+            />
+          </Suspense>
+        </div>
+      )}
+      {screen === 'attendance-history' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <AttendanceHistoryScreen
               onNavigate={navigateTo}
               projectId={projectId}
             />
