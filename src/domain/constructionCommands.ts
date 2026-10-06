@@ -864,15 +864,19 @@ function workerMembershipFor(
   assignment: WorkerProjectAssignment,
 ): ProjectMembership | null {
   if (!worker.userId) return null
-  const alreadyMember = state.memberships.some(
-    (item) =>
-      item.projectId === assignment.projectId &&
-      item.principalType === "person" &&
-      item.principalId === worker.userId &&
-      item.role === "worker" &&
-      item.status === "active",
-  )
-  if (alreadyMember) return null
+  const sameMembership = (status: ProjectMembership["status"]) =>
+    state.memberships.some(
+      (item) =>
+        item.projectId === assignment.projectId &&
+        item.principalType === "person" &&
+        item.principalId === worker.userId &&
+        item.role === "worker" &&
+        item.status === status,
+    )
+  if (sameMembership("active")) return null
+  // An invited worker already has an invited membership from the team invite;
+  // it activates on accept (activateWorkerOnboarding), so don't add an active one.
+  if (sameMembership("invited")) return null
   return {
     id: ctx.ids.next("membership"),
     projectId: assignment.projectId,
@@ -913,9 +917,12 @@ export const assignWorkerToProject =
       (item) =>
         item.workerId === input.workerId &&
         item.projectId === input.projectId &&
-        item.status === "active" &&
+        (item.status === "active" || item.status === "invited") &&
         !item.endedAt,
     )
+    if (existing?.status === "invited") {
+      throw new ConflictError("This worker is already assigned to this project.")
+    }
     if (existing) return { state, result: existing }
     const assignment = buildAssignment(ctx, assigner.id, input, worker)
     const membership = workerMembershipFor(state, ctx, worker, assignment)

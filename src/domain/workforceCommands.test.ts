@@ -519,3 +519,46 @@ describe("accept messages per onboarding state", () => {
     )
   })
 })
+
+describe("assigning an invited worker to a project before accept", () => {
+  const projectId = () => seed.projects.find((p) => p.organizationId === ORG)!.id
+
+  function invitedWorkerOnProject() {
+    const invited = inviteProjectMember({
+      projectId: projectId(),
+      name: "Ravi",
+      phone: "+91 94444 55555",
+      role: "worker",
+      projectUnitIds: [],
+    } as never)(seed, as(manager))
+    const personId = invited.result.principalId
+    const worker = invited.state.workers.find((w) => w.userId === personId)!
+    return { state: invited.state, worker, personId }
+  }
+
+  it("reuses the invited worker membership and does not create an active one", () => {
+    const { state, worker, personId } = invitedWorkerOnProject()
+    const { state: next } = assignWorkerToProject({
+      workerId: worker.id,
+      projectId: projectId(),
+      tradeIds: [],
+      projectUnitIds: [],
+    })(state, as(manager))
+    const memberships = next.memberships.filter(
+      (m) => m.projectId === projectId() && m.principalType === "person" && m.principalId === personId && m.role === "worker",
+    )
+    expect(memberships).toHaveLength(1)
+    expect(memberships[0].status).toBe("invited")
+  })
+
+  it("refuses a second assignment while the first is still invited", () => {
+    const { state, worker } = invitedWorkerOnProject()
+    const input = { workerId: worker.id, projectId: projectId(), tradeIds: [], projectUnitIds: [] }
+    const once = assignWorkerToProject(input)(state, as(manager)).state
+    expect(() => assignWorkerToProject(input)(once, as(manager))).toThrow(ConflictError)
+    const open = once.workerProjectAssignments.filter(
+      (a) => a.workerId === worker.id && a.projectId === projectId() && a.status === "invited" && !a.endedAt,
+    )
+    expect(open).toHaveLength(1)
+  })
+})
