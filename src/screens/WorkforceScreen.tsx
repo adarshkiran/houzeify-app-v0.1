@@ -105,6 +105,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     assignWorkerToProject,
     createWorkerOnboarding,
     cancelWorkerOnboarding,
+    acceptWorkerOnboarding,
     endWorkerProjectAssignment,
   } = useConstructionData()
   const run = useCommand()
@@ -234,6 +235,13 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     setJoinCode({
       workerName: worker.name,
       code: outcome.value.joinCode ?? "",
+    })
+  }
+
+  /** Supervisor activates a non-qr invite (R10); qr joins are accepted by the worker with the code. */
+  const handleMarkJoined = (onboarding: WorkerOnboarding) => {
+    run(() => acceptWorkerOnboarding(onboarding.id), {
+      success: "Marked as joined",
     })
   }
 
@@ -404,7 +412,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
             >
               Assign
             </Button>
-            {!open ? (
+            {worker.status === "invited" && !open ? (
               <Button
                 type="link"
                 size="small"
@@ -413,6 +421,16 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
                 onClick={() => handleSendQrJoin(worker)}
               >
                 Send QR join
+              </Button>
+            ) : null}
+            {open?.status === "invited" && open.method !== "qr" ? (
+              <Button
+                type="link"
+                size="small"
+                className="company-inline-link"
+                onClick={() => handleMarkJoined(open)}
+              >
+                Mark as joined
               </Button>
             ) : null}
             {open?.status === "invited" ? (
