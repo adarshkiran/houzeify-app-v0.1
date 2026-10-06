@@ -12,9 +12,12 @@ import {
   workerStatusColor,
   workerStatusLabel,
 } from "../components/worker/workerLabels"
-import type { Task } from "../domain/models"
+import { attendanceDate, dayState } from "../domain/attendance"
+import { ConflictError } from "../domain/errors"
+import type { Task, Worker, WorkerAttendance } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { workerDay, workerNextAction } from "../domain/workerTasks"
+import { getActiveAssignmentsForWorker } from "../domain/workforce"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { getUnreadTotal } from "../mock/conversationSelectors"
 import {
@@ -123,6 +126,84 @@ function Section({
   )
 }
 
+/** Today's check-in and check-out for each active project the worker is on. */
+function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
+  const { state, checkInWorker, checkOutWorker, getOwnAttendance } = useConstructionData()
+  const run = useCommand()
+  const today = attendanceDate(new Date())
+
+  const rows = getActiveAssignmentsForWorker(state, worker.id).flatMap((assignment) => {
+    const project = state.projects.find((item) => item.id === assignment.projectId)
+    if (!project) return []
+    // A worker without a readable record for the day is treated as not checked in.
+    let record: WorkerAttendance | undefined
+    try {
+      record = getOwnAttendance(project.id, phone, today)
+    } catch (error) {
+      if (!(error instanceof ConflictError)) throw error
+    }
+    return [{ project, record }]
+  })
+
+  if (rows.length === 0) return null
+
+  return (
+    <Section title="Attendance today" count={rows.length}>
+      {rows.map(({ project, record }) => {
+        const checkedIn = Boolean(record?.checkInAt)
+        const checkedOut = Boolean(record?.checkOutAt)
+        const incomplete = dayState(record, project.requireCheckout) === "incomplete"
+
+        let tag: ReactNode
+        let action: { label: string; onClick: () => void } | undefined
+        if (!checkedIn) {
+          tag = <Tag className="m-0!">Not checked in</Tag>
+          action = {
+            label: "Check in",
+            onClick: () =>
+              run(
+                () => checkInWorker({ projectId: project.id, phone, at: new Date().toISOString() }),
+                { success: "Checked in" },
+              ),
+          }
+        } else if (!checkedOut) {
+          tag = incomplete ? (
+            <Tag color="warning" className="m-0!">Check-out needed</Tag>
+          ) : (
+            <Tag color="processing" className="m-0!">Checked in</Tag>
+          )
+          action = {
+            label: "Check out",
+            onClick: () =>
+              run(
+                () => checkOutWorker({ projectId: project.id, phone, at: new Date().toISOString() }),
+                { success: "Checked out" },
+              ),
+          }
+        } else {
+          tag = <Tag color="success" className="m-0!">Checked out</Tag>
+        }
+
+        return (
+          <Card key={project.id} size="small">
+            <Flex align="center" justify="space-between" gap="small" wrap>
+              <Flex vertical gap={6}>
+                <Text strong>{project.name}</Text>
+                {tag}
+              </Flex>
+              {action && (
+                <Button type="primary" size="small" onClick={action.onClick}>
+                  {action.label}
+                </Button>
+              )}
+            </Flex>
+          </Card>
+        )
+      })}
+    </Section>
+  )
+}
+
 function Today({ onNavigate }: { onNavigate: Navigate }) {
   const { state, acceptTaskAssignment, startTask } = useConstructionData()
   const { session } = useSession()
@@ -209,6 +290,9 @@ function Today({ onNavigate }: { onNavigate: Navigate }) {
                 : "")}
         </Text>
       </Flex>
+
+      {/* Needs the session's phone for the own-record read; a session without one shows no attendance. */}
+      {session?.phone && <AttendanceToday worker={worker} phone={session.phone} />}
 
       {sentBack.length > 0 && (
         <Section title="Changes requested" count={sentBack.length}>
