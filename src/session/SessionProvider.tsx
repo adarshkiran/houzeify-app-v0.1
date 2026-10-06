@@ -2,10 +2,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { currentSession } from "../data/session"
+import { getSupabaseClient } from "../data/supabaseClient"
 import type { EntityId } from "../domain/models"
 import { parseStoredSession, type Session } from "../domain/session"
 import {
@@ -15,6 +19,12 @@ import {
 } from "../mock/seed"
 
 const SESSION_KEY = "houzeify:session"
+
+/** True when the app runs against the Supabase stack (VITE_DATA_SOURCE=supabase). */
+export const SUPABASE_DATA_SOURCE = import.meta.env.VITE_DATA_SOURCE === "supabase"
+
+/** Demo sign-in affordances: development builds on the in-memory store only. */
+export const DEMO_SIGN_IN_ENABLED = import.meta.env.DEV && !SUPABASE_DATA_SOURCE
 
 function readStoredSession(): Session | null {
   try {
@@ -42,17 +52,45 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null)
 
 export default function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(readStoredSession)
+  const [session, setSession] = useState<Session | null>(() =>
+    SUPABASE_DATA_SOURCE ? null : readStoredSession(),
+  )
+  const client: SupabaseClient | null = SUPABASE_DATA_SOURCE ? getSupabaseClient() : null
+
+  // Supabase mode: the session follows the auth state, resolved to a role.
+  useEffect(() => {
+    if (!client) return
+    let active = true
+    const refresh = async () => {
+      try {
+        const next = await currentSession(client)
+        if (active) setSession(next)
+      } catch {
+        if (active) setSession(null)
+      }
+    }
+    const { data } = client.auth.onAuthStateChange((_event, authSession) => {
+      // Deferred: supabase-js forbids awaiting auth calls inside this callback.
+      if (!authSession) setSession(null)
+      else setTimeout(() => void refresh(), 0)
+    })
+    void refresh()
+    return () => {
+      active = false
+      data.subscription.unsubscribe()
+    }
+  }, [client])
 
   const signIn = useCallback((next: Session) => {
-    writeStoredSession(next)
+    if (!SUPABASE_DATA_SOURCE) writeStoredSession(next)
     setSession(next)
   }, [])
 
   const signOut = useCallback(() => {
-    writeStoredSession(null)
+    if (client) void client.auth.signOut()
+    else writeStoredSession(null)
     setSession(null)
-  }, [])
+  }, [client])
 
   const value = useMemo(
     () => ({ session, signIn, signOut }),

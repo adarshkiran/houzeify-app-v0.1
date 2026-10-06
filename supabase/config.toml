@@ -265,9 +265,11 @@ template = "Your code is {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
 max_frequency = "5s"
 
-# Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+# Pre-defined phone-to-OTP map for the demo accounts (local and staging test numbers only).
+[auth.sms.test_otp]
+"+919000011101" = "123456"
+"+919000011103" = "123456"
+"+919000011122" = "123456"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -288,9 +290,10 @@ max_frequency = "5s"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
+# Enabled so phone sign-in is served. Only the test-OTP numbers below are used locally; no SMS is sent.
+enabled = true
+account_sid = "local-test-account"
+message_service_sid = "local-test-service"
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
 auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 
@@ -320,6 +323,12 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
+# Phone sign-in provider (OTP over SMS). Test numbers in [auth.sms.test_otp] need no real SMS.
+[auth.external.phone]
+enabled = true
+client_id = "local-test-phone"
+secret = "local-test-phone"
+
 [auth.external.apple]
 enabled = false
 client_id = ""

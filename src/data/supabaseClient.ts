@@ -12,3 +12,11 @@ export function createSupabaseClient(): SupabaseClient {
   }
   return createClient(url, anonKey)
 }
+
+let sharedClient: SupabaseClient | undefined
+
+/** One client per page, shared by the session provider and the sign-in screens. */
+export function getSupabaseClient(): SupabaseClient {
+  sharedClient ??= createSupabaseClient()
+  return sharedClient
+}
