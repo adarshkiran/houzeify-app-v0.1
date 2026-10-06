@@ -28,12 +28,14 @@ import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import { attendanceDate, dayState, validateTimes, type DayState } from "../domain/attendance"
+import { ConflictError } from "../domain/errors"
 import type {
   AssignmentEndReason,
   AttendanceStatus,
   EntityId,
   ISODate,
   Worker,
+  WorkerAttendance,
   WorkerOnboarding,
   WorkerProjectAssignment,
 } from "../domain/models"
@@ -413,7 +415,13 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     return getActiveAssignmentsForWorker(state, worker.id).flatMap((assignment) => {
       const project = state.projects.find((item) => item.id === assignment.projectId)
       if (!project) return []
-      const record = getOwnAttendance(project.id, worker.phone!, today)
+      // A business user without PROJECT_READ on this project is refused; show the day as not recorded.
+      let record: WorkerAttendance | undefined
+      try {
+        record = getOwnAttendance(project.id, worker.phone!, today)
+      } catch (error) {
+        if (!(error instanceof ConflictError)) throw error
+      }
       return [
         {
           id: assignment.id,
