@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { ConflictError } from "./errors"
 import { PermissionError } from "./session"
-import { checkInWorker, checkOutWorker, recordAttendance, setAttendancePolicy } from "./attendanceCommands"
+import {
+  checkInWorker,
+  checkOutWorker,
+  getOwnAttendance,
+  listAttendance,
+  recordAttendance,
+  setAttendancePolicy,
+} from "./attendanceCommands"
 import type { ConstructionDataState, WorkerAttendance, WorkerProjectAssignment } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
@@ -308,5 +315,50 @@ describe("setAttendancePolicy", () => {
   it("refuses a worker-role session", () => {
     const { state } = fixture()
     expect(() => setAttendancePolicy(project.id, true)(state, as(stranger))).toThrow(PermissionError)
+  })
+})
+
+describe("listAttendance", () => {
+  it("returns every record for the date to a supervisor with PROJECT_READ", () => {
+    const { state, worker } = fixture()
+    const other = seed.workers.find((item) => item.id !== worker.id && item.organizationId === ORG)!
+    let next = recordFor(state, worker.id, { id: "attendance-a", status: "present", checkInAt: CHECK_IN })
+    next = recordFor(next, other.id, { id: "attendance-b", status: "absent" })
+    next = recordFor(next, worker.id, { id: "attendance-old", date: "2026-10-05" })
+    const { result } = listAttendance(project.id, TODAY)(next, as(manager))
+    expect(result.map((item) => item.id).sort()).toEqual(["attendance-a", "attendance-b"])
+  })
+
+  it("refuses a worker-role session", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    expect(() => listAttendance(project.id, TODAY)(withRecord, as(stranger))).toThrow(PermissionError)
+  })
+
+  it("does not mutate its input state", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const before = JSON.stringify(withRecord)
+    listAttendance(project.id, TODAY)(withRecord, as(manager))
+    expect(JSON.stringify(withRecord)).toBe(before)
+  })
+})
+
+describe("getOwnAttendance", () => {
+  it("returns only the record for the worker identified by phone", () => {
+    const { state, worker } = fixture()
+    const other = seed.workers.find((item) => item.id !== worker.id && item.organizationId === ORG)!
+    let next = recordFor(state, worker.id, { id: "attendance-a", status: "present", checkInAt: CHECK_IN })
+    next = recordFor(next, other.id, { id: "attendance-b", status: "absent" })
+    const { result } = getOwnAttendance(project.id, PHONE, TODAY)(next, as(null))
+    expect(result?.id).toBe("attendance-a")
+    expect(result?.workerId).toBe(worker.id)
+  })
+
+  it("returns undefined for an unknown phone", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const { result } = getOwnAttendance(project.id, "+91 00000 00000", TODAY)(withRecord, as(null))
+    expect(result).toBeUndefined()
   })
 })

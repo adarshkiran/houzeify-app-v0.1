@@ -156,6 +156,38 @@ function upsert(state: ConstructionDataState, record: WorkerAttendance): Constru
   }
 }
 
+// ─── Reads ───────────────────────────────────────────────────────────────────
+
+/**
+ * Every attendance record for the project on `date`. Requires PROJECT_READ on
+ * the project, so a worker-role session is refused.
+ */
+export const listAttendance =
+  (projectId: EntityId, date: ISODate): Command<WorkerAttendance[]> =>
+  (state, ctx) => {
+    authorizeProject(state, ctx, projectId, [Permissions.PROJECT_READ])
+    return {
+      state,
+      result: state.workerAttendance.filter((record) => record.projectId === projectId && record.date === date),
+    }
+  }
+
+/**
+ * The record for the one worker identified by `phone` on `date`, or undefined
+ * when no worker matches. Never returns another worker's record. Identity is
+ * the phone number. This is a stand-in for OTP until Phase 11, not authentication.
+ */
+export const getOwnAttendance =
+  (projectId: EntityId, phone: string, date: ISODate): Command<WorkerAttendance | undefined> =>
+  (state) => {
+    const project = projectOrThrow(state, projectId)
+    const worker = state.workers.find(
+      (item) => item.organizationId === project.organizationId && samePhone(item.phone, phone),
+    )
+    if (!worker) return { state, result: undefined }
+    return { state, result: findRecord(state, worker.id, projectId, date) }
+  }
+
 // ─── Supervisor commands ─────────────────────────────────────────────────────
 
 /**
