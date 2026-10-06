@@ -1080,7 +1080,7 @@ export const acceptWorkerOnboarding =
       throw new ConflictError("Only an invitation that hasn't been accepted can be accepted.")
     }
     if (onboarding.method === "qr") {
-      if (joinCode !== onboarding.joinCode) {
+      if (!joinCode || joinCode !== onboarding.joinCode) {
         throw new ConflictError("That join code doesn't match this invitation.")
       }
     } else {

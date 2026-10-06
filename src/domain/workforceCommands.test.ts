@@ -203,15 +203,23 @@ describe("acceptWorkerOnboarding", () => {
     expect(() => acceptWorkerOnboarding(created.result.id)(created.state, as(manager))).toThrow(ConflictError)
   })
 
+  it("refuses a qr onboarding with no stored join code, even when none is given", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    const stripped = {
+      ...created.state,
+      workerOnboardings: created.state.workerOnboardings.map((o) => ({ ...o, joinCode: undefined })),
+    }
+    expect(() => acceptWorkerOnboarding(created.result.id)(stripped, as(manager))).toThrow(ConflictError)
+  })
+
   it("a wrong join code changes nothing", () => {
     const { state, workerId } = withWorker()
     const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
-    try {
-      acceptWorkerOnboarding(created.result.id, "WRONG1")(created.state, as(manager))
-    } catch {
-      /* expected */
-    }
+    expect(() => acceptWorkerOnboarding(created.result.id, "WRONG1")(created.state, as(manager))).toThrow(ConflictError)
     expect(created.state.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("invited")
+    const { state: next } = acceptWorkerOnboarding(created.result.id, created.result.joinCode!)(created.state, as(manager))
+    expect(next.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("accepted")
   })
 
   it("accepts with the correct join code", () => {
