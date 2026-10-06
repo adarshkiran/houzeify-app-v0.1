@@ -424,6 +424,53 @@ export const addProjectUnit =
     return { state: next, result: result[0] }
   }
 
+/** Throws the duplicate-phone ConflictError if another worker in the organization has this phone. */
+function assertPhoneFree(state: ConstructionDataState, organizationId: EntityId, phone: string | undefined) {
+  if (
+    phone &&
+    state.workers.some((w) => w.organizationId === organizationId && samePhone(w.phone, phone))
+  ) {
+    throw new ConflictError("A worker with this phone number already exists in your organization.")
+  }
+}
+
+/**
+ * The one way a worker record is created, shared by addWorker and the worker
+ * role of inviteProjectMember. The worker starts invited with a manual onboarding.
+ */
+function newWorkerRecord(
+  ctx: CommandContext,
+  input: {
+    organizationId: EntityId
+    name: string
+    phone?: string
+    tradeIds: EntityId[]
+    languages: string[]
+    userId?: EntityId
+  },
+): { worker: Worker; onboarding: WorkerOnboarding } {
+  const worker: Worker = {
+    id: `worker-${ctx.ids.short()}`,
+    organizationId: input.organizationId,
+    userId: input.userId,
+    name: input.name.trim(),
+    phone: input.phone?.trim() || undefined,
+    tradeIds: input.tradeIds,
+    languages: input.languages,
+    onboardingMethod: "manual",
+    status: "invited",
+  }
+  const onboarding: WorkerOnboarding = {
+    id: ctx.ids.next("onboarding"),
+    workerId: worker.id,
+    organizationId: input.organizationId,
+    method: "manual",
+    status: "invited",
+    invitedAt: iso(ctx),
+  }
+  return { worker, onboarding }
+}
+
 export const inviteProjectMember =
   (input: InviteProjectMemberInput): Command<ProjectMembership> =>
   (state, ctx) => {
@@ -459,38 +506,26 @@ export const inviteProjectMember =
       status: "invited",
     }
     // A worker on the project team is also a worker record, invited manually.
-    const workerRecord: Worker | undefined =
-      input.role === "worker"
-        ? {
-            id: `worker-${ctx.ids.short()}`,
-            organizationId: projectOrThrow(state, input.projectId).organizationId,
-            userId: person.id,
-            name: input.name.trim(),
-            phone: input.phone?.trim() || undefined,
-            tradeIds: [],
-            languages: ["en"],
-            onboardingMethod: "manual",
-            status: "invited",
-          }
-        : undefined
-    const workerOnboarding: WorkerOnboarding | undefined = workerRecord
-      ? {
-          id: ctx.ids.next("onboarding"),
-          workerId: workerRecord.id,
-          organizationId: workerRecord.organizationId,
-          method: "manual",
-          status: "invited",
-          invitedAt: iso(ctx),
-        }
+    const organizationId = projectOrThrow(state, input.projectId).organizationId
+    if (input.role === "worker") assertPhoneFree(state, organizationId, input.phone)
+    const worker = input.role === "worker"
+      ? newWorkerRecord(ctx, {
+          organizationId,
+          name: input.name,
+          phone: input.phone,
+          tradeIds: [],
+          languages: ["en"],
+          userId: person.id,
+        })
       : undefined
     return {
       state: {
         ...state,
         people: [...state.people, person],
         memberships: [...state.memberships, membership],
-        workers: workerRecord ? [...state.workers, workerRecord] : state.workers,
-        workerOnboardings: workerOnboarding
-          ? [...state.workerOnboardings, workerOnboarding]
+        workers: worker ? [...state.workers, worker.worker] : state.workers,
+        workerOnboardings: worker
+          ? [...state.workerOnboardings, worker.onboarding]
           : state.workerOnboardings,
       },
       result: membership,
@@ -786,6 +821,10 @@ export const startTask =
 
 // ─── Workforce ────────────────────────────────────────────────────────────────
 
+/**
+ * An assignment for a worker. An invited worker's assignment starts invited with
+ * no startedAt; it activates when the worker is accepted (activateWorkerOnboarding).
+ */
 function buildAssignment(
   ctx: CommandContext,
   assignedByMembershipId: EntityId,
@@ -796,7 +835,9 @@ function buildAssignment(
     tradeIds?: EntityId[]
     role?: WorkerProjectAssignment["role"]
   },
+  worker: Pick<Worker, "status">,
 ): WorkerProjectAssignment {
+  const invited = worker.status === "invited"
   return {
     id: ctx.ids.next("wpa"),
     workerId: input.workerId,
@@ -804,8 +845,8 @@ function buildAssignment(
     projectUnitIds: input.projectUnitIds ?? [],
     tradeIds: input.tradeIds ?? [],
     role: input.role ?? "worker",
-    status: "active",
-    startedAt: iso(ctx),
+    status: invited ? "invited" : "active",
+    startedAt: invited ? undefined : iso(ctx),
     assignedAt: iso(ctx),
     assignedByMembershipId,
   }
@@ -876,7 +917,7 @@ export const assignWorkerToProject =
         !item.endedAt,
     )
     if (existing) return { state, result: existing }
-    const assignment = buildAssignment(ctx, assigner.id, input)
+    const assignment = buildAssignment(ctx, assigner.id, input, worker)
     const membership = workerMembershipFor(state, ctx, worker, assignment)
     return {
       state: {
@@ -904,13 +945,29 @@ export const endWorkerProjectAssignment =
     if (!assignment) throw new ConflictError("That assignment no longer exists.")
     authorizeProject(state, ctx, assignment.projectId, [Permissions.WORKFORCE_MANAGE])
     if (assignment.endedAt) throw new ConflictError("This assignment has already ended.")
-    const ended: WorkerProjectAssignment = { ...assignment, endedAt: iso(ctx), endReason: reason }
+    const ended: WorkerProjectAssignment = {
+      ...assignment,
+      status: "inactive",
+      endedAt: iso(ctx),
+      endReason: reason,
+    }
+    const worker = state.workers.find((item) => item.id === assignment.workerId)
     return {
       state: {
         ...state,
         workerProjectAssignments: state.workerProjectAssignments.map((item) =>
           item.id === assignmentId ? ended : item,
         ),
+        memberships: worker?.userId
+          ? state.memberships.map((item) =>
+              item.projectId === assignment.projectId &&
+              item.principalType === "person" &&
+              item.principalId === worker.userId &&
+              item.role === "worker"
+                ? { ...item, status: "inactive" as const }
+                : item,
+            )
+          : state.memberships,
       },
       result: ended,
     }
@@ -926,14 +983,7 @@ export const addWorker =
       input.organizationId,
       Permissions.WORKFORCE_MANAGE,
     )
-    if (
-      input.phone &&
-      state.workers.some(
-        (w) => w.organizationId === input.organizationId && samePhone(w.phone, input.phone),
-      )
-    ) {
-      throw new ConflictError("A worker with this phone number already exists in your organization.")
-    }
+    assertPhoneFree(state, input.organizationId, input.phone)
     const projectMemberships = input.projectId
       ? assignmentTargets(input.projectUnitIds, input.tradeIds).map((target) =>
           authorizeProject(
@@ -955,24 +1005,13 @@ export const addWorker =
         assertUnitInProject(state, input.projectId, unitId)
       }
     }
-    const worker: Worker = {
-      id: `worker-${ctx.ids.short()}`,
+    const { worker, onboarding } = newWorkerRecord(ctx, {
       organizationId: input.organizationId,
-      name: input.name.trim(),
-      phone: input.phone?.trim() || undefined,
+      name: input.name,
+      phone: input.phone,
       tradeIds: input.tradeIds,
       languages: input.languages?.length ? input.languages : ["en"],
-      onboardingMethod: "manual",
-      status: "invited",
-    }
-    const onboarding: WorkerOnboarding = {
-      id: ctx.ids.next("onboarding"),
-      workerId: worker.id,
-      organizationId: input.organizationId,
-      method: "manual",
-      status: "invited",
-      invitedAt: iso(ctx),
-    }
+    })
     const assignment = input.projectId
       ? buildAssignment(
           ctx,
@@ -984,6 +1023,7 @@ export const addWorker =
             tradeIds: input.tradeIds,
             role: input.role,
           },
+          worker,
         )
       : undefined
     return {
@@ -1019,6 +1059,9 @@ export const createWorkerOnboarding =
     const worker = state.workers.find((item) => item.id === input.workerId)
     if (!worker) throw new ConflictError("That worker no longer exists.")
     authorizeOrganization(ctx, worker.organizationId, Permissions.WORKFORCE_MANAGE)
+    if (worker.status !== "invited") {
+      throw new ConflictError("Only invited workers need a join.")
+    }
     if (openOnboardingFor(state, worker.id)) {
       throw new ConflictError("This worker already has an open onboarding.")
     }
@@ -1076,9 +1119,7 @@ export const acceptWorkerOnboarding =
   (onboardingId: EntityId, joinCode?: string): Command<Worker> =>
   (state, ctx) => {
     const onboarding = onboardingOrThrow(state, onboardingId)
-    if (onboarding.status !== "invited") {
-      throw new ConflictError("Only an invitation that hasn't been accepted can be accepted.")
-    }
+    assertAcceptable(onboarding)
     if (onboarding.method === "qr") {
       if (!joinCode || joinCode !== onboarding.joinCode) {
         throw new ConflictError("That join code doesn't match this invitation.")
@@ -1089,18 +1130,26 @@ export const acceptWorkerOnboarding =
     return activateWorkerOnboarding(state, ctx, onboarding)
   }
 
+/** Refuses an onboarding that is not invited, with the message for its state. */
+function assertAcceptable(onboarding: WorkerOnboarding) {
+  if (onboarding.status === "invited") return
+  if (onboarding.status === "cancelled") throw new ConflictError("This invitation was cancelled.")
+  if (onboarding.status === "expired") throw new ConflictError("This invitation has expired.")
+  throw new ConflictError("Only an invitation that hasn't been accepted can be accepted.")
+}
+
 /**
- * Accepts a non-qr invitation on the worker's own behalf. The worker signs in by
- * phone, not with a manage permission, so the phone must match the onboarding's
- * worker. A qr invitation is accepted only with its join code (acceptWorkerOnboarding).
+ * Accepts a non-qr invitation on the worker's own behalf. This is not
+ * authentication: the worker signs in by phone, and the phone number stands in
+ * for OTP until Phase 11, when real verification replaces it. The phone must
+ * match the onboarding's worker. A qr invitation is accepted only with its join
+ * code (acceptWorkerOnboarding).
  */
 export const acceptOwnWorkerOnboarding =
   (onboardingId: EntityId, phone: string): Command<Worker> =>
   (state, ctx) => {
     const onboarding = onboardingOrThrow(state, onboardingId)
-    if (onboarding.status !== "invited") {
-      throw new ConflictError("Only an invitation that hasn't been accepted can be accepted.")
-    }
+    assertAcceptable(onboarding)
     const worker = state.workers.find((item) => item.id === onboarding.workerId)
     if (onboarding.method === "qr" || !worker || !samePhone(worker.phone, phone)) {
       throw new ConflictError("That phone number doesn't match this invitation.")
@@ -1131,6 +1180,17 @@ function activateWorkerOnboarding(
           ? { ...item, status: "active", startedAt: at }
           : item,
       ),
+      // The worker's invited worker-role memberships (linked by Worker.userId) become active too.
+      memberships: worker.userId
+        ? state.memberships.map((item) =>
+            item.principalType === "person" &&
+            item.principalId === worker.userId &&
+            item.role === "worker" &&
+            item.status === "invited"
+              ? { ...item, status: "active" as const }
+              : item,
+          )
+        : state.memberships,
     },
     result: activeWorker,
   }

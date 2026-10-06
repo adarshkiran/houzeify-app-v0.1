@@ -182,7 +182,8 @@ export interface WorkerProjectAssignment {
   tradeIds: EntityId[]
   role: "worker" | "lead" | "supervisor-assist"
   status: "invited" | "active" | "inactive"
-  startedAt: ISODateTime
+  /** Set when the assignment becomes active; absent while it is still invited. */
+  startedAt?: ISODateTime
   endedAt?: ISODateTime
   endReason?: AssignmentEndReason
   assignedAt: ISODateTime
