@@ -138,11 +138,7 @@ describe("recordAttendance", () => {
     const reassigned: ConstructionDataState = {
       ...first.state,
       workerProjectAssignments: [
-        ...first.state.workerProjectAssignments.map((item) =>
-          item.id === "assignment-test"
-            ? { ...item, endedAt: "2026-10-06T08:00:00.000Z", status: "inactive" as const, endReason: "removed" as const }
-            : item,
-        ),
+        // Listed first so the fallback (first covering assignment) would pick it over "assignment-test".
         {
           ...first.state.workerProjectAssignments.find((item) => item.id === "assignment-test")!,
           id: "assignment-second",
@@ -152,6 +148,11 @@ describe("recordAttendance", () => {
           status: "active" as const,
           endReason: undefined,
         },
+        ...first.state.workerProjectAssignments.map((item) =>
+          item.id === "assignment-test"
+            ? { ...item, endedAt: "2026-10-06T08:00:00.000Z", status: "inactive" as const, endReason: "removed" as const }
+            : item,
+        ),
       ],
     }
     const corrected = recordAttendance({ ...input, workerId: worker.id, checkOutAt: CHECK_OUT })(reassigned, as(manager))
