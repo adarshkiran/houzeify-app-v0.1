@@ -154,6 +154,23 @@ export interface Worker {
   status: "invited" | "active" | "inactive"
 }
 
+export type OnboardingMethod = "manual" | "otp" | "qr" | "supervisor-assisted"
+export type OnboardingStatus = "invited" | "accepted" | "expired" | "cancelled"
+
+export interface WorkerOnboarding {
+  id: EntityId
+  workerId: EntityId
+  organizationId: EntityId
+  method: OnboardingMethod
+  status: OnboardingStatus
+  /** Set for qr joins: the code the worker enters to accept. */
+  joinCode?: string
+  invitedByMembershipId?: EntityId
+  invitedAt: ISODateTime
+  acceptedAt?: ISODateTime
+  expiresAt?: ISODateTime
+}
+
 /** Project-scoped assignment for a worker (workforce foundation). */
 export interface WorkerProjectAssignment {
   id: EntityId
@@ -526,6 +543,7 @@ export interface ConstructionDataState {
   memberships: ProjectMembership[]
   workers: Worker[]
   workerProjectAssignments: WorkerProjectAssignment[]
+  workerOnboardings: WorkerOnboarding[]
   tasks: Task[]
   assignments: TaskAssignment[]
   dailyProgress: DailyProgress[]

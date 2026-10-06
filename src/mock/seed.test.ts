@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { seedConstructionData as seed } from "./seed"
+import { seedConstructionData as seed, seedConstructionData } from "./seed"
 
 describe("billing seed", () => {
   it("seeds the two plans with the spec entitlements", () => {
@@ -31,5 +31,11 @@ describe("worker languages", () => {
       expect(worker.languages.length).toBeGreaterThan(0)
       expect("preferredLanguage" in worker).toBe(false)
     }
+  })
+})
+
+describe("worker onboarding state", () => {
+  it("seeds an empty onboarding list", () => {
+    expect(seedConstructionData.workerOnboardings).toEqual([])
   })
 })

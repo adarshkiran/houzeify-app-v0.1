@@ -1282,6 +1282,7 @@ export const seedConstructionData: ConstructionDataState = {
   memberships: [...memberships, ...homeownerMemberships, ...workerMemberships],
   workers,
   workerProjectAssignments,
+  workerOnboardings: [],
   tasks,
   assignments: [
     {
