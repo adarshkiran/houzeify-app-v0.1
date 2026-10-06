@@ -74,14 +74,20 @@ function projectOrThrow(state: ConstructionDataState, projectId: EntityId): Proj
 }
 
 /**
- * Finds the worker by phone within the project's organization.
+ * Finds the worker by phone within the project's organization, whatever their status.
  * Identity is the phone number. This is a stand-in for OTP until Phase 11, not authentication.
  */
-function workerByPhone(state: ConstructionDataState, project: Project, phone: string): Worker {
+function workerByPhoneAnyStatus(state: ConstructionDataState, project: Project, phone: string): Worker {
   const worker = state.workers.find(
     (item) => item.organizationId === project.organizationId && samePhone(item.phone, phone),
   )
   if (!worker) throw new ConflictError(UNKNOWN_WORKER_OR_PROJECT)
+  return worker
+}
+
+/** Check-in lookup: the phone match, and the worker must be active. */
+function workerByPhone(state: ConstructionDataState, project: Project, phone: string): Worker {
+  const worker = workerByPhoneAnyStatus(state, project, phone)
   if (worker.status !== "active") throw new ConflictError("Your account isn't active yet.")
   return worker
 }
@@ -252,7 +258,8 @@ export const checkOutWorker =
   (input: WorkerPhoneInput): Command<WorkerAttendance> =>
   (state, ctx) => {
     const project = projectOrThrow(state, input.projectId)
-    const worker = workerByPhone(state, project, input.phone)
+    // No active-status check here: a worker can close a day they opened even after deactivation (A8, R5).
+    const worker = workerByPhoneAnyStatus(state, project, input.phone)
 
     const date = attendanceDate(new Date(input.at))
     const existing = findRecord(state, worker.id, input.projectId, date)
