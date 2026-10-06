@@ -19,6 +19,7 @@ import { viewRequirement as selectViewRequirement } from "../domain/marketplaceV
 import type { SubmitProposalInput } from "../domain/marketplaceCommands"
 import * as commands from "../domain/constructionCommands"
 import type {
+  AssignmentEndReason,
   CallLog,
   ConstructionDataState,
   ConstructionStage,
@@ -45,6 +46,7 @@ import type {
   WorkPlanItem,
   WorkType,
   Worker,
+  WorkerOnboarding,
   WorkerProjectAssignment,
 } from "../domain/models"
 import type {
@@ -110,6 +112,16 @@ interface ConstructionDataContextValue {
     worker: Worker
     assignment?: WorkerProjectAssignment
   }
+  createWorkerOnboarding: (input: {
+    workerId: EntityId
+    method: "qr" | "supervisor-assisted"
+  }) => WorkerOnboarding
+  acceptWorkerOnboarding: (onboardingId: EntityId, joinCode?: string) => Worker
+  cancelWorkerOnboarding: (onboardingId: EntityId) => WorkerOnboarding
+  endWorkerProjectAssignment: (
+    assignmentId: EntityId,
+    reason: AssignmentEndReason,
+  ) => WorkerProjectAssignment
   addLibraryStage: (input: Inputs.AddLibraryStageInput) => ConstructionStage
   addLibraryTrade: (input: Inputs.AddLibraryTradeInput) => Trade
   addLibraryWorkType: (input: Inputs.AddLibraryWorkTypeInput) => {
@@ -229,6 +241,14 @@ export default function ConstructionDataProvider({
       assignWorkerToProject: (input) =>
         run(commands.assignWorkerToProject(input)),
       addWorker: (input) => run(commands.addWorker(input)),
+      createWorkerOnboarding: (input) =>
+        run(commands.createWorkerOnboarding(input)),
+      acceptWorkerOnboarding: (onboardingId, joinCode) =>
+        run(commands.acceptWorkerOnboarding(onboardingId, joinCode)),
+      cancelWorkerOnboarding: (onboardingId) =>
+        run(commands.cancelWorkerOnboarding(onboardingId)),
+      endWorkerProjectAssignment: (assignmentId, reason) =>
+        run(commands.endWorkerProjectAssignment(assignmentId, reason)),
       addLibraryStage: (input) => run(commands.addLibraryStage(input)),
       addLibraryTrade: (input) => run(commands.addLibraryTrade(input)),
       addLibraryWorkType: (input) => run(commands.addLibraryWorkType(input)),

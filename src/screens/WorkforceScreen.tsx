@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react"
 import { countLabel } from "../components/countLabel"
 import {
+  CloseCircleOutlined,
   PlusOutlined,
+  QrcodeOutlined,
   SearchOutlined,
+  UserDeleteOutlined,
 } from "@ant-design/icons"
 import {
   Avatar,
@@ -23,8 +26,10 @@ import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import type {
+  AssignmentEndReason,
   EntityId,
   Worker,
+  WorkerOnboarding,
   WorkerProjectAssignment,
 } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
@@ -33,6 +38,7 @@ import {
   getOrganizationWorkers,
   workerMatchesProject,
 } from "../domain/workforce"
+import { openOnboardingFor } from "../domain/workforceOnboarding"
 import Gated from "../components/Gated"
 import { Permissions } from "../domain/permissions"
 import { useAccess } from "../session/useCan"
@@ -60,6 +66,30 @@ interface AddWorkerFormValues {
   role: WorkerProjectAssignment["role"]
 }
 
+const ONBOARDING_METHOD_LABELS: Record<Worker["onboardingMethod"], string> = {
+  manual: "Manual",
+  otp: "OTP",
+  qr: "QR join",
+  "supervisor-assisted": "Supervisor-assisted",
+}
+
+const END_REASON_OPTIONS: { value: AssignmentEndReason; label: string }[] = [
+  { value: "reassigned", label: "Reassigned to another project" },
+  { value: "left-project", label: "Left the project" },
+  { value: "removed", label: "Removed from the project" },
+]
+
+interface JoinCodeState {
+  workerName: string
+  code: string
+}
+
+interface EndAssignmentState {
+  assignment: WorkerProjectAssignment
+  workerName: string
+  projectName: string
+}
+
 interface AssignFormValues {
   workerId: EntityId
   projectId: EntityId
@@ -69,7 +99,14 @@ interface AssignFormValues {
 }
 
 function Workforce({ onNavigate }: { onNavigate: Navigate }) {
-  const { state, addWorker, assignWorkerToProject } = useConstructionData()
+  const {
+    state,
+    addWorker,
+    assignWorkerToProject,
+    createWorkerOnboarding,
+    cancelWorkerOnboarding,
+    endWorkerProjectAssignment,
+  } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
   const organizationId = useOrganizationId()
@@ -81,6 +118,11 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   >("all")
   const [addOpen, setAddOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [joinCode, setJoinCode] = useState<JoinCodeState | null>(null)
+  const [endAssignment, setEndAssignment] = useState<EndAssignmentState | null>(
+    null,
+  )
+  const [endReason, setEndReason] = useState<AssignmentEndReason>("reassigned")
   const [addForm] = Form.useForm<AddWorkerFormValues>()
   const [assignForm] = Form.useForm<AssignFormValues>()
   const addProjectId = Form.useWatch("projectId", addForm)
@@ -183,6 +225,48 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     addForm.resetFields()
   }
 
+  const handleSendQrJoin = (worker: Worker) => {
+    const outcome = run(
+      () => createWorkerOnboarding({ workerId: worker.id, method: "qr" }),
+      { success: `QR join created for ${worker.name}` },
+    )
+    if (!outcome.ok) return
+    setJoinCode({
+      workerName: worker.name,
+      code: outcome.value.joinCode ?? "",
+    })
+  }
+
+  const handleCancelInvite = (onboarding: WorkerOnboarding) => {
+    run(() => cancelWorkerOnboarding(onboarding.id), {
+      success: "Invite cancelled",
+    })
+  }
+
+  const openEndAssignment = (
+    assignment: WorkerProjectAssignment,
+    workerName: string,
+  ) => {
+    setEndReason("reassigned")
+    setEndAssignment({
+      assignment,
+      workerName,
+      projectName:
+        state.projects.find((item) => item.id === assignment.projectId)?.name ??
+        "Project",
+    })
+  }
+
+  const handleEndAssignment = () => {
+    if (!endAssignment) return
+    const outcome = run(
+      () => endWorkerProjectAssignment(endAssignment.assignment.id, endReason),
+      { success: "Assignment ended" },
+    )
+    if (!outcome.ok) return
+    setEndAssignment(null)
+  }
+
   const handleAssign = (values: AssignFormValues) => {
     const outcome = run(
       () =>
@@ -244,7 +328,17 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               )
               return (
                 <Tag key={assignment.id} color="processing">
-                  {project?.name ?? "Project"} · {assignment.role}
+                  {project?.name ?? "Project"} · {assignment.role}{" "}
+                  <Button
+                    type="link"
+                    size="small"
+                    className="company-inline-link"
+                    icon={<UserDeleteOutlined />}
+                    aria-label={`End assignment to ${project?.name ?? "project"}`}
+                    onClick={() => openEndAssignment(assignment, worker.name)}
+                  >
+                    End assignment
+                  </Button>
                 </Tag>
               )
             })}
@@ -266,23 +360,75 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       key: "status",
       width: 100,
       render: (status: Worker["status"]) => (
-        <Tag color={status === "active" ? "success" : "default"}>{status}</Tag>
+        <Tag
+          color={
+            status === "invited"
+              ? "gold"
+              : status === "active"
+                ? "success"
+                : "default"
+          }
+        >
+          {status}
+        </Tag>
       ),
+    },
+    {
+      title: "Onboarding",
+      key: "onboarding",
+      width: 180,
+      responsive: ["lg"],
+      render: (_, worker) => {
+        const open = openOnboardingFor(state, worker.id)
+        return (
+          <Space size={[4, 4]} wrap>
+            <Text>{ONBOARDING_METHOD_LABELS[worker.onboardingMethod]}</Text>
+            {open ? <Tag>{open.status}</Tag> : null}
+          </Space>
+        )
+      },
     },
     {
       title: "",
       key: "actions",
-      width: 110,
-      render: (_, worker) => (
-        <Button
-          type="link"
-          size="small"
-          className="company-inline-link"
-          onClick={() => openAssign(worker)}
-        >
-          Assign
-        </Button>
-      ),
+      width: 260,
+      render: (_, worker) => {
+        const open = openOnboardingFor(state, worker.id)
+        return (
+          <Space size={[4, 4]} wrap>
+            <Button
+              type="link"
+              size="small"
+              className="company-inline-link"
+              onClick={() => openAssign(worker)}
+            >
+              Assign
+            </Button>
+            {!open ? (
+              <Button
+                type="link"
+                size="small"
+                className="company-inline-link"
+                icon={<QrcodeOutlined />}
+                onClick={() => handleSendQrJoin(worker)}
+              >
+                Send QR join
+              </Button>
+            ) : null}
+            {open?.status === "invited" ? (
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<CloseCircleOutlined />}
+                onClick={() => handleCancelInvite(open)}
+              >
+                Cancel invite
+              </Button>
+            ) : null}
+          </Space>
+        )
+      },
     },
   ]
 
@@ -383,7 +529,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
             columns={columns}
             dataSource={filteredWorkers}
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 880 }}
+            scroll={{ x: 1100 }}
           />
         </Card>
       </Flex>
@@ -606,6 +752,59 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
               <Button type="primary" htmlType="submit">
                 Assign worker
+              </Button>
+            </Space>
+          </Flex>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="QR join code"
+        open={joinCode !== null}
+        onCancel={() => setJoinCode(null)}
+        footer={
+          <Button type="primary" onClick={() => setJoinCode(null)}>
+            Done
+          </Button>
+        }
+        destroyOnHidden
+      >
+        <Paragraph type="secondary" className="mt-0! mb-3!">
+          Read this code out to {joinCode?.workerName ?? "the worker"}. They
+          enter it in the worker app to accept the invite.
+        </Paragraph>
+        <Flex justify="center" className="py-4">
+          <Title level={2} copyable className="m-0! tracking-widest">
+            {joinCode?.code}
+          </Title>
+        </Flex>
+      </Modal>
+
+      <Modal
+        title="End assignment"
+        open={endAssignment !== null}
+        onCancel={() => setEndAssignment(null)}
+        footer={null}
+        destroyOnHidden
+      >
+        <Paragraph type="secondary" className="mt-0! mb-3!">
+          {endAssignment?.workerName} stops working on{" "}
+          {endAssignment?.projectName}. Their record is kept and their worker
+          status stays as it is.
+        </Paragraph>
+        <Form layout="vertical" requiredMark={false}>
+          <Form.Item label="Reason">
+            <Select
+              value={endReason}
+              onChange={setEndReason}
+              options={END_REASON_OPTIONS}
+            />
+          </Form.Item>
+          <Flex justify="flex-end">
+            <Space>
+              <Button onClick={() => setEndAssignment(null)}>Cancel</Button>
+              <Button type="primary" danger onClick={handleEndAssignment}>
+                End assignment
               </Button>
             </Space>
           </Flex>
