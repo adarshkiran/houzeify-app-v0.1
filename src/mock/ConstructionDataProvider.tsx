@@ -8,6 +8,11 @@ import {
   type ReactNode,
 } from "react"
 import type * as Inputs from "../domain/commandInputs"
+import * as attendanceCommands from "../domain/attendanceCommands"
+import type {
+  RecordAttendanceInput,
+  WorkerPhoneInput,
+} from "../domain/attendanceCommands"
 import * as billingCommands from "../domain/billingCommands"
 import type { CreditWallet } from "../domain/models"
 import * as conversationCommands from "../domain/conversationCommands"
@@ -28,6 +33,7 @@ import type {
   EntityId,
   Estimate,
   Evidence,
+  ISODate,
   Issue,
   MarketplaceRequirement,
   MarketplaceUnlock,
@@ -43,6 +49,7 @@ import type {
   TaskTemplate,
   Thread,
   Trade,
+  WorkerAttendance,
   WorkPlanItem,
   WorkType,
   Worker,
@@ -123,6 +130,16 @@ interface ConstructionDataContextValue {
     assignmentId: EntityId,
     reason: AssignmentEndReason,
   ) => WorkerProjectAssignment
+  recordAttendance: (input: RecordAttendanceInput) => WorkerAttendance
+  checkInWorker: (input: WorkerPhoneInput) => WorkerAttendance
+  checkOutWorker: (input: WorkerPhoneInput) => WorkerAttendance
+  setAttendancePolicy: (projectId: EntityId, requireCheckout: boolean) => Project
+  listAttendance: (projectId: EntityId, date: ISODate) => WorkerAttendance[]
+  getOwnAttendance: (
+    projectId: EntityId,
+    phone: string,
+    date: ISODate,
+  ) => WorkerAttendance | undefined
   addLibraryStage: (input: Inputs.AddLibraryStageInput) => ConstructionStage
   addLibraryTrade: (input: Inputs.AddLibraryTradeInput) => Trade
   addLibraryWorkType: (input: Inputs.AddLibraryWorkTypeInput) => {
@@ -224,6 +241,17 @@ export default function ConstructionDataProvider({
     [repo, clock, ids],
   )
 
+  /** Runs a read-only command against the latest state and returns its result. Nothing is committed. */
+  const read = useCallback(
+    <T,>(command: Command<T>): T =>
+      command(stateRef.current, {
+        actor: sessionRef.current,
+        clock,
+        ids,
+      }).result,
+    [clock, ids],
+  )
+
   const value = useMemo<ConstructionDataContextValue>(
     () => ({
       state,
@@ -252,6 +280,16 @@ export default function ConstructionDataProvider({
         run(commands.cancelWorkerOnboarding(onboardingId)),
       endWorkerProjectAssignment: (assignmentId, reason) =>
         run(commands.endWorkerProjectAssignment(assignmentId, reason)),
+      recordAttendance: (input) =>
+        run(attendanceCommands.recordAttendance(input)),
+      checkInWorker: (input) => run(attendanceCommands.checkInWorker(input)),
+      checkOutWorker: (input) => run(attendanceCommands.checkOutWorker(input)),
+      setAttendancePolicy: (projectId, requireCheckout) =>
+        run(attendanceCommands.setAttendancePolicy(projectId, requireCheckout)),
+      listAttendance: (projectId, date) =>
+        read(attendanceCommands.listAttendance(projectId, date)),
+      getOwnAttendance: (projectId, phone, date) =>
+        read(attendanceCommands.getOwnAttendance(projectId, phone, date)),
       addLibraryStage: (input) => run(commands.addLibraryStage(input)),
       addLibraryTrade: (input) => run(commands.addLibraryTrade(input)),
       addLibraryWorkType: (input) => run(commands.addLibraryWorkType(input)),
@@ -299,7 +337,7 @@ export default function ConstructionDataProvider({
       markThreadUnread: (threadId) =>
         run(conversationCommands.markThreadUnread(threadId)),
     }),
-    [state, run],
+    [state, run, read],
   )
 
   return (
