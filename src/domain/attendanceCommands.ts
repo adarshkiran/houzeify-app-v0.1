@@ -33,13 +33,15 @@ export interface RecordAttendanceInput {
   checkOutAt?: ISODateTime
 }
 
+/** Worker check-in and check-out. The time is always the server clock (R8), never a caller value. */
 export interface WorkerPhoneInput {
   projectId: EntityId
   phone: string
-  at: ISODateTime
 }
 
 const UNKNOWN_WORKER_OR_PROJECT = "That worker or project no longer exists."
+const ONLY_SELF = "You can only check in or out for yourself."
+const ASSIGNMENT_ENDED = "This assignment has ended, so attendance can't be changed."
 
 const iso = (ctx: CommandContext) => ctx.clock.now().toISOString()
 
@@ -120,8 +122,9 @@ function activeAssignment(
 
 /**
  * The assignment that covers `date` (A9). It started on or before the date and
- * had not ended before it. Throws the spec §6 refusal when the worker was on
- * the project but the assignment had already ended by that date.
+ * had not ended before it. Where several cover the day (a same-day reassignment),
+ * the one still open wins. Throws when the worker was on the project but the
+ * assignment had already ended by that date.
  */
 function assignmentForDate(
   state: ConstructionDataState,
@@ -136,13 +139,12 @@ function assignmentForDate(
       item.status !== "invited" &&
       attendanceDate(new Date(item.startedAt ?? item.assignedAt)) <= date,
   )
-  const covering = started.find(
+  const covering = started.filter(
     (item) => !item.endedAt || attendanceDate(new Date(item.endedAt)) >= date,
   )
-  if (covering) return covering
-  if (started.length > 0) {
-    throw new ConflictError("This assignment has ended, so attendance can't be changed.")
-  }
+  const live = covering.find((item) => !item.endedAt) ?? covering[0]
+  if (live) return live
+  if (started.length > 0) throw new ConflictError(ASSIGNMENT_ENDED)
   throw new ConflictError("This worker wasn't assigned to the project on that date.")
 }
 
@@ -232,6 +234,8 @@ export const recordAttendance =
     if (refusal) throw refusal
 
     const assignment = assignmentForDate(state, input.workerId, input.projectId, input.date)
+    // R9: a supervisor cannot write to a day whose owning assignment has ended.
+    if (assignment.endedAt) throw new ConflictError(ASSIGNMENT_ENDED)
     const at = iso(ctx)
     const record: WorkerAttendance = {
       id: existing?.id ?? ctx.ids.next("attendance"),
@@ -269,23 +273,37 @@ export const setAttendancePolicy =
 // ─── Worker commands ─────────────────────────────────────────────────────────
 
 /**
- * Worker check-in for today (Asia/Kolkata). Sets the status to present if none
- * is set, and refuses a second check-in on the same day (A6).
+ * Refuses unless the signed-in actor is a worker whose own phone matches
+ * `phone` (R7). Only the worker can check themselves in or out.
+ */
+function requireSelf(ctx: CommandContext, phone: string): void {
+  const actor = ctx.actor
+  if (!actor || actor.accountType !== "worker" || !actor.phone || !samePhone(actor.phone, phone)) {
+    throw new ConflictError(ONLY_SELF)
+  }
+}
+
+/**
+ * Worker check-in for today (Asia/Kolkata), taken from the server clock (R8).
+ * Sets the status to present if none is set, and refuses a second check-in on
+ * the same day (A6). Only the signed-in worker may check in (R7).
  * Identity is the phone number. This is a stand-in for OTP until Phase 11, not authentication.
  */
 export const checkInWorker =
   (input: WorkerPhoneInput): Command<WorkerAttendance> =>
   (state, ctx) => {
+    requireSelf(ctx, input.phone)
     const project = projectOrThrow(state, input.projectId)
     const worker = workerByPhone(state, project, input.phone)
     const assignment = activeAssignment(state, worker.id, input.projectId)
     if (!assignment) throw new ConflictError("You're not assigned to this project.")
 
-    const date = attendanceDate(new Date(input.at))
+    const now = ctx.clock.now()
+    const date = attendanceDate(now)
     const existing = findRecord(state, worker.id, input.projectId, date)
     if (existing?.checkInAt) throw new ConflictError("You've already checked in today.")
 
-    const at = iso(ctx)
+    const at = now.toISOString()
     const record: WorkerAttendance = {
       id: existing?.id ?? ctx.ids.next("attendance"),
       workerId: worker.id,
@@ -293,7 +311,7 @@ export const checkInWorker =
       assignmentId: existing?.assignmentId ?? assignment.id,
       date,
       status: existing?.status ?? "present",
-      checkInAt: input.at,
+      checkInAt: at,
       checkOutAt: existing?.checkOutAt,
       recordedBy: "worker",
       createdAt: existing?.createdAt ?? at,
@@ -303,29 +321,33 @@ export const checkInWorker =
   }
 
 /**
- * Worker check-out. Needs a check-in for the same day. Allowed after the
- * assignment has ended, so a worker can always close a day they opened (A8).
+ * Worker check-out, taken from the server clock (R8). Needs a check-in for the
+ * same day. Allowed after the assignment has ended, so a worker can always close
+ * a day they opened (A8). Only the signed-in worker may check out (R7).
  * Identity is the phone number. This is a stand-in for OTP until Phase 11, not authentication.
  */
 export const checkOutWorker =
   (input: WorkerPhoneInput): Command<WorkerAttendance> =>
   (state, ctx) => {
+    requireSelf(ctx, input.phone)
     const project = projectOrThrow(state, input.projectId)
     // No active-status check here: a worker can close a day they opened even after deactivation (A8, R5).
     const worker = workerByPhoneAnyStatus(state, project, input.phone)
 
-    const date = attendanceDate(new Date(input.at))
+    const now = ctx.clock.now()
+    const at = now.toISOString()
+    const date = attendanceDate(now)
     const existing = findRecord(state, worker.id, input.projectId, date)
     if (!existing?.checkInAt) throw new ConflictError("Check in before you check out.")
     if (existing.checkOutAt) throw new ConflictError("You've already checked out today.")
-    const refusal = validateTimes(existing.checkInAt, input.at)
+    const refusal = validateTimes(existing.checkInAt, at)
     if (refusal) throw refusal
 
     const record: WorkerAttendance = {
       ...existing,
-      checkOutAt: input.at,
+      checkOutAt: at,
       recordedBy: "worker",
-      updatedAt: iso(ctx),
+      updatedAt: at,
     }
     return { state: upsert(state, record), result: record }
   }

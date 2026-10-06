@@ -26,6 +26,18 @@ const ids = (): IdGenerator => {
   return { next: (p) => `${p}-new-${++n}`, short: () => `s${++n}` }
 }
 const as = (actor: Session | null): CommandContext => ({ actor, clock, ids: ids() })
+const asAt = (actor: Session | null, now: string): CommandContext => ({
+  actor,
+  clock: { now: () => new Date(now) },
+  ids: ids(),
+})
+const workerActor = (phone: string | undefined = PHONE): Session => ({
+  accountType: "worker",
+  personId: "person-worker-test",
+  organizationId: ORG,
+  ...(phone === undefined ? {} : { phone }),
+})
+const OWN_ONLY = "You can only check in or out for yourself."
 
 const CHECK_IN = "2026-10-06T03:30:00.000Z" // 09:00 in Asia/Kolkata
 const CHECK_OUT = "2026-10-06T12:00:00.000Z"
@@ -125,6 +137,25 @@ describe("recordAttendance", () => {
     )
   })
 
+  it("refuses a day that falls inside an assignment that has ended (R9)", () => {
+    const { state, worker } = fixture({ assignment: { endedAt: "2026-09-30T09:00:00.000Z", status: "inactive", endReason: "left-project" } })
+    expect(() =>
+      recordAttendance({ projectId: project.id, workerId: worker.id, date: "2026-09-15", status: "present", checkInAt: CHECK_IN })(
+        state,
+        as(manager),
+      ),
+    ).toThrow(new ConflictError("This assignment has ended, so attendance can't be changed."))
+  })
+
+  it("writes a day that falls inside an active assignment", () => {
+    const { state, worker } = fixture()
+    const { result } = recordAttendance({ projectId: project.id, workerId: worker.id, date: "2026-09-15", status: "present", checkInAt: CHECK_IN })(
+      state,
+      as(manager),
+    )
+    expect(result.assignmentId).toBe("assignment-test")
+  })
+
   it("refuses a worker-role session", () => {
     const { state, worker } = fixture()
     expect(() => recordAttendance({ ...input, workerId: worker.id })(state, as(stranger))).toThrow(PermissionError)
@@ -170,28 +201,58 @@ describe("recordAttendance", () => {
 })
 
 describe("checkInWorker", () => {
-  it("creates a present record with the check-in time, recorded by the worker", () => {
+  const checkIn = (phone = PHONE) => checkInWorker({ projectId: project.id, phone })
+
+  it("creates a present record stamped with the server clock, recorded by the worker", () => {
     const { state } = fixture()
-    const { result } = checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))
+    const { result } = checkIn()(state, asAt(workerActor(), CHECK_IN))
     expect(result.status).toBe("present")
     expect(result.checkInAt).toBe(CHECK_IN)
     expect(result.recordedBy).toBe("worker")
     expect(result.date).toBe(TODAY)
   })
 
+  it("uses the server clock, not a caller-supplied time (R8)", () => {
+    const { state } = fixture()
+    const backdated = { projectId: project.id, phone: PHONE, at: CHECK_OUT }
+    const { result } = checkInWorker(backdated)(state, asAt(workerActor(), CHECK_IN))
+    expect(result.checkInAt).toBe(CHECK_IN)
+    expect(result.date).toBe(TODAY)
+  })
+
+  it("refuses a null actor", () => {
+    const { state } = fixture()
+    expect(() => checkIn()(state, asAt(null, CHECK_IN))).toThrow(new ConflictError(OWN_ONLY))
+  })
+
+  it("refuses a worker session with a different phone", () => {
+    const { state } = fixture()
+    expect(() => checkIn()(state, asAt(workerActor("+91 00000 00000"), CHECK_IN))).toThrow(new ConflictError(OWN_ONLY))
+  })
+
+  it("refuses a worker session with no phone", () => {
+    const { state } = fixture()
+    const noPhone: Session = { accountType: "worker", personId: "person-worker-test", organizationId: ORG }
+    expect(() => checkIn()(state, asAt(noPhone, CHECK_IN))).toThrow(new ConflictError(OWN_ONLY))
+  })
+
+  it("refuses a business session, even one whose phone matches", () => {
+    const { state } = fixture()
+    const business = { ...manager, phone: PHONE } as Session
+    expect(() => checkIn()(state, asAt(business, CHECK_IN))).toThrow(new ConflictError(OWN_ONLY))
+  })
+
   it("refuses a second check-in on the same day", () => {
     const { state } = fixture()
-    const once = checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))
-    expect(() => checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(once.state, as(null))).toThrow(
-      "You've already checked in today.",
-    )
+    const once = checkIn()(state, asAt(workerActor(), CHECK_IN))
+    expect(() => checkIn()(once.state, asAt(workerActor(), CHECK_OUT))).toThrow("You've already checked in today.")
   })
 
   it("records the Asia/Kolkata date, so a check-in just before UTC midnight is the next day", () => {
     const { state } = fixture()
-    const late = checkInWorker({ projectId: project.id, phone: PHONE, at: "2026-10-05T18:45:00.000Z" })(state, as(null))
+    const late = checkIn()(state, asAt(workerActor(), "2026-10-05T18:45:00.000Z"))
     expect(late.result.date).toBe("2026-10-06")
-    const nextDay = checkInWorker({ projectId: project.id, phone: PHONE, at: "2026-10-06T18:45:00.000Z" })(state, as(null))
+    const nextDay = checkIn()(state, asAt(workerActor(), "2026-10-06T18:45:00.000Z"))
     expect(nextDay.result.date).toBe("2026-10-07")
   })
 
@@ -201,62 +262,83 @@ describe("checkInWorker", () => {
       ...state,
       workers: state.workers.map((item) => (item.id === worker.id ? { ...item, organizationId: "organization-other" } : item)),
     }
-    expect(() => checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(otherOrg, as(null))).toThrow(
-      "That worker or project no longer exists.",
-    )
+    expect(() => checkIn()(otherOrg, asAt(workerActor(), CHECK_IN))).toThrow("That worker or project no longer exists.")
   })
 
   it("does not mutate its input state", () => {
     const { state } = fixture()
     const before = JSON.stringify(state)
-    checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))
+    checkIn()(state, asAt(workerActor(), CHECK_IN))
     expect(JSON.stringify(state)).toBe(before)
   })
 
   it("refuses a worker whose status is invited", () => {
     const { state } = fixture({ status: "invited" })
-    expect(() => checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))).toThrow(
-      "Your account isn't active yet.",
-    )
+    expect(() => checkIn()(state, asAt(workerActor(), CHECK_IN))).toThrow("Your account isn't active yet.")
   })
 
   it("refuses a worker with no active assignment to the project", () => {
     const { state } = fixture({ assignment: null })
-    expect(() => checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))).toThrow(
-      "You're not assigned to this project.",
-    )
+    expect(() => checkIn()(state, asAt(workerActor(), CHECK_IN))).toThrow("You're not assigned to this project.")
   })
 
   it("refuses a phone that matches no worker in the project's organization", () => {
     const { state } = fixture()
-    expect(() => checkInWorker({ projectId: project.id, phone: "+91 00000 00000", at: CHECK_IN })(state, as(null))).toThrow(
+    const unknown = "+91 00000 00000"
+    expect(() => checkIn(unknown)(state, asAt(workerActor(unknown), CHECK_IN))).toThrow(
       "That worker or project no longer exists.",
     )
   })
 })
 
 describe("checkOutWorker", () => {
+  const checkOut = (phone = PHONE) => checkOutWorker({ projectId: project.id, phone })
+
   it("refuses a check-out without a check-in", () => {
     const { state } = fixture()
-    expect(() => checkOutWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(state, as(null))).toThrow(
-      "Check in before you check out.",
+    expect(() => checkOut()(state, asAt(workerActor(), CHECK_OUT))).toThrow("Check in before you check out.")
+  })
+
+  it("sets the check-out time from the server clock on a day already checked in", () => {
+    const { state, worker } = fixture()
+    const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const { result } = checkOut()(checkedIn, asAt(workerActor(), CHECK_OUT))
+    expect(result.checkOutAt).toBe(CHECK_OUT)
+    expect(result.checkInAt).toBe(CHECK_IN)
+  })
+
+  it("uses the server clock, not a caller-supplied time (R8)", () => {
+    const { state, worker } = fixture()
+    const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const backdated = { projectId: project.id, phone: PHONE, at: "2026-10-06T04:00:00.000Z" }
+    const { result } = checkOutWorker(backdated)(checkedIn, asAt(workerActor(), CHECK_OUT))
+    expect(result.checkOutAt).toBe(CHECK_OUT)
+  })
+
+  it("refuses a null actor", () => {
+    const { state, worker } = fixture()
+    const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    expect(() => checkOut()(checkedIn, asAt(null, CHECK_OUT))).toThrow(new ConflictError(OWN_ONLY))
+  })
+
+  it("refuses a worker session with a different phone", () => {
+    const { state, worker } = fixture()
+    const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    expect(() => checkOut()(checkedIn, asAt(workerActor("+91 00000 00000"), CHECK_OUT))).toThrow(
+      new ConflictError(OWN_ONLY),
     )
   })
 
-  it("sets the check-out time on a day already checked in", () => {
+  it("refuses a business session", () => {
     const { state, worker } = fixture()
     const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
-    const { result } = checkOutWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(checkedIn, as(null))
-    expect(result.checkOutAt).toBe(CHECK_OUT)
-    expect(result.checkInAt).toBe(CHECK_IN)
+    expect(() => checkOut()(checkedIn, asAt(manager, CHECK_OUT))).toThrow(new ConflictError(OWN_ONLY))
   })
 
   it("refuses a second check-out", () => {
     const { state, worker } = fixture()
     const closed = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN, checkOutAt: CHECK_OUT })
-    expect(() => checkOutWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(closed, as(null))).toThrow(
-      "You've already checked out today.",
-    )
+    expect(() => checkOut()(closed, asAt(workerActor(), CHECK_OUT))).toThrow("You've already checked out today.")
   })
 
   it("allows a check-out after the assignment has ended, on a day already checked in (A8)", () => {
@@ -264,18 +346,18 @@ describe("checkOutWorker", () => {
       assignment: { endedAt: "2026-10-06T09:00:00.000Z", status: "inactive", endReason: "removed" },
     })
     const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
-    const { result } = checkOutWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(checkedIn, as(null))
+    const { result } = checkOut()(checkedIn, asAt(workerActor(), CHECK_OUT))
     expect(result.checkOutAt).toBe(CHECK_OUT)
   })
 
   it("closes a day for a worker deactivated after checking in (A8, R5)", () => {
     const { state, worker } = fixture()
-    const { state: checkedIn } = checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))
+    const { state: checkedIn } = checkInWorker({ projectId: project.id, phone: PHONE })(state, asAt(workerActor(), CHECK_IN))
     const deactivated: ConstructionDataState = {
       ...checkedIn,
       workers: checkedIn.workers.map((item) => (item.id === worker.id ? { ...item, status: "inactive" } : item)),
     }
-    const { result } = checkOutWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(deactivated, as(null))
+    const { result } = checkOut()(deactivated, asAt(workerActor(), CHECK_OUT))
     expect(result.checkOutAt).toBe(CHECK_OUT)
     expect(result.checkInAt).toBe(CHECK_IN)
   })
@@ -284,7 +366,7 @@ describe("checkOutWorker", () => {
     const { state, worker } = fixture()
     const checkedIn = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
     const before = JSON.stringify(checkedIn)
-    checkOutWorker({ projectId: project.id, phone: PHONE, at: CHECK_OUT })(checkedIn, as(null))
+    checkOut()(checkedIn, asAt(workerActor(), CHECK_OUT))
     expect(JSON.stringify(checkedIn)).toBe(before)
   })
 
@@ -292,9 +374,7 @@ describe("checkOutWorker", () => {
     const { state } = fixture({
       assignment: { endedAt: "2026-10-06T09:00:00.000Z", status: "inactive", endReason: "removed" },
     })
-    expect(() => checkInWorker({ projectId: project.id, phone: PHONE, at: CHECK_IN })(state, as(null))).toThrow(
-      "You're not assigned to this project.",
-    )
+    expect(() => checkInWorker({ projectId: project.id, phone: PHONE })(state, asAt(workerActor(), CHECK_IN))).toThrow("You're not assigned to this project.")
   })
 })
 
