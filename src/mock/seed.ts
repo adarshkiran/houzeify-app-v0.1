@@ -488,7 +488,7 @@ const workers: Worker[] = Array.from({ length: 42 }, (_, index) => ({
   organizationId: ACTIVE_ORGANIZATION_ID,
   name: workerNames[index % workerNames.length],
   tradeIds: [trades[index % trades.length].id],
-  preferredLanguage: index % 3 === 0 ? "te" : index % 3 === 1 ? "hi" : "en",
+  languages: index % 3 === 0 ? ["te", "en"] : index % 3 === 1 ? ["hi", "en"] : ["en"],
   onboardingMethod: index < 12 ? "manual" : "supervisor-assisted",
   status: "active",
 }))

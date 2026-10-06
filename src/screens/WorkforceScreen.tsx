@@ -54,7 +54,7 @@ interface AddWorkerFormValues {
   name: string
   phone?: string
   tradeIds: EntityId[]
-  preferredLanguage: string
+  languages: string[]
   projectId?: EntityId
   projectUnitIds?: EntityId[]
   role: WorkerProjectAssignment["role"]
@@ -141,7 +141,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
 
   const openAdd = () => {
     addForm.setFieldsValue({
-      preferredLanguage: "en",
+      languages: ["en"],
       role: "worker",
       tradeIds: undefined,
       projectId: undefined,
@@ -169,7 +169,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       name: values.name,
       phone: values.phone,
       tradeIds: values.tradeIds,
-      preferredLanguage: values.preferredLanguage,
+      languages: values.languages,
       onboardingMethod: "manual",
       projectId: values.projectId,
       projectUnitIds: values.projectUnitIds,
@@ -253,12 +253,12 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       },
     },
     {
-      title: "Language",
-      dataIndex: "preferredLanguage",
-      key: "preferredLanguage",
-      width: 100,
+      title: "Languages",
+      dataIndex: "languages",
+      key: "languages",
+      width: 140,
       responsive: ["lg"],
-      render: (language: string) => <Tag>{language.toUpperCase()}</Tag>,
+      render: (languages: string[]) => languages.join(", "),
     },
     {
       title: "Status",
@@ -402,7 +402,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
           form={addForm}
           layout="vertical"
           requiredMark={false}
-          initialValues={{ preferredLanguage: "en", role: "worker" }}
+          initialValues={{ languages: ["en"], role: "worker" }}
           onFinish={handleAdd}
         >
           <Form.Item
@@ -431,8 +431,9 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               }))}
             />
           </Form.Item>
-          <Form.Item label="Preferred language" name="preferredLanguage">
+          <Form.Item label="Languages" name="languages">
             <Select
+              mode="tags"
               options={[
                 { value: "en", label: "English" },
                 { value: "hi", label: "Hindi" },

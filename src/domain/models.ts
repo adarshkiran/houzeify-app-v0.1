@@ -149,7 +149,7 @@ export interface Worker {
   name: string
   phone?: string
   tradeIds: EntityId[]
-  preferredLanguage: string
+  languages: string[]
   onboardingMethod: "manual" | "otp" | "qr" | "supervisor-assisted"
   status: "invited" | "active" | "inactive"
 }

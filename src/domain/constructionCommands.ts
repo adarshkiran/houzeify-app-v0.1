@@ -904,7 +904,7 @@ export const addWorker =
       name: input.name.trim(),
       phone: input.phone?.trim() || undefined,
       tradeIds: input.tradeIds,
-      preferredLanguage: input.preferredLanguage ?? "en",
+      languages: input.languages?.length ? input.languages : ["en"],
       onboardingMethod: input.onboardingMethod ?? "manual",
       status: "active",
     }

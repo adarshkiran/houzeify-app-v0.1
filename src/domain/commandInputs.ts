@@ -154,7 +154,7 @@ export interface AddWorkerInput {
   name: string
   phone?: string
   tradeIds: EntityId[]
-  preferredLanguage?: string
+  languages?: string[]
   onboardingMethod?: Worker["onboardingMethod"]
   projectId?: EntityId
   projectUnitIds?: EntityId[]

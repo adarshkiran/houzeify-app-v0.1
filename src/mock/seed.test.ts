@@ -23,3 +23,13 @@ describe("billing seed", () => {
     expect(grants[0]).toMatchObject({ kind: "grant", amount: 30, balanceAfter: 30 })
   })
 })
+
+describe("worker languages", () => {
+  it("every seeded worker has a languages list and no preferredLanguage", () => {
+    for (const worker of seed.workers) {
+      expect(Array.isArray(worker.languages)).toBe(true)
+      expect(worker.languages.length).toBeGreaterThan(0)
+      expect("preferredLanguage" in worker).toBe(false)
+    }
+  })
+})
