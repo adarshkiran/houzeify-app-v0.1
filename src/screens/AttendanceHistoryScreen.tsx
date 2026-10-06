@@ -22,6 +22,7 @@ import type {
   WorkerAttendance,
 } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
+import { PermissionError } from "../domain/session"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 
 const { Paragraph, Text, Title } = Typography
@@ -83,6 +84,9 @@ function AttendanceHistory({
     try {
       return { records: listAttendance(projectId, date), refusal: null as string | null }
     } catch (error) {
+      if (error instanceof PermissionError) {
+        return { records: [] as WorkerAttendance[], refusal: "You don't have permission to view attendance for this project." }
+      }
       if (!(error instanceof ConflictError)) throw error
       return { records: [] as WorkerAttendance[], refusal: error.message }
     }
@@ -131,13 +135,11 @@ function AttendanceHistory({
     {
       title: "Check-in",
       key: "checkIn",
-      responsive: ["sm"],
       render: (_, row) => <Text>{kolkataTime(row.record?.checkInAt)}</Text>,
     },
     {
       title: "Check-out",
       key: "checkOut",
-      responsive: ["sm"],
       render: (_, row) => <Text>{kolkataTime(row.record?.checkOutAt)}</Text>,
     },
     {
