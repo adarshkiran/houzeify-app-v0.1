@@ -1086,26 +1086,54 @@ export const acceptWorkerOnboarding =
     } else {
       authorizeOrganization(ctx, onboarding.organizationId, Permissions.WORKFORCE_MANAGE)
     }
-    const worker = state.workers.find((item) => item.id === onboarding.workerId)
-    if (!worker) throw new ConflictError("That worker no longer exists.")
-    const at = iso(ctx)
-    const activeWorker: Worker = { ...worker, status: "active" }
-    return {
-      state: {
-        ...state,
-        workers: state.workers.map((item) => (item.id === worker.id ? activeWorker : item)),
-        workerOnboardings: state.workerOnboardings.map((item) =>
-          item.id === onboardingId ? { ...item, status: "accepted", acceptedAt: at } : item,
-        ),
-        workerProjectAssignments: state.workerProjectAssignments.map((item) =>
-          item.workerId === worker.id && !item.endedAt && item.status === "invited"
-            ? { ...item, status: "active", startedAt: at }
-            : item,
-        ),
-      },
-      result: activeWorker,
-    }
+    return activateWorkerOnboarding(state, ctx, onboarding)
   }
+
+/**
+ * Accepts a non-qr invitation on the worker's own behalf. The worker signs in by
+ * phone, not with a manage permission, so the phone must match the onboarding's
+ * worker. A qr invitation is accepted only with its join code (acceptWorkerOnboarding).
+ */
+export const acceptOwnWorkerOnboarding =
+  (onboardingId: EntityId, phone: string): Command<Worker> =>
+  (state, ctx) => {
+    const onboarding = onboardingOrThrow(state, onboardingId)
+    if (onboarding.status !== "invited") {
+      throw new ConflictError("Only an invitation that hasn't been accepted can be accepted.")
+    }
+    const worker = state.workers.find((item) => item.id === onboarding.workerId)
+    if (onboarding.method === "qr" || !worker || !samePhone(worker.phone, phone)) {
+      throw new ConflictError("That phone number doesn't match this invitation.")
+    }
+    return activateWorkerOnboarding(state, ctx, onboarding)
+  }
+
+/** Marks the onboarding accepted, activates its worker, and starts their invited assignments. */
+function activateWorkerOnboarding(
+  state: ConstructionDataState,
+  ctx: CommandContext,
+  onboarding: WorkerOnboarding,
+): { state: ConstructionDataState; result: Worker } {
+  const worker = state.workers.find((item) => item.id === onboarding.workerId)
+  if (!worker) throw new ConflictError("That worker no longer exists.")
+  const at = iso(ctx)
+  const activeWorker: Worker = { ...worker, status: "active" }
+  return {
+    state: {
+      ...state,
+      workers: state.workers.map((item) => (item.id === worker.id ? activeWorker : item)),
+      workerOnboardings: state.workerOnboardings.map((item) =>
+        item.id === onboarding.id ? { ...item, status: "accepted", acceptedAt: at } : item,
+      ),
+      workerProjectAssignments: state.workerProjectAssignments.map((item) =>
+        item.workerId === worker.id && !item.endedAt && item.status === "invited"
+          ? { ...item, status: "active", startedAt: at }
+          : item,
+      ),
+    },
+    result: activeWorker,
+  }
+}
 
 /** Expires an invited onboarding that was not accepted in time. The worker record is kept. */
 export const expireWorkerOnboarding =

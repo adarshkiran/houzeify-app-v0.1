@@ -117,6 +117,7 @@ interface ConstructionDataContextValue {
     method: "qr" | "supervisor-assisted"
   }) => WorkerOnboarding
   acceptWorkerOnboarding: (onboardingId: EntityId, joinCode?: string) => Worker
+  acceptOwnWorkerOnboarding: (onboardingId: EntityId, phone: string) => Worker
   cancelWorkerOnboarding: (onboardingId: EntityId) => WorkerOnboarding
   endWorkerProjectAssignment: (
     assignmentId: EntityId,
@@ -245,6 +246,8 @@ export default function ConstructionDataProvider({
         run(commands.createWorkerOnboarding(input)),
       acceptWorkerOnboarding: (onboardingId, joinCode) =>
         run(commands.acceptWorkerOnboarding(onboardingId, joinCode)),
+      acceptOwnWorkerOnboarding: (onboardingId, phone) =>
+        run(commands.acceptOwnWorkerOnboarding(onboardingId, phone)),
       cancelWorkerOnboarding: (onboardingId) =>
         run(commands.cancelWorkerOnboarding(onboardingId)),
       endWorkerProjectAssignment: (assignmentId, reason) =>

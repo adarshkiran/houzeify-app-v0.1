@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { ConflictError } from "./errors"
 import {
+  acceptOwnWorkerOnboarding,
   acceptWorkerOnboarding,
   assignWorkerToProject,
   cancelWorkerOnboarding,
@@ -10,7 +11,7 @@ import {
   expireWorkerOnboarding,
   inviteProjectMember,
 } from "./constructionCommands"
-import { openOnboardingFor } from "./workforceOnboarding"
+import { findOpenOnboardingByPhone, openOnboardingFor } from "./workforceOnboarding"
 import type { ConstructionDataState } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
@@ -295,5 +296,81 @@ describe("inviteProjectMember for the worker role", () => {
       projectUnitIds: [],
     } as never)(seed, as(manager))
     expect(state.workers.length).toBe(before)
+  })
+})
+
+/** The seeded worker with a known phone, so phone matching is deterministic. */
+function withPhonedWorker(phone = "+91 98765 43210"): { state: ConstructionDataState; workerId: string } {
+  const worker = { ...seed.workers[0], phone }
+  return {
+    state: { ...seed, workers: seed.workers.map((w) => (w.id === worker.id ? worker : w)) },
+    workerId: worker.id,
+  }
+}
+
+describe("findOpenOnboardingByPhone", () => {
+  it("finds the open onboarding by a differently formatted phone in the same organization", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    expect(findOpenOnboardingByPhone(created.state, ORG, "9876543210")).toEqual(created.result)
+  })
+
+  it("returns undefined for another organization, an unknown phone, or a worker with no open onboarding", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    expect(findOpenOnboardingByPhone(created.state, "org-other", "9876543210")).toBeUndefined()
+    expect(findOpenOnboardingByPhone(created.state, ORG, "9000000000")).toBeUndefined()
+    const cancelled = cancelWorkerOnboarding(created.result.id)(created.state, as(manager)).state
+    expect(findOpenOnboardingByPhone(cancelled, ORG, "9876543210")).toBeUndefined()
+  })
+})
+
+describe("acceptOwnWorkerOnboarding", () => {
+  it("accepts a non-qr onboarding for the worker's own phone without a manager session", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    const { state: next, result } = acceptOwnWorkerOnboarding(created.result.id, "+91 98765 43210")(created.state, as(null))
+    expect(result.status).toBe("active")
+    expect(next.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("accepted")
+  })
+
+  it("accepts a manual onboarding for the worker's own phone", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const manual = {
+      id: "onboarding-manual",
+      workerId,
+      organizationId: ORG,
+      method: "manual" as const,
+      status: "invited" as const,
+      invitedAt: "2026-10-01T09:00:00.000Z",
+    }
+    const withManual = { ...state, workerOnboardings: [...state.workerOnboardings, manual] }
+    const { result } = acceptOwnWorkerOnboarding("onboarding-manual", "9876543210")(withManual, as(null))
+    expect(result.status).toBe("active")
+  })
+
+  it("refuses a phone that does not match the onboarding's worker, and changes nothing", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    expect(() => acceptOwnWorkerOnboarding(created.result.id, "9000000000")(created.state, as(null))).toThrow(
+      new ConflictError("That phone number doesn't match this invitation."),
+    )
+    expect(created.state.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("invited")
+  })
+
+  it("refuses a qr onboarding even when the phone matches", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    expect(() => acceptOwnWorkerOnboarding(created.result.id, "9876543210")(created.state, as(null))).toThrow(
+      ConflictError,
+    )
+    expect(created.state.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("invited")
+  })
+
+  it("refuses an onboarding that is not invited", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    const accepted = acceptWorkerOnboarding(created.result.id)(created.state, as(manager)).state
+    expect(() => acceptOwnWorkerOnboarding(created.result.id, "9876543210")(accepted, as(null))).toThrow(ConflictError)
   })
 })
