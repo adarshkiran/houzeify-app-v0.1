@@ -74,6 +74,7 @@ import {
   statusAfterProgressSubmit,
 } from "./taskTransitions"
 import { slugifyLibraryName } from "./workLibrary"
+import { generateJoinCode, openOnboardingFor } from "./workforceOnboarding"
 import {
   pathToInProgress,
   workerAssignment,
@@ -966,6 +967,93 @@ export const addWorker =
           : state.workerProjectAssignments,
       },
       result: { worker, assignment },
+    }
+  }
+
+// ─── Worker onboarding ───────────────────────────────────────────────────────
+
+/** The onboarding record, or a ConflictError if it is unknown. */
+function onboardingOrThrow(state: ConstructionDataState, onboardingId: EntityId): WorkerOnboarding {
+  const onboarding = state.workerOnboardings.find((item) => item.id === onboardingId)
+  if (!onboarding) throw new ConflictError("That onboarding no longer exists.")
+  return onboarding
+}
+
+/**
+ * Starts a QR or supervisor-assisted onboarding for an existing worker. A worker
+ * has at most one open onboarding (invited or accepted); the worker's status is
+ * not changed here.
+ */
+export const createWorkerOnboarding =
+  (input: { workerId: EntityId; method: "qr" | "supervisor-assisted" }): Command<WorkerOnboarding> =>
+  (state, ctx) => {
+    const worker = state.workers.find((item) => item.id === input.workerId)
+    if (!worker) throw new ConflictError("That worker no longer exists.")
+    authorizeOrganization(ctx, worker.organizationId, Permissions.WORKFORCE_MANAGE)
+    if (openOnboardingFor(state, worker.id)) {
+      throw new ConflictError("This worker already has an open onboarding.")
+    }
+    const inviter = state.memberships.find(
+      (item) =>
+        item.principalType === "person" &&
+        item.principalId === ctx.actor?.personId &&
+        item.status === "active",
+    )
+    const onboarding: WorkerOnboarding = {
+      id: ctx.ids.next("onboarding"),
+      workerId: worker.id,
+      organizationId: worker.organizationId,
+      method: input.method,
+      status: "invited",
+      joinCode: input.method === "qr" ? generateJoinCode(ctx) : undefined,
+      invitedByMembershipId: inviter?.id,
+      invitedAt: iso(ctx),
+    }
+    return {
+      state: { ...state, workerOnboardings: [...state.workerOnboardings, onboarding] },
+      result: onboarding,
+    }
+  }
+
+/** Cancels an invited onboarding. The worker record is kept. */
+export const cancelWorkerOnboarding =
+  (onboardingId: EntityId): Command<WorkerOnboarding> =>
+  (state, ctx) => {
+    const onboarding = onboardingOrThrow(state, onboardingId)
+    authorizeOrganization(ctx, onboarding.organizationId, Permissions.WORKFORCE_MANAGE)
+    if (onboarding.status !== "invited") {
+      throw new ConflictError("Only an invitation that hasn't been accepted can be cancelled.")
+    }
+    const cancelled: WorkerOnboarding = { ...onboarding, status: "cancelled" }
+    return {
+      state: {
+        ...state,
+        workerOnboardings: state.workerOnboardings.map((item) =>
+          item.id === onboardingId ? cancelled : item,
+        ),
+      },
+      result: cancelled,
+    }
+  }
+
+/** Expires an invited onboarding that was not accepted in time. The worker record is kept. */
+export const expireWorkerOnboarding =
+  (onboardingId: EntityId): Command<WorkerOnboarding> =>
+  (state, ctx) => {
+    const onboarding = onboardingOrThrow(state, onboardingId)
+    authorizeOrganization(ctx, onboarding.organizationId, Permissions.WORKFORCE_MANAGE)
+    if (onboarding.status !== "invited") {
+      throw new ConflictError("Only an invitation that hasn't been accepted can expire.")
+    }
+    const expired: WorkerOnboarding = { ...onboarding, status: "expired", expiresAt: iso(ctx) }
+    return {
+      state: {
+        ...state,
+        workerOnboardings: state.workerOnboardings.map((item) =>
+          item.id === onboardingId ? expired : item,
+        ),
+      },
+      result: expired,
     }
   }
 

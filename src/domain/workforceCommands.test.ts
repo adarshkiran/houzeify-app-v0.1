@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { ConflictError } from "./errors"
-import { assignWorkerToProject, endWorkerProjectAssignment } from "./constructionCommands"
+import {
+  assignWorkerToProject,
+  cancelWorkerOnboarding,
+  createWorkerOnboarding,
+  endWorkerProjectAssignment,
+  expireWorkerOnboarding,
+} from "./constructionCommands"
+import { openOnboardingFor } from "./workforceOnboarding"
 import type { ConstructionDataState } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
@@ -83,5 +90,69 @@ describe("assignWorkerToProject after an assignment ended", () => {
     expect(result.startedAt).toBe("2026-10-06T10:00:00.000Z")
     expect(next.workerProjectAssignments.filter((a) => a.id === result.id)).toHaveLength(1)
     expect(next.workerProjectAssignments.find((a) => a.id === assignmentId)!.endedAt).toBeDefined()
+  })
+})
+
+function withWorker(): { state: ConstructionDataState; workerId: string } {
+  const worker = seed.workers[0]
+  return { state: seed, workerId: worker.id }
+}
+
+describe("createWorkerOnboarding", () => {
+  it("creates a qr onboarding with a join code", () => {
+    const { state, workerId } = withWorker()
+    const { state: next, result } = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    expect(result.method).toBe("qr")
+    expect(result.joinCode).toMatch(/^[A-Z0-9]{6}$/)
+    expect(openOnboardingFor(next, workerId)).toEqual(result)
+  })
+
+  it("records the supervisor for a supervisor-assisted onboarding", () => {
+    const { state, workerId } = withWorker()
+    const { result } = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    expect(result.method).toBe("supervisor-assisted")
+    expect(result.joinCode).toBeUndefined()
+  })
+
+  it("refuses when the worker already has an open onboarding", () => {
+    const { state, workerId } = withWorker()
+    const once = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager)).state
+    expect(() => createWorkerOnboarding({ workerId, method: "qr" })(once, as(manager))).toThrow(ConflictError)
+  })
+
+  it("keeps exactly one open onboarding after a refused second create", () => {
+    const { state, workerId } = withWorker()
+    const once = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager)).state
+    expect(() => createWorkerOnboarding({ workerId, method: "qr" })(once, as(manager))).toThrow(ConflictError)
+    const openCount = (s: ConstructionDataState) =>
+      s.workerOnboardings.filter(
+        (o) => o.workerId === workerId && (o.status === "invited" || o.status === "accepted"),
+      ).length
+    expect(openCount(once)).toBe(1)
+  })
+})
+
+describe("cancelWorkerOnboarding and expireWorkerOnboarding", () => {
+  it("cancel keeps the worker and marks the onboarding cancelled", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    const { state: next, result } = cancelWorkerOnboarding(created.result.id)(created.state, as(manager))
+    expect(result.status).toBe("cancelled")
+    expect(next.workers.find((w) => w.id === workerId)).toBeDefined()
+  })
+
+  it("expire marks the onboarding expired and keeps the worker", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    const { state: next, result } = expireWorkerOnboarding(created.result.id)(created.state, as(manager))
+    expect(result.status).toBe("expired")
+    expect(next.workers.find((w) => w.id === workerId)).toBeDefined()
+  })
+
+  it("refuses to cancel an onboarding that is no longer invited", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    const cancelled = cancelWorkerOnboarding(created.result.id)(created.state, as(manager)).state
+    expect(() => cancelWorkerOnboarding(created.result.id)(cancelled, as(manager))).toThrow(ConflictError)
   })
 })
