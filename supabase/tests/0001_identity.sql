@@ -36,7 +36,7 @@ select throws_ok(
 
 select lives_ok(
   $$insert into worker_onboardings (id, worker_id, organization_id, method, status)
-    values ('00000000-0000-0000-0000-0000000000d3', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000a1', 'join_code', 'completed')$$,
+    values ('00000000-0000-0000-0000-0000000000d3', '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000a1', 'join_code', 'expired')$$,
   'a closed onboarding does not count toward the open limit'
 );
 
