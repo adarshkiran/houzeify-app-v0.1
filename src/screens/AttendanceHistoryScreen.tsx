@@ -114,6 +114,8 @@ function AttendanceHistory({
     [state.workerProjectAssignments, state.workers, projectId, records, requireCheckout],
   )
 
+  const missingCheckout = rows.filter((row) => row.dayState === "incomplete").length
+
   const columns: TableProps<AttendanceRow>["columns"] = [
     {
       title: "Worker",
@@ -207,8 +209,12 @@ function AttendanceHistory({
             </Flex>
             <Paragraph className="m-0!">
               This register lists {rows.length} {rows.length === 1 ? "worker" : "workers"} assigned to
-              the project for {date}. A day marked Check-out missing needs a check-out before it is
-              complete.
+              the project for {date}.{" "}
+              {missingCheckout > 0
+                ? `${missingCheckout} ${missingCheckout === 1 ? "day is" : "days are"} marked Check-out missing and need a check-out before ${missingCheckout === 1 ? "it is" : "they are"} complete.`
+                : rows.every((row) => row.dayState === "not-recorded")
+                  ? "No attendance is recorded for this day yet."
+                  : "No days are missing a check-out."}
             </Paragraph>
           </Flex>
         </Card>
