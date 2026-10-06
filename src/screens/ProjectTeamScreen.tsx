@@ -8,12 +8,14 @@ import { useCommand } from "../session/useCommand"
 import { useState } from "react"
 import {
   CheckCircleOutlined,
+  ClockCircleOutlined,
   MailOutlined,
   MessageOutlined,
   PlusOutlined,
   TeamOutlined,
 } from "@ant-design/icons"
 import {
+  Alert,
   Avatar,
   Button,
   Card,
@@ -25,6 +27,7 @@ import {
   Select,
   Space,
   Steps,
+  Switch,
   Table,
   Tag,
   Typography,
@@ -32,10 +35,15 @@ import {
 import type { TableProps } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
+import { attendanceDate, dayState, validateTimes, type DayState } from "../domain/attendance"
 import type {
+  AttendanceStatus,
   EntityId,
+  ISODate,
   ProjectMembership,
   ProjectRole,
+  Worker,
+  WorkerAttendance,
 } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import {
@@ -54,6 +62,55 @@ interface InviteFormValues {
   projectUnitIds?: EntityId[]
 }
 
+interface AttendanceFormValues {
+  status: AttendanceStatus
+  checkInTime?: string
+  checkOutTime?: string
+}
+
+interface AttendanceRow {
+  worker: Worker
+  record?: WorkerAttendance
+  state: DayState
+}
+
+const ATTENDANCE_STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
+  { value: "present", label: "Present" },
+  { value: "half-day", label: "Half day" },
+  { value: "absent", label: "Absent" },
+]
+
+const DAY_STATE_LABELS: Record<DayState, string> = {
+  "not-recorded": "Not recorded",
+  absent: "Absent",
+  complete: "Complete",
+  incomplete: "Check-out missing",
+}
+
+const DAY_STATE_COLORS: Record<DayState, string | undefined> = {
+  "not-recorded": "default",
+  absent: "default",
+  complete: "success",
+  incomplete: "warning",
+}
+
+/** Asia/Kolkata has no DST, so a fixed offset turns the form's date and time into an instant. */
+const KOLKATA_OFFSET = "+05:30"
+function instantOn(date: ISODate, time?: string): string | undefined {
+  return time ? `${date}T${time}:00${KOLKATA_OFFSET}` : undefined
+}
+
+/** HH:mm in Asia/Kolkata for a stored instant, to prefill the correction form. */
+function kolkataTime(instant?: string): string | undefined {
+  if (!instant) return undefined
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(instant))
+}
+
 function ProjectTeam({
   onNavigate,
   projectId,
@@ -64,10 +121,25 @@ function ProjectTeam({
   /** Reached from project setup: show the steps and the finish button. */
   setup: boolean
 }) {
-  const { state, inviteProjectMember, openDirectThread } = useConstructionData()
+  const {
+    state,
+    inviteProjectMember,
+    openDirectThread,
+    recordAttendance,
+    listAttendance,
+    setAttendancePolicy,
+  } = useConstructionData()
   const run = useCommand()
   const { session } = useSession()
   const canManage = useCan(Permissions.PROJECT_MANAGE, projectId)
+  const canRead = useCan(Permissions.PROJECT_READ, projectId)
+  // Worker sessions are refused by listAttendance even with PROJECT_READ (spec §5).
+  const canReadAttendance = session?.accountType === "business" && canRead
+  const canCorrectAttendance = useCan(Permissions.WORKFORCE_MANAGE, projectId)
+  const [day, setDay] = useState<ISODate>(() => attendanceDate(new Date()))
+  const [correction, setCorrection] = useState<AttendanceRow | null>(null)
+  const [correctionError, setCorrectionError] = useState<string | null>(null)
+  const [attendanceForm] = Form.useForm<AttendanceFormValues>()
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<InviteFormValues>()
   const units = getProjectUnits(state, projectId)
@@ -167,6 +239,71 @@ function ProjectTeam({
     },
   ]
 
+  const project = state.projects.find((item) => item.id === projectId)
+  const requireCheckout = project?.requireCheckout ?? false
+  const dayRecords = canReadAttendance ? listAttendance(projectId, day) : []
+  const attendanceRows: AttendanceRow[] = canReadAttendance
+    ? state.workers
+        .filter((worker) =>
+          state.workerProjectAssignments.some(
+            (assignment) =>
+              assignment.workerId === worker.id &&
+              assignment.projectId === projectId &&
+              assignment.status === "active",
+          ),
+        )
+        .map((worker) => {
+          const record = dayRecords.find((item) => item.workerId === worker.id)
+          return { worker, record, state: dayState(record, requireCheckout) }
+        })
+    : []
+
+  const openCorrection = (row: AttendanceRow) => {
+    setCorrectionError(null)
+    attendanceForm.setFieldsValue({
+      status: row.record?.status ?? "present",
+      checkInTime: kolkataTime(row.record?.checkInAt),
+      checkOutTime: kolkataTime(row.record?.checkOutAt),
+    })
+    setCorrection(row)
+  }
+
+  const handleCorrection = (values: AttendanceFormValues) => {
+    if (!correction) return
+    const checkInAt = instantOn(day, values.checkInTime)
+    const checkOutAt = instantOn(day, values.checkOutTime)
+    const refusal = validateTimes(
+      checkInAt ?? correction.record?.checkInAt,
+      checkOutAt ?? correction.record?.checkOutAt,
+    )
+    if (refusal) {
+      setCorrectionError(refusal.message)
+      return
+    }
+    setCorrectionError(null)
+    const outcome = run(
+      () =>
+        recordAttendance({
+          projectId,
+          workerId: correction.worker.id,
+          date: day,
+          status: values.status,
+          checkInAt,
+          checkOutAt,
+        }),
+      { success: `Attendance saved for ${correction.worker.name}` },
+    )
+    if (!outcome.ok) return
+    setCorrection(null)
+    attendanceForm.resetFields()
+  }
+
+  const handleRequireCheckout = (checked: boolean) => {
+    run(() => setAttendancePolicy(projectId, checked), {
+      success: checked ? "Check-out is now required" : "Check-out is no longer required",
+    })
+  }
+
   const handleInvite = (values: InviteFormValues) => {
     const input: InviteProjectMemberInput = {
       projectId,
@@ -239,6 +376,92 @@ function ProjectTeam({
           )}
         </Card>
 
+        {canReadAttendance && (
+          <Card
+            title={
+              <Title level={5} className="company-heading! m-0!">
+                Attendance
+              </Title>
+            }
+            extra={
+              <Input
+                type="date"
+                value={day}
+                onChange={(event) => setDay(event.target.value)}
+                aria-label="Attendance day"
+                className="w-auto"
+              />
+            }
+            className="company-section-card"
+            classNames={{ body: attendanceRows.length ? "company-table-card-body" : undefined }}
+          >
+            {canManage && (
+              <Flex align="center" gap="small" className="mb-3">
+                <Switch
+                  checked={requireCheckout}
+                  onChange={handleRequireCheckout}
+                  aria-label="Require check-out"
+                />
+                <Text>Require check-out for a complete day</Text>
+              </Flex>
+            )}
+            {attendanceRows.length ? (
+              <Table<AttendanceRow>
+                rowKey={(row) => row.worker.id}
+                pagination={false}
+                dataSource={attendanceRows}
+                columns={[
+                  {
+                    title: "Worker",
+                    key: "worker",
+                    render: (_, row) => <Text strong>{row.worker.name}</Text>,
+                  },
+                  {
+                    title: "Check-in",
+                    key: "checkIn",
+                    responsive: ["sm"],
+                    render: (_, row) => kolkataTime(row.record?.checkInAt) ?? "—",
+                  },
+                  {
+                    title: "Check-out",
+                    key: "checkOut",
+                    responsive: ["sm"],
+                    render: (_, row) => kolkataTime(row.record?.checkOutAt) ?? "—",
+                  },
+                  {
+                    title: "Day",
+                    key: "dayState",
+                    render: (_, row) => (
+                      <Tag color={DAY_STATE_COLORS[row.state]}>
+                        {DAY_STATE_LABELS[row.state]}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: "",
+                    key: "correct",
+                    render: (_, row) =>
+                      canCorrectAttendance ? (
+                        <Button
+                          size="small"
+                          icon={<ClockCircleOutlined />}
+                          onClick={() => openCorrection(row)}
+                        >
+                          Record
+                        </Button>
+                      ) : null,
+                  },
+                ]}
+              />
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="No workers assigned to this project"
+              />
+            )}
+          </Card>
+        )}
+
         {setup && (
           <Flex justify="flex-end">
             <Button
@@ -250,6 +473,51 @@ function ProjectTeam({
           </Flex>
         )}
       </Flex>
+
+      <Modal
+        title={`Record attendance${correction ? ` · ${correction.worker.name}` : ""}`}
+        open={correction !== null}
+        onCancel={() => setCorrection(null)}
+        footer={null}
+        destroyOnHidden
+      >
+        <Text type="secondary" className="mb-3 block">
+          Record or correct this worker's day, {day}.
+        </Text>
+        {correctionError ? (
+          <Alert type="error" showIcon message={correctionError} className="mb-3" />
+        ) : null}
+        <Form<AttendanceFormValues>
+          form={attendanceForm}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={handleCorrection}
+        >
+          <Form.Item
+            label="Status"
+            name="status"
+            rules={[{ required: true, message: "Choose a status" }]}
+          >
+            <Select options={ATTENDANCE_STATUS_OPTIONS} />
+          </Form.Item>
+          <Flex gap="middle">
+            <Form.Item label="Check-in (optional)" name="checkInTime" className="flex-1">
+              <Input type="time" />
+            </Form.Item>
+            <Form.Item label="Check-out (optional)" name="checkOutTime" className="flex-1">
+              <Input type="time" />
+            </Form.Item>
+          </Flex>
+          <Flex justify="flex-end">
+            <Space>
+              <Button onClick={() => setCorrection(null)}>Cancel</Button>
+              <Button type="primary" htmlType="submit">
+                Save attendance
+              </Button>
+            </Space>
+          </Flex>
+        </Form>
+      </Modal>
 
       <Modal
         title="Invite project member"

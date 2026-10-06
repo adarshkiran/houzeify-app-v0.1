@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { countLabel } from "../components/countLabel"
 import {
+  ClockCircleOutlined,
   CloseCircleOutlined,
   PlusOutlined,
   QrcodeOutlined,
@@ -8,6 +9,7 @@ import {
   UserDeleteOutlined,
 } from "@ant-design/icons"
 import {
+  Alert,
   Avatar,
   Button,
   Card,
@@ -25,9 +27,12 @@ import type { TableProps } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
+import { attendanceDate, dayState, validateTimes, type DayState } from "../domain/attendance"
 import type {
   AssignmentEndReason,
+  AttendanceStatus,
   EntityId,
+  ISODate,
   Worker,
   WorkerOnboarding,
   WorkerProjectAssignment,
@@ -98,6 +103,40 @@ interface AssignFormValues {
   role: WorkerProjectAssignment["role"]
 }
 
+interface AttendanceFormValues {
+  projectId: EntityId
+  date: ISODate
+  status: AttendanceStatus
+  checkInTime?: string
+  checkOutTime?: string
+}
+
+const ATTENDANCE_STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
+  { value: "present", label: "Present" },
+  { value: "half-day", label: "Half day" },
+  { value: "absent", label: "Absent" },
+]
+
+const DAY_STATE_LABELS: Record<DayState, string> = {
+  "not-recorded": "Not recorded",
+  absent: "Absent",
+  complete: "Complete",
+  incomplete: "Check-out missing",
+}
+
+const DAY_STATE_COLORS: Record<DayState, string | undefined> = {
+  "not-recorded": "default",
+  absent: "default",
+  complete: "success",
+  incomplete: "warning",
+}
+
+/** Asia/Kolkata has no DST, so a fixed offset turns the form's date and time into an instant. */
+const KOLKATA_OFFSET = "+05:30"
+function instantOn(date: ISODate, time?: string): string | undefined {
+  return time ? `${date}T${time}:00${KOLKATA_OFFSET}` : undefined
+}
+
 function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const {
     state,
@@ -107,6 +146,8 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     cancelWorkerOnboarding,
     acceptWorkerOnboarding,
     endWorkerProjectAssignment,
+    recordAttendance,
+    getOwnAttendance,
   } = useConstructionData()
   const run = useCommand()
   const can = useAccess()
@@ -124,8 +165,11 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     null,
   )
   const [endReason, setEndReason] = useState<AssignmentEndReason>("reassigned")
+  const [attendanceWorker, setAttendanceWorker] = useState<Worker | null>(null)
+  const [attendanceError, setAttendanceError] = useState<string | null>(null)
   const [addForm] = Form.useForm<AddWorkerFormValues>()
   const [assignForm] = Form.useForm<AssignFormValues>()
+  const [attendanceForm] = Form.useForm<AttendanceFormValues>()
   const addProjectId = Form.useWatch("projectId", addForm)
   const assignProjectId = Form.useWatch("projectId", assignForm)
 
@@ -292,6 +336,77 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     assignForm.resetFields()
   }
 
+  const today = attendanceDate(new Date())
+
+  /** The worker's active assignments on projects this person may record attendance for. */
+  const attendanceProjectsFor = (worker: Worker) =>
+    getActiveAssignmentsForWorker(state, worker.id)
+      .map((assignment) => state.projects.find((item) => item.id === assignment.projectId))
+      .filter((project): project is NonNullable<typeof project> =>
+        !!project && canAssignWholeProject(project.id),
+      )
+
+  const openAttendance = (worker: Worker) => {
+    const projects = attendanceProjectsFor(worker)
+    setAttendanceError(null)
+    attendanceForm.setFieldsValue({
+      projectId: projects.length === 1 ? projects[0].id : undefined,
+      date: today,
+      status: "present",
+      checkInTime: undefined,
+      checkOutTime: undefined,
+    })
+    setAttendanceWorker(worker)
+  }
+
+  const handleAttendance = (values: AttendanceFormValues) => {
+    if (!attendanceWorker) return
+    const checkInAt = instantOn(values.date, values.checkInTime)
+    const checkOutAt = instantOn(values.date, values.checkOutTime)
+    // A repeat submit may leave a time blank to keep the saved one, so validate against the saved record too.
+    const saved = attendanceWorker.phone
+      ? getOwnAttendance(values.projectId, attendanceWorker.phone, values.date)
+      : undefined
+    const refusal = validateTimes(
+      checkInAt ?? saved?.checkInAt,
+      checkOutAt ?? saved?.checkOutAt,
+    )
+    if (refusal) {
+      setAttendanceError(refusal.message)
+      return
+    }
+    setAttendanceError(null)
+    const outcome = run(
+      () =>
+        recordAttendance({
+          projectId: values.projectId,
+          workerId: attendanceWorker.id,
+          date: values.date,
+          status: values.status,
+          checkInAt,
+          checkOutAt,
+        }),
+      { success: `Attendance recorded for ${attendanceWorker.name}` },
+    )
+    if (!outcome.ok) return
+    setAttendanceWorker(null)
+    attendanceForm.resetFields()
+  }
+
+  /** Today's day state for each of the worker's active project assignments. */
+  const todayStates = (worker: Worker) => {
+    if (!worker.phone) return []
+    return getActiveAssignmentsForWorker(state, worker.id).map((assignment) => {
+      const project = state.projects.find((item) => item.id === assignment.projectId)
+      const record = getOwnAttendance(assignment.projectId, worker.phone!, today)
+      return {
+        id: assignment.id,
+        projectName: project?.name ?? "Project",
+        state: dayState(record, project?.requireCheckout ?? false),
+      }
+    })
+  }
+
   const columns: TableProps<Worker>["columns"] = [
     {
       title: "Worker",
@@ -397,6 +512,25 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       },
     },
     {
+      title: `Today (${today})`,
+      key: "today",
+      width: 200,
+      responsive: ["lg"],
+      render: (_, worker) => {
+        const states = todayStates(worker)
+        if (!states.length) return <Text type="secondary">—</Text>
+        return (
+          <Space size={[4, 4]} wrap>
+            {states.map((item) => (
+              <Tag key={item.id} color={DAY_STATE_COLORS[item.state]}>
+                {item.projectName}: {DAY_STATE_LABELS[item.state]}
+              </Tag>
+            ))}
+          </Space>
+        )
+      },
+    },
+    {
       title: "",
       key: "actions",
       width: 260,
@@ -412,6 +546,17 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
             >
               Assign
             </Button>
+            {attendanceProjectsFor(worker).length > 0 ? (
+              <Button
+                type="link"
+                size="small"
+                className="company-inline-link"
+                icon={<ClockCircleOutlined />}
+                onClick={() => openAttendance(worker)}
+              >
+                Record attendance
+              </Button>
+            ) : null}
             {worker.status === "invited" && !open ? (
               <Button
                 type="link"
@@ -770,6 +915,73 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
               <Button type="primary" htmlType="submit">
                 Assign worker
+              </Button>
+            </Space>
+          </Flex>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`Record attendance${attendanceWorker ? ` · ${attendanceWorker.name}` : ""}`}
+        open={attendanceWorker !== null}
+        onCancel={() => setAttendanceWorker(null)}
+        footer={null}
+        destroyOnHidden
+      >
+        <Paragraph type="secondary" className="mt-0! mb-3!">
+          Record or correct one day for this worker on a project they are assigned to.
+        </Paragraph>
+        {attendanceError ? (
+          <Alert type="error" showIcon message={attendanceError} className="mb-3" />
+        ) : null}
+        <Form<AttendanceFormValues>
+          form={attendanceForm}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={handleAttendance}
+        >
+          <Form.Item
+            label="Project"
+            name="projectId"
+            rules={[{ required: true, message: "Choose a project" }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="Select project"
+              options={attendanceWorker ? attendanceProjectsFor(attendanceWorker).map((project) => ({
+                value: project.id,
+                label: project.name,
+              })) : []}
+            />
+          </Form.Item>
+          <Form.Item
+            label="Date"
+            name="date"
+            rules={[{ required: true, message: "Choose a date" }]}
+          >
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item
+            label="Status"
+            name="status"
+            rules={[{ required: true, message: "Choose a status" }]}
+          >
+            <Select options={ATTENDANCE_STATUS_OPTIONS} />
+          </Form.Item>
+          <Flex gap="middle">
+            <Form.Item label="Check-in (optional)" name="checkInTime" className="flex-1">
+              <Input type="time" />
+            </Form.Item>
+            <Form.Item label="Check-out (optional)" name="checkOutTime" className="flex-1">
+              <Input type="time" />
+            </Form.Item>
+          </Flex>
+          <Flex justify="flex-end">
+            <Space>
+              <Button onClick={() => setAttendanceWorker(null)}>Cancel</Button>
+              <Button type="primary" htmlType="submit">
+                Save attendance
               </Button>
             </Space>
           </Flex>
