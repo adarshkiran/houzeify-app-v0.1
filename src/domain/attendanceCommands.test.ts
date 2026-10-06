@@ -10,7 +10,8 @@ import {
   recordAttendance,
   setAttendancePolicy,
 } from "./attendanceCommands"
-import type { ConstructionDataState, WorkerAttendance, WorkerProjectAssignment } from "./models"
+import { Permissions } from "./permissions"
+import type { ConstructionDataState, ProjectMembership, WorkerAttendance, WorkerProjectAssignment } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
 
@@ -329,10 +330,34 @@ describe("listAttendance", () => {
     expect(result.map((item) => item.id).sort()).toEqual(["attendance-a", "attendance-b"])
   })
 
-  it("refuses a worker-role session", () => {
+  it("refuses a worker-role session even when it holds an active PROJECT_READ membership", () => {
     const { state, worker } = fixture()
     const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
-    expect(() => listAttendance(project.id, TODAY)(withRecord, as(stranger))).toThrow(PermissionError)
+    const workerMembership: ProjectMembership = {
+      id: "membership-worker-test",
+      projectId: project.id,
+      principalType: "person",
+      principalId: "person-worker-test",
+      role: "worker",
+      scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+      permissions: [Permissions.PROJECT_READ],
+      status: "active",
+    }
+    const withMembership: ConstructionDataState = {
+      ...withRecord,
+      memberships: [...withRecord.memberships, workerMembership],
+    }
+    const workerSession: Session = { accountType: "worker", personId: "person-worker-test", organizationId: ORG }
+    expect(() => listAttendance(project.id, TODAY)(withMembership, as(workerSession))).toThrow(
+      new ConflictError("Only the project's team can see attendance for the day."),
+    )
+  })
+
+  it("refuses a business session with no membership on the project", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const outsider: Session = { accountType: "business", personId: "person-nobody", organizationId: ORG }
+    expect(() => listAttendance(project.id, TODAY)(withRecord, as(outsider))).toThrow(PermissionError)
   })
 
   it("does not mutate its input state", () => {

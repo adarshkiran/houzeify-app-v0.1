@@ -159,12 +159,16 @@ function upsert(state: ConstructionDataState, record: WorkerAttendance): Constru
 // ─── Reads ───────────────────────────────────────────────────────────────────
 
 /**
- * Every attendance record for the project on `date`. Requires PROJECT_READ on
- * the project, so a worker-role session is refused.
+ * Every attendance record for the project on `date`. Only business sessions with
+ * PROJECT_READ on the project can list it. A worker-role session is refused even
+ * when it holds an active PROJECT_READ membership (spec §3, §5).
  */
 export const listAttendance =
   (projectId: EntityId, date: ISODate): Command<WorkerAttendance[]> =>
   (state, ctx) => {
+    if (ctx.actor?.accountType !== "business") {
+      throw new ConflictError("Only the project's team can see attendance for the day.")
+    }
     authorizeProject(state, ctx, projectId, [Permissions.PROJECT_READ])
     return {
       state,
