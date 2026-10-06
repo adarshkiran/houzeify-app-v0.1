@@ -8,7 +8,11 @@ import {
 } from "react"
 import type { EntityId } from "../domain/models"
 import { parseStoredSession, type Session } from "../domain/session"
-import { ACTIVE_ORGANIZATION_ID, DEMO_WORKER_PERSON_ID } from "../mock/seed"
+import {
+  ACTIVE_ORGANIZATION_ID,
+  DEMO_WORKER_PERSON_ID,
+  DEMO_WORKER_PHONE,
+} from "../mock/seed"
 
 const SESSION_KEY = "houzeify:session"
 
@@ -87,5 +91,6 @@ export const DEMO_IDENTITIES = {
     accountType: "worker",
     personId: DEMO_WORKER_PERSON_ID,
     organizationId: ACTIVE_ORGANIZATION_ID,
+    phone: DEMO_WORKER_PHONE,
   },
 } as const satisfies Record<string, Session>
