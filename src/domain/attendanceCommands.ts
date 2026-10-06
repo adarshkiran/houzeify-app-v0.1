@@ -178,12 +178,29 @@ export const listAttendance =
 
 /**
  * The record for the one worker identified by `phone` on `date`, or undefined
- * when no worker matches. Never returns another worker's record. Identity is
- * the phone number. This is a stand-in for OTP until Phase 11, not authentication.
+ * when no worker matches. Allowed only to a worker session whose own phone
+ * matches `phone` (ruling R6), or to a business session of the project's
+ * organization holding PROJECT_READ on the project (the supervisor view).
+ * Identity is the phone number. This is a stand-in for OTP until Phase 11, not authentication.
  */
 export const getOwnAttendance =
   (projectId: EntityId, phone: string, date: ISODate): Command<WorkerAttendance | undefined> =>
-  (state) => {
+  (state, ctx) => {
+    const refusal = () => new ConflictError("You can only see your own attendance.")
+    const actor = ctx.actor
+    if (!actor) throw refusal()
+    if (actor.accountType === "worker") {
+      if (!actor.phone || !samePhone(actor.phone, phone)) throw refusal()
+    } else if (actor.accountType === "business") {
+      const scoped = projectOrThrow(state, projectId)
+      const supervises =
+        actor.organizationId === scoped.organizationId &&
+        authorizingMembership(actor, state.memberships, state.projectUnits, projectId, [Permissions.PROJECT_READ], {}) !==
+          undefined
+      if (!supervises) throw refusal()
+    } else {
+      throw refusal()
+    }
     const project = projectOrThrow(state, projectId)
     const worker = state.workers.find(
       (item) => item.organizationId === project.organizationId && samePhone(item.phone, phone),

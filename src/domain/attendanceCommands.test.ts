@@ -370,20 +370,70 @@ describe("listAttendance", () => {
 })
 
 describe("getOwnAttendance", () => {
-  it("returns only the record for the worker identified by phone", () => {
+  const workerSession = (phone?: string): Session => ({
+    accountType: "worker",
+    personId: "person-worker-own",
+    organizationId: ORG,
+    ...(phone === undefined ? {} : { phone }),
+  })
+
+  it("lets a worker session with the matching phone read its own record", () => {
     const { state, worker } = fixture()
     const other = seed.workers.find((item) => item.id !== worker.id && item.organizationId === ORG)!
     let next = recordFor(state, worker.id, { id: "attendance-a", status: "present", checkInAt: CHECK_IN })
     next = recordFor(next, other.id, { id: "attendance-b", status: "absent" })
-    const { result } = getOwnAttendance(project.id, PHONE, TODAY)(next, as(null))
+    const { result } = getOwnAttendance(project.id, PHONE, TODAY)(next, as(workerSession(PHONE)))
     expect(result?.id).toBe("attendance-a")
     expect(result?.workerId).toBe(worker.id)
   })
 
-  it("returns undefined for an unknown phone", () => {
+  it("refuses a worker session whose phone differs from the argument", () => {
     const { state, worker } = fixture()
     const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
-    const { result } = getOwnAttendance(project.id, "+91 00000 00000", TODAY)(withRecord, as(null))
+    expect(() =>
+      getOwnAttendance(project.id, PHONE, TODAY)(withRecord, as(workerSession("+91 00000 00000"))),
+    ).toThrow(new ConflictError("You can only see your own attendance."))
+  })
+
+  it("refuses a worker session that has no phone", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    expect(() => getOwnAttendance(project.id, PHONE, TODAY)(withRecord, as(workerSession()))).toThrow(
+      new ConflictError("You can only see your own attendance."),
+    )
+  })
+
+  it("lets a business session with PROJECT_READ read any worker's record", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { id: "attendance-a", status: "present", checkInAt: CHECK_IN })
+    const { result } = getOwnAttendance(project.id, PHONE, TODAY)(withRecord, as(manager))
+    expect(result?.id).toBe("attendance-a")
+  })
+
+  it("refuses a business session without PROJECT_READ on the project", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const outsider: Session = { accountType: "business", personId: "person-nobody", organizationId: ORG }
+    expect(() => getOwnAttendance(project.id, PHONE, TODAY)(withRecord, as(outsider))).toThrow(
+      new ConflictError("You can only see your own attendance."),
+    )
+  })
+
+  it("refuses an anonymous caller", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    expect(() => getOwnAttendance(project.id, PHONE, TODAY)(withRecord, as(null))).toThrow(
+      new ConflictError("You can only see your own attendance."),
+    )
+  })
+
+  it("returns undefined for an unknown phone when the worker session matches it", () => {
+    const { state, worker } = fixture()
+    const withRecord = recordFor(state, worker.id, { status: "present", checkInAt: CHECK_IN })
+    const { result } = getOwnAttendance(project.id, "+91 00000 00000", TODAY)(
+      withRecord,
+      as(workerSession("+91 00000 00000")),
+    )
     expect(result).toBeUndefined()
   })
 })
