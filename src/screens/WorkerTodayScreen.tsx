@@ -189,7 +189,7 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
             label: "Check in",
             onClick: () =>
               run(
-                () => checkInWorker({ projectId: project.id, phone, at: new Date().toISOString() }),
+                () => checkInWorker({ projectId: project.id, phone }),
                 { success: "Checked in" },
               ),
           }
@@ -209,7 +209,7 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
             label: "Check out",
             onClick: () =>
               run(
-                () => checkOutWorker({ projectId: project.id, phone, at: new Date().toISOString() }),
+                () => checkOutWorker({ projectId: project.id, phone }),
                 { success: "Checked out" },
               ),
           }

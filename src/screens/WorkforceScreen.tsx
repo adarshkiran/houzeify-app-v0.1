@@ -29,6 +29,7 @@ import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import LogoHorizontal from "../components/LogoHorizontal"
 import { attendanceDate, dayState, validateTimes, type DayState } from "../domain/attendance"
 import { ConflictError } from "../domain/errors"
+import { PermissionError } from "../domain/session"
 import type {
   AssignmentEndReason,
   AttendanceStatus,
@@ -387,9 +388,15 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     const checkInAt = instantOn(values.date, values.checkInTime)
     const checkOutAt = instantOn(values.date, values.checkOutTime)
     // A repeat submit may leave a time blank to keep the saved one, so validate against the saved record too.
-    const saved = attendanceWorker.phone
-      ? getOwnAttendance(values.projectId, attendanceWorker.phone, values.date)
-      : undefined
+    let saved: WorkerAttendance | undefined
+    if (attendanceWorker.phone) {
+      // A business user without PROJECT_READ on this project is refused; validate without the saved times.
+      try {
+        saved = getOwnAttendance(values.projectId, attendanceWorker.phone, values.date)
+      } catch (error) {
+        if (!(error instanceof ConflictError || error instanceof PermissionError)) throw error
+      }
+    }
     const refusal = validateTimes(
       checkInAt ?? saved?.checkInAt,
       checkOutAt ?? saved?.checkOutAt,
