@@ -123,12 +123,39 @@ describe("createWorkerOnboarding", () => {
   it("keeps exactly one open onboarding after a refused second create", () => {
     const { state, workerId } = withWorker()
     const once = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager)).state
-    expect(() => createWorkerOnboarding({ workerId, method: "qr" })(once, as(manager))).toThrow(ConflictError)
     const openCount = (s: ConstructionDataState) =>
       s.workerOnboardings.filter(
         (o) => o.workerId === workerId && (o.status === "invited" || o.status === "accepted"),
       ).length
+    const before = once.workerOnboardings.length
+    expect(() => createWorkerOnboarding({ workerId, method: "qr" })(once, as(manager))).toThrow(ConflictError)
+    expect(once.workerOnboardings.length).toBe(before)
     expect(openCount(once)).toBe(1)
+  })
+
+  it("leaves invitedByMembershipId undefined when the supervisor's only membership is in another organization", () => {
+    const worker = seed.workers[0]
+    const otherProject = { ...seed.projects[0], id: "project-other-org", organizationId: "org-other" }
+    const state: ConstructionDataState = {
+      ...seed,
+      projects: [...seed.projects, otherProject],
+      memberships: [
+        ...seed.memberships.filter((m) => !(m.principalType === "person" && m.principalId === "person-arjun")),
+        {
+          ...seed.memberships[0],
+          id: "membership-arjun-other-org",
+          projectId: otherProject.id,
+          principalType: "person" as const,
+          principalId: "person-arjun",
+          status: "active" as const,
+        },
+      ],
+    }
+    const { result } = createWorkerOnboarding({ workerId: worker.id, method: "supervisor-assisted" })(
+      state,
+      as(manager),
+    )
+    expect(result.invitedByMembershipId).toBeUndefined()
   })
 })
 

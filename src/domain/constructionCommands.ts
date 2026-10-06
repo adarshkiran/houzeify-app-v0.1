@@ -997,7 +997,8 @@ export const createWorkerOnboarding =
       (item) =>
         item.principalType === "person" &&
         item.principalId === ctx.actor?.personId &&
-        item.status === "active",
+        item.status === "active" &&
+        state.projects.find((project) => project.id === item.projectId)?.organizationId === worker.organizationId,
     )
     const onboarding: WorkerOnboarding = {
       id: ctx.ids.next("onboarding"),
