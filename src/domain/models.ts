@@ -171,9 +171,9 @@ export interface WorkerOnboarding {
   expiresAt?: ISODateTime
 }
 
-/** Project-scoped assignment for a worker (workforce foundation). */
 export type AssignmentEndReason = "reassigned" | "left-project" | "removed"
 
+/** Project-scoped assignment for a worker (workforce foundation). */
 export interface WorkerProjectAssignment {
   id: EntityId
   workerId: EntityId

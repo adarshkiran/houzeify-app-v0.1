@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { ConflictError } from "./errors"
-import { endWorkerProjectAssignment } from "./constructionCommands"
+import { assignWorkerToProject, endWorkerProjectAssignment } from "./constructionCommands"
 import type { ConstructionDataState } from "./models"
 import type { Clock, CommandContext, IdGenerator } from "./ports"
 import type { Session } from "./session"
@@ -61,5 +61,27 @@ describe("endWorkerProjectAssignment", () => {
 
   it("refuses an unknown assignment", () => {
     expect(() => endWorkerProjectAssignment("assignment-nope", "removed")(seed, as(manager))).toThrow(ConflictError)
+  })
+})
+
+describe("assignWorkerToProject after an assignment ended", () => {
+  it("creates a new assignment instead of returning the ended record", () => {
+    const { state, assignmentId } = withAssignment()
+    const ended = endWorkerProjectAssignment(assignmentId, "left-project")(state, as(manager))
+    const endedRecord = ended.result
+    const workerId = endedRecord.workerId
+    const projectId = endedRecord.projectId
+    const { state: next, result } = assignWorkerToProject({
+      workerId,
+      projectId,
+      tradeIds: endedRecord.tradeIds,
+      projectUnitIds: endedRecord.projectUnitIds,
+    })(ended.state, as(manager))
+    expect(result.id).not.toBe(assignmentId)
+    expect(result.endedAt).toBeUndefined()
+    expect(result.status).toBe("active")
+    expect(result.startedAt).toBe("2026-10-06T10:00:00.000Z")
+    expect(next.workerProjectAssignments.filter((a) => a.id === result.id)).toHaveLength(1)
+    expect(next.workerProjectAssignments.find((a) => a.id === assignmentId)!.endedAt).toBeDefined()
   })
 })

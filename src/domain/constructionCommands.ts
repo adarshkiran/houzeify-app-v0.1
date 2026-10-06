@@ -841,7 +841,8 @@ export const assignWorkerToProject =
       (item) =>
         item.workerId === input.workerId &&
         item.projectId === input.projectId &&
-        item.status === "active",
+        item.status === "active" &&
+        !item.endedAt,
     )
     if (existing) return { state, result: existing }
     const assignment = buildAssignment(ctx, assigner.id, input)
