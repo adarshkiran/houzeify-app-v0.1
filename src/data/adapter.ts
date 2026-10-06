@@ -44,6 +44,44 @@ async function selectAll<T>(client: SupabaseClient, table: string): Promise<T[]>
   return (data ?? []) as T[]
 }
 
+/** A ConstructionDataState with no rows: what supabase mode shows before sign-in. */
+export function emptyConstructionState(): ConstructionDataState {
+  return {
+    organizations: [],
+    people: [],
+    projects: [],
+    projectUnits: [],
+    stages: [],
+    trades: [],
+    workTypes: [],
+    taskTemplates: [],
+    workPlanItems: [],
+    memberships: [],
+    workers: [],
+    workerProjectAssignments: [],
+    workerOnboardings: [],
+    workerAttendance: [],
+    tasks: [],
+    assignments: [],
+    dailyProgress: [],
+    evidence: [],
+    documents: [],
+    estimates: [],
+    issues: [],
+    threads: [],
+    messages: [],
+    threadReads: [],
+    callLogs: [],
+    requirements: [],
+    unlocks: [],
+    proposals: [],
+    plans: [],
+    subscriptions: [],
+    wallets: [],
+    creditTransactions: [],
+  }
+}
+
 /**
  * Loads the tables the screens read into a ConstructionDataState. Collections
  * the schema does not store yet come back empty (see the task-12 report).
@@ -88,38 +126,18 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
   const toDomain: ToDomainId = (uuid) => domainByUuid.get(uuid) ?? uuid
 
   return {
+    ...emptyConstructionState(),
     organizations: organizations.map((r) => organizationFromRow(r)),
     people: people.map((r) => personFromRow(r)),
     projects: projects.map((r) => projectFromRow(r, toDomain)),
     projectUnits: units.map((r) => projectUnitFromRow(r, toDomain)),
     stages: stages.map((r) => stageFromRow(r)),
     trades: trades.map((r) => tradeFromRow(r)),
-    workTypes: [],
-    taskTemplates: [],
-    workPlanItems: [],
     memberships: memberships.filter((r) => r.project_id).map((r) => membershipFromRow(r, toDomain)),
     workers: workers.map((r) => workerFromRow(r, toDomain)),
     workerProjectAssignments: assignments.map((r) => workerProjectAssignmentFromRow(r, toDomain)),
     workerOnboardings: onboardings.map((r) => workerOnboardingFromRow(r, toDomain)),
     workerAttendance: attendance.map((r) => workerAttendanceFromRow(r, toDomain)),
-    tasks: [],
-    assignments: [],
-    dailyProgress: [],
-    evidence: [],
-    documents: [],
-    estimates: [],
-    issues: [],
-    threads: [],
-    messages: [],
-    threadReads: [],
-    callLogs: [],
-    requirements: [],
-    unlocks: [],
-    proposals: [],
-    plans: [],
-    subscriptions: [],
-    wallets: [],
-    creditTransactions: [],
   }
 }
 

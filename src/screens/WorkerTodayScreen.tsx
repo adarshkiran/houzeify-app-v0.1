@@ -27,7 +27,7 @@ import {
   getProjectUnits,
   getWorkTypeName,
 } from "../mock/selectors"
-import { useSession } from "../session/SessionProvider"
+import { SUPABASE_DATA_SOURCE, useSession } from "../session/SessionProvider"
 import { useCommand } from "../session/useCommand"
 import { useSignedInWorker } from "../session/useWorker"
 
@@ -189,7 +189,10 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
             label: "Check in",
             onClick: () =>
               run(
-                () => checkInWorker({ projectId: project.id, phone }),
+                // Supabase: the session identifies the worker, so no phone is sent.
+                () => checkInWorker(
+                  SUPABASE_DATA_SOURCE ? { projectId: project.id } : { projectId: project.id, phone },
+                ),
                 { success: "Checked in" },
               ),
           }
@@ -209,7 +212,9 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
             label: "Check out",
             onClick: () =>
               run(
-                () => checkOutWorker({ projectId: project.id, phone }),
+                () => checkOutWorker(
+                  SUPABASE_DATA_SOURCE ? { projectId: project.id } : { projectId: project.id, phone },
+                ),
                 { success: "Checked out" },
               ),
           }
