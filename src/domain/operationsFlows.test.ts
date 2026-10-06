@@ -67,7 +67,7 @@ describe("Task Detail assignee dropdown", () => {
 describe("Workforce: add and assign", () => {
   const target = state.projects.find((p) => p.id === "project-krishna")!
 
-  it("adds a worker to a project, and that worker then appears in the dropdown", () => {
+  it("adds a worker as invited; they are not offered for assignment until accepted", () => {
     const { state: after, result } = commands.addWorker({
       organizationId: target.organizationId,
       name: "  New Worker  ",
@@ -75,8 +75,9 @@ describe("Workforce: add and assign", () => {
       projectId: target.id,
     })(state, ctx())
     expect(result.worker.name).toBe("New Worker")
+    expect(result.worker.status).toBe("invited")
     expect(result.assignment?.projectId).toBe(target.id)
-    expect(getWorkersForProject(after, target.id).map((w) => w.id)).toContain(result.worker.id)
+    expect(getWorkersForProject(after, target.id).map((w) => w.id)).not.toContain(result.worker.id)
   })
 
   it("assigns an existing worker to a project; assigning again does not duplicate", () => {

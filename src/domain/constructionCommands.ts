@@ -46,6 +46,7 @@ import type {
   WorkType,
   Worker,
   WorkerProjectAssignment,
+  WorkerOnboarding,
   AssignmentEndReason,
 } from "./models"
 import {
@@ -931,8 +932,16 @@ export const addWorker =
       phone: input.phone?.trim() || undefined,
       tradeIds: input.tradeIds,
       languages: input.languages?.length ? input.languages : ["en"],
-      onboardingMethod: input.onboardingMethod ?? "manual",
-      status: "active",
+      onboardingMethod: "manual",
+      status: "invited",
+    }
+    const onboarding: WorkerOnboarding = {
+      id: ctx.ids.next("onboarding"),
+      workerId: worker.id,
+      organizationId: input.organizationId,
+      method: "manual",
+      status: "invited",
+      invitedAt: iso(ctx),
     }
     const assignment = input.projectId
       ? buildAssignment(
@@ -951,6 +960,7 @@ export const addWorker =
       state: {
         ...state,
         workers: [...state.workers, worker],
+        workerOnboardings: [...state.workerOnboardings, onboarding],
         workerProjectAssignments: assignment
           ? [...state.workerProjectAssignments, assignment]
           : state.workerProjectAssignments,
