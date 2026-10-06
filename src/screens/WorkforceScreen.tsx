@@ -137,6 +137,17 @@ function instantOn(date: ISODate, time?: string): string | undefined {
   return time ? `${date}T${time}:00${KOLKATA_OFFSET}` : undefined
 }
 
+/** HH:mm in Asia/Kolkata for a saved instant, the inverse of instantOn. */
+function kolkataTime(instant?: string): string | undefined {
+  if (!instant) return undefined
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(instant))
+}
+
 function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const {
     state,
@@ -348,13 +359,16 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
 
   const openAttendance = (worker: Worker) => {
     const projects = attendanceProjectsFor(worker)
+    const projectId = projects.length === 1 ? projects[0].id : undefined
+    const saved =
+      projectId && worker.phone ? getOwnAttendance(projectId, worker.phone, today) : undefined
     setAttendanceError(null)
     attendanceForm.setFieldsValue({
-      projectId: projects.length === 1 ? projects[0].id : undefined,
+      projectId,
       date: today,
-      status: "present",
-      checkInTime: undefined,
-      checkOutTime: undefined,
+      status: saved?.status ?? "present",
+      checkInTime: kolkataTime(saved?.checkInAt),
+      checkOutTime: kolkataTime(saved?.checkOutAt),
     })
     setAttendanceWorker(worker)
   }
@@ -396,14 +410,17 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   /** Today's day state for each of the worker's active project assignments. */
   const todayStates = (worker: Worker) => {
     if (!worker.phone) return []
-    return getActiveAssignmentsForWorker(state, worker.id).map((assignment) => {
+    return getActiveAssignmentsForWorker(state, worker.id).flatMap((assignment) => {
       const project = state.projects.find((item) => item.id === assignment.projectId)
-      const record = getOwnAttendance(assignment.projectId, worker.phone!, today)
-      return {
-        id: assignment.id,
-        projectName: project?.name ?? "Project",
-        state: dayState(record, project?.requireCheckout ?? false),
-      }
+      if (!project) return []
+      const record = getOwnAttendance(project.id, worker.phone!, today)
+      return [
+        {
+          id: assignment.id,
+          projectName: project.name,
+          state: dayState(record, project.requireCheckout),
+        },
+      ]
     })
   }
 
@@ -949,10 +966,14 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
               showSearch
               optionFilterProp="label"
               placeholder="Select project"
-              options={attendanceWorker ? attendanceProjectsFor(attendanceWorker).map((project) => ({
-                value: project.id,
-                label: project.name,
-              })) : []}
+              options={
+                attendanceWorker
+                  ? attendanceProjectsFor(attendanceWorker).map((project) => ({
+                      value: project.id,
+                      label: project.name,
+                    }))
+                  : []
+              }
             />
           </Form.Item>
           <Form.Item
