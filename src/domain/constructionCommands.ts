@@ -46,6 +46,7 @@ import type {
   WorkType,
   Worker,
   WorkerProjectAssignment,
+  AssignmentEndReason,
 } from "./models"
 import {
   ISSUE_REPORT_PERMISSIONS,
@@ -773,6 +774,7 @@ function buildAssignment(
     tradeIds: input.tradeIds ?? [],
     role: input.role ?? "worker",
     status: "active",
+    startedAt: iso(ctx),
     assignedAt: iso(ctx),
     assignedByMembershipId,
   }
@@ -856,6 +858,29 @@ export const assignWorkerToProject =
           : state.memberships,
       },
       result: assignment,
+    }
+  }
+
+/**
+ * Closes an assignment's history: records when and why it ended. The record is
+ * kept, and the worker's own status is left alone.
+ */
+export const endWorkerProjectAssignment =
+  (assignmentId: EntityId, reason: AssignmentEndReason): Command<WorkerProjectAssignment> =>
+  (state, ctx) => {
+    const assignment = state.workerProjectAssignments.find((item) => item.id === assignmentId)
+    if (!assignment) throw new ConflictError("That assignment no longer exists.")
+    authorizeProject(state, ctx, assignment.projectId, [Permissions.WORKFORCE_MANAGE])
+    if (assignment.endedAt) throw new ConflictError("This assignment has already ended.")
+    const ended: WorkerProjectAssignment = { ...assignment, endedAt: iso(ctx), endReason: reason }
+    return {
+      state: {
+        ...state,
+        workerProjectAssignments: state.workerProjectAssignments.map((item) =>
+          item.id === assignmentId ? ended : item,
+        ),
+      },
+      result: ended,
     }
   }
 

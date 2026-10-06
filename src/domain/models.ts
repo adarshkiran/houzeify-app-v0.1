@@ -172,6 +172,8 @@ export interface WorkerOnboarding {
 }
 
 /** Project-scoped assignment for a worker (workforce foundation). */
+export type AssignmentEndReason = "reassigned" | "left-project" | "removed"
+
 export interface WorkerProjectAssignment {
   id: EntityId
   workerId: EntityId
@@ -180,6 +182,9 @@ export interface WorkerProjectAssignment {
   tradeIds: EntityId[]
   role: "worker" | "lead" | "supervisor-assist"
   status: "invited" | "active" | "inactive"
+  startedAt: ISODateTime
+  endedAt?: ISODateTime
+  endReason?: AssignmentEndReason
   assignedAt: ISODateTime
   assignedByMembershipId?: EntityId
 }
