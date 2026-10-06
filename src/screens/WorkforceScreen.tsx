@@ -362,8 +362,15 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   const openAttendance = (worker: Worker) => {
     const projects = attendanceProjectsFor(worker)
     const projectId = projects.length === 1 ? projects[0].id : undefined
-    const saved =
-      projectId && worker.phone ? getOwnAttendance(projectId, worker.phone, today) : undefined
+    let saved: WorkerAttendance | undefined
+    if (projectId && worker.phone) {
+      // A business user without PROJECT_READ on this project is refused; open the form with no saved times.
+      try {
+        saved = getOwnAttendance(projectId, worker.phone, today)
+      } catch (error) {
+        if (!(error instanceof ConflictError)) throw error
+      }
+    }
     setAttendanceError(null)
     attendanceForm.setFieldsValue({
       projectId,
