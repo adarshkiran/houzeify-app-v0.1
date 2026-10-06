@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest"
 import { seedConstructionData as seed } from "../mock/seed"
 import { ConflictError } from "./errors"
 import {
+  acceptWorkerOnboarding,
   assignWorkerToProject,
   cancelWorkerOnboarding,
   createWorkerOnboarding,
   endWorkerProjectAssignment,
   expireWorkerOnboarding,
+  inviteProjectMember,
 } from "./constructionCommands"
 import { openOnboardingFor } from "./workforceOnboarding"
 import type { ConstructionDataState } from "./models"
@@ -181,5 +183,109 @@ describe("cancelWorkerOnboarding and expireWorkerOnboarding", () => {
     const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
     const cancelled = cancelWorkerOnboarding(created.result.id)(created.state, as(manager)).state
     expect(() => cancelWorkerOnboarding(created.result.id)(cancelled, as(manager))).toThrow(ConflictError)
+  })
+})
+
+describe("acceptWorkerOnboarding", () => {
+  it("activates the worker and marks the onboarding accepted", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    const { state: next, result } = acceptWorkerOnboarding(created.result.id)(created.state, as(manager))
+    expect(result.status).toBe("active")
+    expect(next.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("accepted")
+    expect(next.workerOnboardings.find((o) => o.id === created.result.id)!.acceptedAt).toBeDefined()
+  })
+
+  it("requires the matching join code for a qr onboarding", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    expect(() => acceptWorkerOnboarding(created.result.id, "WRONG1")(created.state, as(manager))).toThrow(ConflictError)
+    expect(() => acceptWorkerOnboarding(created.result.id)(created.state, as(manager))).toThrow(ConflictError)
+  })
+
+  it("a wrong join code changes nothing", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    try {
+      acceptWorkerOnboarding(created.result.id, "WRONG1")(created.state, as(manager))
+    } catch {
+      /* expected */
+    }
+    expect(created.state.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("invited")
+  })
+
+  it("accepts with the correct join code", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "qr" })(state, as(manager))
+    const code = created.result.joinCode!
+    const { result } = acceptWorkerOnboarding(created.result.id, code)(created.state, as(manager))
+    expect(result.status).toBe("active")
+  })
+
+  it("refuses an onboarding that is not invited", () => {
+    const { state, workerId } = withWorker()
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
+    const accepted = acceptWorkerOnboarding(created.result.id)(created.state, as(manager)).state
+    expect(() => acceptWorkerOnboarding(created.result.id)(accepted, as(manager))).toThrow(ConflictError)
+  })
+
+  it("starts the worker's invited assignments and leaves ended ones alone", () => {
+    const { state, workerId } = withWorker()
+    const invitedAssignment = {
+      id: "assignment-invited",
+      workerId,
+      projectId: seed.projects[0].id,
+      projectUnitIds: [],
+      tradeIds: [],
+      role: "worker" as const,
+      status: "invited" as const,
+      startedAt: "2026-09-01T09:00:00.000Z",
+      assignedAt: "2026-09-01T09:00:00.000Z",
+    }
+    const endedAssignment = {
+      ...invitedAssignment,
+      id: "assignment-ended",
+      status: "inactive" as const,
+      endedAt: "2026-09-02T09:00:00.000Z",
+      endReason: "removed" as const,
+    }
+    const withAssignments = {
+      ...state,
+      workerProjectAssignments: [...state.workerProjectAssignments, invitedAssignment, endedAssignment],
+    }
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(withAssignments, as(manager))
+    const { state: next } = acceptWorkerOnboarding(created.result.id)(created.state, as(manager))
+    const started = next.workerProjectAssignments.find((a) => a.id === "assignment-invited")!
+    expect(started.status).toBe("active")
+    expect(started.startedAt).toBe("2026-10-06T10:00:00.000Z")
+    expect(next.workerProjectAssignments.find((a) => a.id === "assignment-ended")!.status).toBe("inactive")
+  })
+})
+
+describe("inviteProjectMember for the worker role", () => {
+  it("creates a worker in invited status and links the person to it", () => {
+    const { state, result } = inviteProjectMember({
+      projectId: seed.projects[0].id,
+      name: "New Worker",
+      phone: "+91 90000 00099",
+      role: "worker",
+      projectUnitIds: [],
+    } as never)(seed, as(manager))
+    const worker = state.workers.find((w) => w.userId === result.principalId)
+    expect(worker).toBeDefined()
+    expect(worker!.status).toBe("invited")
+    expect(state.workerOnboardings.some((o) => o.workerId === worker!.id && o.method === "manual")).toBe(true)
+  })
+
+  it("does not create a worker for a non-worker role", () => {
+    const before = seed.workers.length
+    const { state } = inviteProjectMember({
+      projectId: seed.projects[0].id,
+      name: "Site Engineer",
+      phone: "+91 90000 00098",
+      role: "project-manager",
+      projectUnitIds: [],
+    } as never)(seed, as(manager))
+    expect(state.workers.length).toBe(before)
   })
 })

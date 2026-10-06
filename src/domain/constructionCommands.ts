@@ -458,11 +458,40 @@ export const inviteProjectMember =
       permissions: permissionsForRole(input.role),
       status: "invited",
     }
+    // A worker on the project team is also a worker record, invited manually.
+    const workerRecord: Worker | undefined =
+      input.role === "worker"
+        ? {
+            id: `worker-${ctx.ids.short()}`,
+            organizationId: projectOrThrow(state, input.projectId).organizationId,
+            userId: person.id,
+            name: input.name.trim(),
+            phone: input.phone?.trim() || undefined,
+            tradeIds: [],
+            languages: ["en"],
+            onboardingMethod: "manual",
+            status: "invited",
+          }
+        : undefined
+    const workerOnboarding: WorkerOnboarding | undefined = workerRecord
+      ? {
+          id: ctx.ids.next("onboarding"),
+          workerId: workerRecord.id,
+          organizationId: workerRecord.organizationId,
+          method: "manual",
+          status: "invited",
+          invitedAt: iso(ctx),
+        }
+      : undefined
     return {
       state: {
         ...state,
         people: [...state.people, person],
         memberships: [...state.memberships, membership],
+        workers: workerRecord ? [...state.workers, workerRecord] : state.workers,
+        workerOnboardings: workerOnboarding
+          ? [...state.workerOnboardings, workerOnboarding]
+          : state.workerOnboardings,
       },
       result: membership,
     }
@@ -1034,6 +1063,47 @@ export const cancelWorkerOnboarding =
         ),
       },
       result: cancelled,
+    }
+  }
+
+/**
+ * Accepts an invited onboarding. A QR onboarding is accepted by the worker with
+ * the join code shown to them; any other method is accepted by a supervisor who
+ * can manage the workforce. The worker becomes active and their invited
+ * assignments start now.
+ */
+export const acceptWorkerOnboarding =
+  (onboardingId: EntityId, joinCode?: string): Command<Worker> =>
+  (state, ctx) => {
+    const onboarding = onboardingOrThrow(state, onboardingId)
+    if (onboarding.status !== "invited") {
+      throw new ConflictError("Only an invitation that hasn't been accepted can be accepted.")
+    }
+    if (onboarding.method === "qr") {
+      if (joinCode !== onboarding.joinCode) {
+        throw new ConflictError("That join code doesn't match this invitation.")
+      }
+    } else {
+      authorizeOrganization(ctx, onboarding.organizationId, Permissions.WORKFORCE_MANAGE)
+    }
+    const worker = state.workers.find((item) => item.id === onboarding.workerId)
+    if (!worker) throw new ConflictError("That worker no longer exists.")
+    const at = iso(ctx)
+    const activeWorker: Worker = { ...worker, status: "active" }
+    return {
+      state: {
+        ...state,
+        workers: state.workers.map((item) => (item.id === worker.id ? activeWorker : item)),
+        workerOnboardings: state.workerOnboardings.map((item) =>
+          item.id === onboardingId ? { ...item, status: "accepted", acceptedAt: at } : item,
+        ),
+        workerProjectAssignments: state.workerProjectAssignments.map((item) =>
+          item.workerId === worker.id && !item.endedAt && item.status === "invited"
+            ? { ...item, status: "active", startedAt: at }
+            : item,
+        ),
+      },
+      result: activeWorker,
     }
   }
 
