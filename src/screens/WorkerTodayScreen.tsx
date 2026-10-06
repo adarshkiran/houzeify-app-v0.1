@@ -132,31 +132,58 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
   const run = useCommand()
   const today = attendanceDate(new Date())
 
-  const rows = getActiveAssignmentsForWorker(state, worker.id).flatMap((assignment) => {
-    const project = state.projects.find((item) => item.id === assignment.projectId)
-    if (!project) return []
-    // A worker without a readable record for the day is treated as not checked in.
-    let record: WorkerAttendance | undefined
+  // A worker without a readable record for the day is treated as having no record.
+  const readRecord = (projectId: string): WorkerAttendance | undefined => {
     try {
-      record = getOwnAttendance(project.id, phone, today)
+      return getOwnAttendance(projectId, phone, today)
     } catch (error) {
       if (!(error instanceof ConflictError)) throw error
+      return undefined
     }
-    return [{ project, record }]
+  }
+
+  const activeIds = new Set(
+    getActiveAssignmentsForWorker(state, worker.id).map((assignment) => assignment.projectId),
+  )
+  const activeRows = getActiveAssignmentsForWorker(state, worker.id).flatMap((assignment) => {
+    const project = state.projects.find((item) => item.id === assignment.projectId)
+    if (!project) return []
+    return [{ project, record: readRecord(project.id), ended: false }]
   })
+  // An ended assignment stays visible while the worker is checked in today with no check-out yet (spec A8).
+  const endedIds = new Set<string>()
+  const endedRows = state.workerProjectAssignments
+    .filter(
+      (assignment) =>
+        assignment.workerId === worker.id &&
+        assignment.status !== "active" &&
+        !activeIds.has(assignment.projectId),
+    )
+    .flatMap((assignment) => {
+      if (endedIds.has(assignment.projectId)) return []
+      const project = state.projects.find((item) => item.id === assignment.projectId)
+      if (!project) return []
+      const record = readRecord(project.id)
+      if (!record?.checkInAt || record.checkOutAt) return []
+      endedIds.add(project.id)
+      return [{ project, record, ended: true }]
+    })
+  const rows = [...activeRows, ...endedRows]
 
   if (rows.length === 0) return null
 
   return (
     <Section title="Attendance today" count={rows.length}>
-      {rows.map(({ project, record }) => {
+      {rows.map(({ project, record, ended }) => {
         const checkedIn = Boolean(record?.checkInAt)
         const checkedOut = Boolean(record?.checkOutAt)
         const incomplete = dayState(record, project.requireCheckout) === "incomplete"
+        const endedTag = ended ? <Tag color="default" className="m-0!">Ended</Tag> : null
 
         let tag: ReactNode
+        let note: ReactNode = null
         let action: { label: string; onClick: () => void } | undefined
-        if (!checkedIn) {
+        if (!record) {
           tag = <Tag className="m-0!">Not checked in</Tag>
           action = {
             label: "Check in",
@@ -166,6 +193,12 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
                 { success: "Checked in" },
               ),
           }
+        } else if (!checkedIn) {
+          // The supervisor recorded the day without a check-in: read-only.
+          tag = record.status === "absent"
+            ? <Tag color="default" className="m-0!">Absent</Tag>
+            : <Tag className="m-0!">{record.status === "half-day" ? "Half day" : "Present"}</Tag>
+          note = <Text type="secondary" className="text-[13px]!">Recorded by your supervisor</Text>
         } else if (!checkedOut) {
           tag = incomplete ? (
             <Tag color="warning" className="m-0!">Check-out needed</Tag>
@@ -189,7 +222,11 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
             <Flex align="center" justify="space-between" gap="small" wrap>
               <Flex vertical gap={6}>
                 <Text strong>{project.name}</Text>
-                {tag}
+                <Flex gap={6} wrap>
+                  {tag}
+                  {endedTag}
+                </Flex>
+                {note}
               </Flex>
               {action && (
                 <Button type="primary" size="small" onClick={action.onClick}>
