@@ -9,11 +9,15 @@
     "preview": "vite preview",
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",
+    "db:start": "npx supabase start",
+    "db:reset": "npx supabase db reset",
+    "db:test": "npx supabase test db",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
+    "@supabase/supabase-js": "^2.117.2",
     "antd": "^6.6.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
