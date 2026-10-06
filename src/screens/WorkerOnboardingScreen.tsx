@@ -49,7 +49,10 @@ function JoinSite({ onNavigate }: { onNavigate: Navigate }) {
     const onboarding = state.organizations
       .map((org) => findOpenOnboardingByPhone(state, org.id, phone))
       .find(Boolean)
-    if (!onboarding) {
+    const onboardingWorker = onboarding?.workerId
+      ? state.workers.find((item) => item.id === onboarding.workerId)
+      : undefined
+    if (!onboarding || !onboardingWorker?.userId) {
       setNotFound(true)
       return
     }

@@ -1105,6 +1105,7 @@ export const acceptOwnWorkerOnboarding =
     if (onboarding.method === "qr" || !worker || !samePhone(worker.phone, phone)) {
       throw new ConflictError("That phone number doesn't match this invitation.")
     }
+    if (!worker.userId) throw new ConflictError("This worker isn't linked to a sign-in yet.")
     return activateWorkerOnboarding(state, ctx, onboarding)
   }
 

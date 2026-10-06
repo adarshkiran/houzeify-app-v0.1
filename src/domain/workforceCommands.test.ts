@@ -301,7 +301,7 @@ describe("inviteProjectMember for the worker role", () => {
 
 /** The seeded worker with a known phone, so phone matching is deterministic. */
 function withPhonedWorker(phone = "+91 98765 43210"): { state: ConstructionDataState; workerId: string } {
-  const worker = { ...seed.workers[0], phone }
+  const worker = { ...seed.workers[0], phone, userId: "person-test-worker" }
   return {
     state: { ...seed, workers: seed.workers.map((w) => (w.id === worker.id ? worker : w)) },
     workerId: worker.id,
@@ -372,5 +372,21 @@ describe("acceptOwnWorkerOnboarding", () => {
     const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(state, as(manager))
     const accepted = acceptWorkerOnboarding(created.result.id)(created.state, as(manager)).state
     expect(() => acceptOwnWorkerOnboarding(created.result.id, "9876543210")(accepted, as(null))).toThrow(ConflictError)
+  })
+
+  it("refuses a worker with no sign-in link, before any state change", () => {
+    const { state, workerId } = withPhonedWorker("+91 98765 43210")
+    const unlinked = {
+      ...state,
+      workers: state.workers.map((w) =>
+        w.id === workerId ? { ...w, userId: undefined, status: "invited" as const } : w,
+      ),
+    }
+    const created = createWorkerOnboarding({ workerId, method: "supervisor-assisted" })(unlinked, as(manager))
+    expect(() => acceptOwnWorkerOnboarding(created.result.id, "+91 98765 43210")(created.state, as(null))).toThrow(
+      new ConflictError("This worker isn't linked to a sign-in yet."),
+    )
+    expect(created.state.workerOnboardings.find((o) => o.id === created.result.id)!.status).toBe("invited")
+    expect(created.state.workers.find((w) => w.id === workerId)!.status).toBe("invited")
   })
 })
