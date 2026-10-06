@@ -161,6 +161,7 @@ export const selectProposal =
       location: requirement.location,
       progress: 0,
       trackingStartedMidProject: false,
+      requireCheckout: false,
       stageBaselines: {},
       createdAt: timestamp,
       updatedAt: timestamp,

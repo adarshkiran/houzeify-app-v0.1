@@ -24,6 +24,7 @@ const project = (stageBaselines: Record<string, number> = {}): Project => ({
   location: "Hyderabad",
   progress: 0,
   trackingStartedMidProject: false,
+  requireCheckout: false,
   stageBaselines,
   createdAt: "2026-09-01T00:00:00+05:30",
   updatedAt: "2026-09-01T00:00:00+05:30",

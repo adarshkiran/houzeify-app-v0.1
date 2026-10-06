@@ -251,6 +251,7 @@ const projects: Project[] = [
     currentStageId: "stage-foundation",
     progress: 34,
     trackingStartedMidProject: false,
+    requireCheckout: false,
     stageBaselines: { "stage-site-prep": 100, "stage-foundation": 90, "stage-rcc": 73 },
     createdAt: "2026-05-22T09:00:00+05:30",
     updatedAt: "2026-09-20T08:15:00+05:30",
@@ -268,6 +269,7 @@ const projects: Project[] = [
     currentStageId: "stage-foundation",
     progress: 67,
     trackingStartedMidProject: true,
+    requireCheckout: false,
     stageBaselines: {
       "stage-site-prep": 100, "stage-foundation": 100, "stage-rcc": 100,
       "stage-masonry": 100, "stage-plaster": 80, "stage-waterproofing": 100,
@@ -288,6 +290,7 @@ const projects: Project[] = [
     currentStageId: "stage-rcc",
     progress: 81,
     trackingStartedMidProject: true,
+    requireCheckout: false,
     stageBaselines: {
       "stage-site-prep": 100, "stage-foundation": 100, "stage-rcc": 96,
       "stage-masonry": 100, "stage-plaster": 100, "stage-waterproofing": 100,
@@ -309,6 +312,7 @@ const projects: Project[] = [
     currentStageId: "stage-site-prep",
     progress: 8,
     trackingStartedMidProject: false,
+    requireCheckout: false,
     stageBaselines: { "stage-site-prep": 100, "stage-foundation": 25 },
     createdAt: "2026-08-28T09:30:00+05:30",
     updatedAt: "2026-09-18T12:00:00+05:30",
@@ -326,6 +330,7 @@ const projects: Project[] = [
     currentStageId: "stage-site-prep",
     progress: 4,
     trackingStartedMidProject: false,
+    requireCheckout: false,
     stageBaselines: { "stage-site-prep": 80 },
     createdAt: "2026-09-01T10:00:00+05:30",
     updatedAt: "2026-09-20T09:00:00+05:30",
@@ -1286,6 +1291,7 @@ export const seedConstructionData: ConstructionDataState = {
   workers,
   workerProjectAssignments,
   workerOnboardings: [],
+  workerAttendance: [],
   tasks,
   assignments: [
     {

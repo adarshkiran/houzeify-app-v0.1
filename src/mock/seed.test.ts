@@ -39,3 +39,10 @@ describe("worker onboarding state", () => {
     expect(seedConstructionData.workerOnboardings).toEqual([])
   })
 })
+
+describe("attendance seed", () => {
+  it("seeds an empty attendance list and no project requires checkout", () => {
+    expect(seed.workerAttendance).toEqual([])
+    expect(seed.projects.every((p) => p.requireCheckout === false)).toBe(true)
+  })
+})

@@ -296,6 +296,7 @@ export const createProject =
       targetDate: input.targetDate,
       progress: 0,
       trackingStartedMidProject: input.trackingStartedMidProject,
+      requireCheckout: false,
       stageBaselines: {},
       createdAt: timestamp,
       updatedAt: timestamp,

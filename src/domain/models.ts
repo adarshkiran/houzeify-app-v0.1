@@ -48,6 +48,8 @@ export interface Project {
   currentStageId?: EntityId
   progress: number
   trackingStartedMidProject: boolean
+  /** When true, a worker day is incomplete until checked out. */
+  requireCheckout: boolean
   /** stageId → % of that stage already complete when tracking started (0–100). */
   stageBaselines: Record<EntityId, number>
   createdAt: ISODateTime
@@ -156,6 +158,25 @@ export interface Worker {
 
 export type OnboardingMethod = "manual" | "otp" | "qr" | "supervisor-assisted"
 export type OnboardingStatus = "invited" | "accepted" | "expired" | "cancelled"
+
+export type AttendanceStatus = "present" | "absent" | "half-day"
+
+export interface WorkerAttendance {
+  id: EntityId
+  workerId: EntityId
+  projectId: EntityId
+  /** The assignment active on this date (spec A9). Kept after the assignment ends. */
+  assignmentId: EntityId
+  /** Calendar day in Asia/Kolkata, YYYY-MM-DD. */
+  date: ISODate
+  status?: AttendanceStatus
+  checkInAt?: ISODateTime
+  checkOutAt?: ISODateTime
+  recordedBy: "supervisor" | "worker"
+  recordedByMembershipId?: EntityId
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+}
 
 export interface WorkerOnboarding {
   id: EntityId
@@ -550,6 +571,7 @@ export interface ConstructionDataState {
   workers: Worker[]
   workerProjectAssignments: WorkerProjectAssignment[]
   workerOnboardings: WorkerOnboarding[]
+  workerAttendance: WorkerAttendance[]
   tasks: Task[]
   assignments: TaskAssignment[]
   dailyProgress: DailyProgress[]
