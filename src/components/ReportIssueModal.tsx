@@ -88,8 +88,8 @@ export default function ReportIssueModal({
     (item) => item.projectId === projectId && can(ISSUE_REPORT_PERMISSIONS, projectId, item),
   )
 
-  const handleFinish = (values: IssueFormValues) => {
-    const outcome = run(
+  const handleFinish = async (values: IssueFormValues) => {
+    const outcome = await run(
       () =>
         reportIssue({
           projectId,

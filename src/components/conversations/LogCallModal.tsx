@@ -61,10 +61,10 @@ export default function LogCallModal({
     })
   }, [open, initialType, form])
 
-  const handleFinish = (values: CallFormValues) => {
+  const handleFinish = async (values: CallFormValues) => {
     // Build the ISO timestamp from the two plain inputs (local time).
     const startedAt = new Date(`${values.callDate}T${values.callTime}:00`).toISOString()
-    const outcome = run(
+    const outcome = await run(
       () =>
         logCall({
           threadId,

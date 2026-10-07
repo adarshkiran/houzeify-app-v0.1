@@ -90,9 +90,9 @@ export default function CreateProjectScreen({
     Number.isInteger(floors) &&
     (floors ?? 0) > 0
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!canContinue) return
-    const outcome = run(() =>
+    const outcome = await run(() =>
       generateEstimate({
         projectName: projectName.trim(),
         propertyType,

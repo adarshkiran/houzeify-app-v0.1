@@ -187,8 +187,8 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
           tag = <Tag className="m-0!">Not checked in</Tag>
           action = {
             label: "Check in",
-            onClick: () =>
-              run(
+            onClick: async () =>
+              await run(
                 // Supabase: the session identifies the worker, so no phone is sent.
                 () => checkInWorker(
                   SUPABASE_DATA_SOURCE ? { projectId: project.id } : { projectId: project.id, phone },
@@ -210,8 +210,8 @@ function AttendanceToday({ worker, phone }: { worker: Worker; phone: string }) {
           )
           action = {
             label: "Check out",
-            onClick: () =>
-              run(
+            onClick: async () =>
+              await run(
                 () => checkOutWorker(
                   SUPABASE_DATA_SOURCE ? { projectId: project.id } : { projectId: project.id, phone },
                 ),
@@ -277,8 +277,8 @@ function Today({ onNavigate }: { onNavigate: Navigate }) {
         return {
           label: "Accept",
           primary: true,
-          onClick: () =>
-            run(() => acceptTaskAssignment(task.id), {
+          onClick: async () =>
+            await run(() => acceptTaskAssignment(task.id), {
               success: "Task accepted",
             }),
         }
@@ -286,8 +286,8 @@ function Today({ onNavigate }: { onNavigate: Navigate }) {
         return {
           label: task.status === "blocked" ? "Resume" : "Start",
           primary: true,
-          onClick: () => {
-            const outcome = run(() => startTask(task.id), {
+          onClick: async () => {
+            const outcome = await run(() => startTask(task.id), {
               success: "Work started",
             })
             if (outcome.ok) open(task)

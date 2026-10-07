@@ -116,14 +116,14 @@ function ProjectStructure({
       ),
   )
   // Unsaved "work already done" edits are saved on the way out, not lost.
-  const continueToTeam = () => {
-    if (showBaselines && baselinesEdited && !saveBaselines().ok) return
+  const continueToTeam = async () => {
+    if (showBaselines && baselinesEdited && !(await saveBaselines()).ok) return
     onNavigate("project-team", { project_id: projectId, setup: "1" })
   }
 
-  const handleAddUnit = (values: UnitFormValues) => {
+  const handleAddUnit = async (values: UnitFormValues) => {
     const count = values.count && values.count > 1 ? Math.floor(values.count) : 1
-    const outcome = run(
+    const outcome = await run(
       () => {
         if (count > 1) {
           const labels = buildBatchUnitLabels({

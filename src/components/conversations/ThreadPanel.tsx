@@ -143,12 +143,12 @@ export default function ThreadPanel(props: PanelProps) {
 
   if (!probe || !me) return <Text type="secondary">You can't see this conversation.</Text>
 
-  const send = () => {
+  const send = async () => {
     if (!body.trim()) return
     const target: PanelTarget = thread
       ? { threadId: thread.id }
       : { projectId: probe.projectId, subject: probe.subject as Exclude<ThreadSubject, "direct">, targetId: probe.targetId }
-    const outcome = run(() => postMessage({ ...target, body }))
+    const outcome = await run(() => postMessage({ ...target, body }))
     if (outcome.ok) {
       setBody("")
       dictation.clearStatus()
@@ -211,8 +211,8 @@ export default function ThreadPanel(props: PanelProps) {
       ? [{ key: "open", icon: <ExportOutlined />, label: probe.subject === "task" ? "Open task" : "Open issue" }]
       : []),
   ]
-  const onMenu: MenuProps["onClick"] = ({ key }) => {
-    if (key === "unread" && thread) run(() => markThreadUnread(thread.id), { success: "Marked as unread" })
+  const onMenu: MenuProps["onClick"] = async ({ key }) => {
+    if (key === "unread" && thread) await run(() => markThreadUnread(thread.id), { success: "Marked as unread" })
     if (key === "open") props.onOpenTarget?.()
   }
 

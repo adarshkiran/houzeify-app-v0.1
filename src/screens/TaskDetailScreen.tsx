@@ -133,9 +133,9 @@ function TaskDetail({
     (progress) => progress.taskId === task.id,
   )
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!assigneeId) return
-    const outcome = run(() => assignTask(task.id, "worker", assigneeId), {
+    const outcome = await run(() => assignTask(task.id, "worker", assigneeId), {
       success: "Worker assigned",
     })
     if (outcome.ok) setAssigneeId(undefined)
@@ -206,7 +206,7 @@ function TaskDetail({
                 <Button
                   type={nextStatus === "in-progress" || nextStatus === "completed" ? "primary" : "default"}
                   danger={nextStatus === "cancelled"}
-                  onClick={() => run(() => transitionTask(task.id, nextStatus))}
+                  onClick={async () => await run(() => transitionTask(task.id, nextStatus))}
                 >
                   Move to {nextStatus}
                 </Button>

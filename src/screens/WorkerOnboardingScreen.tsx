@@ -41,7 +41,7 @@ function JoinSite({ onNavigate }: { onNavigate: Navigate }) {
     onNavigate("worker-today")
   }
 
-  const handleFinish = ({ phone }: { phone: string }) => {
+  const handleFinish = async ({ phone }: { phone: string }) => {
     const worker = findWorkerByPhone(state, phone)
     if (worker?.userId) {
       enterSite(worker, phone)
@@ -61,13 +61,13 @@ function JoinSite({ onNavigate }: { onNavigate: Navigate }) {
       setPending({ onboardingId: onboarding.id, phone: phone.trim() })
       return
     }
-    const outcome = runCommand(() => acceptOwnWorkerOnboarding(onboarding.id, phone))
+    const outcome = await runCommand(() => acceptOwnWorkerOnboarding(onboarding.id, phone))
     if (outcome.ok) enterSite(outcome.value, phone)
   }
 
-  const handleJoin = ({ joinCode }: { joinCode: string }) => {
+  const handleJoin = async ({ joinCode }: { joinCode: string }) => {
     if (!pending) return
-    const outcome = runCommand(() =>
+    const outcome = await runCommand(() =>
       acceptWorkerOnboarding(pending.onboardingId, joinCode.trim().toUpperCase()),
     )
     if (outcome.ok) enterSite(outcome.value, pending.phone)

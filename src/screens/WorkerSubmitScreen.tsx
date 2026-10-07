@@ -165,7 +165,7 @@ function SubmitWork({
     setEvidenceError(undefined)
   }
 
-  const handleSubmit = (values: WorkerProgressValues) => {
+  const handleSubmit = async (values: WorkerProgressValues) => {
     const keptDrafts = sentBackEvidence
       .filter((item) => kept.includes(item.id))
       .map(({ type, url, caption }) => ({ type, url, caption: caption ?? "" }))
@@ -189,7 +189,7 @@ function SubmitWork({
         caption,
       })),
     }
-    const outcome = run(
+    const outcome = await run(
       () =>
         sentBack
           ? resubmitDailyProgress(sentBack.id, { ...fields, keepEvidenceIds: kept })

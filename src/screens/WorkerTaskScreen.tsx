@@ -174,8 +174,8 @@ function WorkerTask({
             type="primary"
             size="large"
             block
-            onClick={() =>
-              run(() => acceptTaskAssignment(task.id), {
+            onClick={async () =>
+              await run(() => acceptTaskAssignment(task.id), {
                 success: "Task accepted",
               })
             }
@@ -189,8 +189,8 @@ function WorkerTask({
             type="primary"
             size="large"
             block
-            onClick={() =>
-              run(() => startTask(task.id), { success: "Work started" })
+            onClick={async () =>
+              await run(() => startTask(task.id), { success: "Work started" })
             }
           >
             {task.status === "blocked" ? "Resume work" : "Start work"}
@@ -244,8 +244,8 @@ function WorkerTask({
         {(action === "start" || action === "submit") &&
           canTransitionTask(task.status, "blocked") && (
             <Button
-              onClick={() =>
-                run(() => transitionTask(task.id, "blocked"), {
+              onClick={async () =>
+                await run(() => transitionTask(task.id, "blocked"), {
                   success:
                     "Marked blocked — tell your supervisor what's needed",
                 })
