@@ -14,8 +14,12 @@ insert into projects (id, legacy_id, organization_id, name, require_checkout) va
 
 insert into project_units (id, legacy_id, project_id, name) values
   ('00000000-0000-0000-0000-00000000b081', 'unit-t16b', '00000000-0000-0000-0000-00000000b0f1', 'Unit T16B');
-insert into stages (id, legacy_id, project_id, name) values
-  ('00000000-0000-0000-0000-00000000b082', 'stage-t16b', '00000000-0000-0000-0000-00000000b0f1', 'Stage T16B');
+-- code 'RCC' (weight 25) so the stage-weighted calculate_project_progress
+-- (migration 0014, routed through here since Task 28's C2 fix) gives a
+-- deterministic non-zero figure instead of the 0 an uncoded/unweighted stage
+-- would always contribute.
+insert into stages (id, legacy_id, project_id, name, code) values
+  ('00000000-0000-0000-0000-00000000b082', 'stage-t16b', '00000000-0000-0000-0000-00000000b0f1', 'Stage T16B', 'RCC');
 insert into trades (id, legacy_id, project_id, name) values
   ('00000000-0000-0000-0000-00000000b083', 'trade-t16b', '00000000-0000-0000-0000-00000000b0f1', 'Trade T16B');
 insert into work_types (id, legacy_id, project_id, name) values
@@ -64,9 +68,14 @@ select is(
 select is(
   (select completed_quantity_unit from tasks where id = '00000000-0000-0000-0000-00000000b085'),
   'sqft', 'the task keeps the reported unit');
+-- Task 28 (C2): progress is now the SAME stage-weighted figure the task
+-- engine computes (migration 0014's calculate_project_progress), not the
+-- unweighted recalculate_project_progress this function used to call (which
+-- has been deleted): 4 of 10 sqft is 40% task-complete, weighted by RCC's
+-- weight of 25 with a zero baseline: round(25 * (0 + 100*40/100) / 100) = 10.
 select is(
   (select progress from projects where id = '00000000-0000-0000-0000-00000000b0f1'),
-  40::numeric, 'the project progress is recalculated from the task percent (4 of 10 sqft)');
+  10::numeric, 'the project progress is recalculated, stage-weighted, from the task percent (4 of 10 sqft)');
 
 -- Publish: the evidence a homeowner may see must turn customer-visible, and
 -- voice notes never do.
