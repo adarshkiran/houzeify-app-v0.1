@@ -4,33 +4,81 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { ConflictError } from "../domain/errors"
-import type { ConstructionDataState, EntityId } from "../domain/models"
+import type { ConstructionDataState, EntityId, MarketplaceRequirement } from "../domain/models"
 import { PermissionError } from "../domain/session"
 import type { Permission } from "../domain/permissions"
 import {
+  callLogFromRow,
+  creditTransactionFromRow,
+  creditWalletFromRow,
+  dailyProgressFromRow,
+  documentFromRow,
+  estimateFromRow,
+  evidenceFromRow,
+  issueFromRow,
+  marketplaceRequirementFromPreviewRow,
+  marketplaceRequirementFromRow,
+  marketplaceUnlockFromRow,
   membershipFromRow,
+  messageFromRow,
   organizationFromRow,
   personFromRow,
+  planFromRow,
+  progressPublicationFromRow,
+  progressReviewFromRow,
   projectFromRow,
   projectUnitFromRow,
+  proposalFromRow,
   stageFromRow,
+  subscriptionFromRow,
+  taskAssignmentFromRow,
+  taskFromRow,
+  taskTemplateFromRow,
+  threadFromRow,
+  threadReadFromRow,
   tradeFromRow,
   workerAttendanceFromRow,
   workerFromRow,
   workerOnboardingFromRow,
   workerProjectAssignmentFromRow,
+  workPlanItemFromRow,
+  workTypeFromRow,
+  type CallLogRow,
+  type CreditTransactionRow,
+  type CreditWalletRow,
+  type DailyProgressRow,
+  type DocumentRow,
+  type EstimateRow,
+  type EvidenceRow,
+  type IssueRow,
+  type MarketplaceRequirementPreviewRow,
+  type MarketplaceRequirementRow,
+  type MarketplaceUnlockRow,
   type MembershipRow,
+  type MessageRow,
   type OrganizationRow,
   type PersonRow,
+  type PlanRow,
+  type ProgressPublicationRow,
+  type ProgressReviewRow,
   type ProjectRow,
   type ProjectUnitRow,
+  type ProposalRow,
   type StageRow,
+  type SubscriptionRow,
+  type TaskAssignmentRow,
+  type TaskRow,
+  type TaskTemplateRow,
+  type ThreadReadRow,
+  type ThreadRow,
   type TradeRow,
   type ToDomainId,
   type WorkerAttendanceRow,
   type WorkerOnboardingRow,
   type WorkerProjectAssignmentRow,
   type WorkerRow,
+  type WorkPlanItemRow,
+  type WorkTypeRow,
 } from "./rows"
 
 type Keyed = { id: string; legacy_id: string | null }
@@ -99,6 +147,30 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     onboardings,
     assignments,
     attendance,
+    workTypes,
+    taskTemplates,
+    workPlanItems,
+    tasks,
+    taskAssignments,
+    dailyProgressRows,
+    progressReviews,
+    progressPublications,
+    evidence,
+    documents,
+    issues,
+    threads,
+    messages,
+    threadReads,
+    callLogs,
+    estimates,
+    marketplaceRequirements,
+    marketplaceRequirementPreviews,
+    marketplaceUnlocks,
+    proposals,
+    plans,
+    subscriptions,
+    creditWallets,
+    creditTransactions,
   ] = await Promise.all([
     selectAll<OrganizationRow & Keyed>(client, "organizations"),
     selectAll<PersonRow & Keyed>(client, "people"),
@@ -111,11 +183,68 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     selectAll<WorkerOnboardingRow & Keyed>(client, "worker_onboardings"),
     selectAll<WorkerProjectAssignmentRow & Keyed>(client, "worker_project_assignments"),
     selectAll<WorkerAttendanceRow & Keyed>(client, "worker_attendance"),
+    selectAll<WorkTypeRow & Keyed>(client, "work_types"),
+    selectAll<TaskTemplateRow & Keyed>(client, "task_templates"),
+    selectAll<WorkPlanItemRow & Keyed>(client, "work_plan_items"),
+    selectAll<TaskRow & Keyed>(client, "tasks"),
+    selectAll<TaskAssignmentRow & Keyed>(client, "task_assignments"),
+    selectAll<DailyProgressRow & Keyed>(client, "daily_progress"),
+    selectAll<ProgressReviewRow & Keyed>(client, "progress_reviews"),
+    selectAll<ProgressPublicationRow & Keyed>(client, "progress_publications"),
+    selectAll<EvidenceRow & Keyed>(client, "evidence"),
+    selectAll<DocumentRow & Keyed>(client, "documents"),
+    selectAll<IssueRow & Keyed>(client, "issues"),
+    selectAll<ThreadRow & Keyed>(client, "threads"),
+    selectAll<MessageRow & Keyed>(client, "messages"),
+    selectAll<ThreadReadRow>(client, "thread_reads"),
+    selectAll<CallLogRow & Keyed>(client, "call_logs"),
+    selectAll<EstimateRow & Keyed>(client, "estimates"),
+    selectAll<MarketplaceRequirementRow & Keyed>(client, "marketplace_requirements"),
+    selectAll<MarketplaceRequirementPreviewRow>(client, "marketplace_requirement_previews"),
+    selectAll<MarketplaceUnlockRow & Keyed>(client, "marketplace_unlocks"),
+    selectAll<ProposalRow & Keyed>(client, "proposals"),
+    selectAll<PlanRow & Keyed>(client, "plans"),
+    selectAll<SubscriptionRow & Keyed>(client, "subscriptions"),
+    selectAll<CreditWalletRow>(client, "credit_wallets"),
+    selectAll<CreditTransactionRow & Keyed>(client, "credit_transactions"),
   ])
 
   const domainByUuid = new Map<string, EntityId>()
   const uuidByDomain = new Map<EntityId, string>()
-  for (const rows of [organizations, people, projects, units, stages, trades, workers, onboardings, assignments, attendance, memberships]) {
+  for (const rows of [
+    organizations,
+    people,
+    projects,
+    units,
+    stages,
+    trades,
+    workers,
+    onboardings,
+    assignments,
+    attendance,
+    memberships,
+    workTypes,
+    taskTemplates,
+    workPlanItems,
+    tasks,
+    taskAssignments,
+    dailyProgressRows,
+    progressReviews,
+    progressPublications,
+    evidence,
+    documents,
+    issues,
+    threads,
+    messages,
+    callLogs,
+    estimates,
+    marketplaceRequirements,
+    marketplaceUnlocks,
+    proposals,
+    plans,
+    subscriptions,
+    creditTransactions,
+  ]) {
     for (const row of rows) {
       const domainId = row.legacy_id ?? row.id
       domainByUuid.set(row.id, domainId)
@@ -124,6 +253,47 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
   }
   uuidByDomainId.set(client, uuidByDomain)
   const toDomain: ToDomainId = (uuid) => domainByUuid.get(uuid) ?? uuid
+
+  // Evidence that a published daily_progress update shared with the homeowner,
+  // grouped back onto the progress row so dailyProgressFromRow's publication
+  // carries the right evidenceIds (publish_daily_progress makes the shared
+  // evidence customer-visible but does not store the id list anywhere else).
+  const evidenceIdsByProgress = new Map<string, EntityId[]>()
+  for (const row of evidence) {
+    if (!row.daily_progress_id) continue
+    const list = evidenceIdsByProgress.get(row.daily_progress_id) ?? []
+    list.push(row.legacy_id ?? row.id)
+    evidenceIdsByProgress.set(row.daily_progress_id, list)
+  }
+
+  const reviewByProgress = new Map<string, ReturnType<typeof progressReviewFromRow>>()
+  for (const row of progressReviews) reviewByProgress.set(row.daily_progress_id, progressReviewFromRow(row, toDomain))
+
+  const publicationByProgress = new Map<string, ReturnType<typeof progressPublicationFromRow>>()
+  for (const row of progressPublications) {
+    publicationByProgress.set(
+      row.daily_progress_id,
+      progressPublicationFromRow(row, evidenceIdsByProgress.get(row.daily_progress_id) ?? [], toDomain),
+    )
+  }
+
+  const dailyProgressWithEvidenceIds = dailyProgressRows.map((row) => ({
+    ...dailyProgressFromRow(row, toDomain, reviewByProgress.get(row.id), publicationByProgress.get(row.id)),
+    evidenceIds: evidenceIdsByProgress.get(row.id) ?? [],
+  }))
+
+  // Marketplace requirements: the preview view gives every posted requirement
+  // a business member can see; the base table (RLS: owner or unlocked
+  // partner, migration 0005) gives the full row wherever the caller may read
+  // it. Full rows always win — mirrors src/domain/marketplaceVisibility.ts
+  // viewRequirement, which only falls back to the rounded preview until unlock.
+  const requirementById = new Map<string, MarketplaceRequirement>()
+  for (const row of marketplaceRequirementPreviews) {
+    requirementById.set(row.id, marketplaceRequirementFromPreviewRow(row, toDomain))
+  }
+  for (const row of marketplaceRequirements) {
+    requirementById.set(row.id, marketplaceRequirementFromRow(row, toDomain))
+  }
 
   return {
     ...emptyConstructionState(),
@@ -138,6 +308,27 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     workerProjectAssignments: assignments.map((r) => workerProjectAssignmentFromRow(r, toDomain)),
     workerOnboardings: onboardings.map((r) => workerOnboardingFromRow(r, toDomain)),
     workerAttendance: attendance.map((r) => workerAttendanceFromRow(r, toDomain)),
+    workTypes: workTypes.map((r) => workTypeFromRow(r)),
+    taskTemplates: taskTemplates.map((r) => taskTemplateFromRow(r, toDomain)),
+    workPlanItems: workPlanItems.map((r) => workPlanItemFromRow(r, toDomain)),
+    tasks: tasks.map((r) => taskFromRow(r, toDomain)),
+    assignments: taskAssignments.map((r) => taskAssignmentFromRow(r, toDomain)),
+    dailyProgress: dailyProgressWithEvidenceIds,
+    evidence: evidence.map((r) => evidenceFromRow(r, toDomain)),
+    documents: documents.map((r) => documentFromRow(r, toDomain)),
+    issues: issues.map((r) => issueFromRow(r, toDomain)),
+    threads: threads.map((r) => threadFromRow(r, toDomain)),
+    messages: messages.map((r) => messageFromRow(r, toDomain)),
+    threadReads: threadReads.map((r) => threadReadFromRow(r, toDomain)),
+    callLogs: callLogs.map((r) => callLogFromRow(r, toDomain)),
+    estimates: estimates.map((r) => estimateFromRow(r, toDomain)),
+    requirements: [...requirementById.values()],
+    unlocks: marketplaceUnlocks.map((r) => marketplaceUnlockFromRow(r, toDomain)),
+    proposals: proposals.map((r) => proposalFromRow(r, toDomain)),
+    plans: plans.map((r) => planFromRow(r)),
+    subscriptions: subscriptions.map((r) => subscriptionFromRow(r, toDomain)),
+    wallets: creditWallets.map((r) => creditWalletFromRow(r, toDomain)),
+    creditTransactions: creditTransactions.map((r) => creditTransactionFromRow(r, toDomain)),
   }
 }
 
