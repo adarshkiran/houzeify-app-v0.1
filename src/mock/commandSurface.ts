@@ -284,9 +284,10 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
     addProjectUnit: (input: Inputs.AddProjectUnitInput) => write(() => adapter.addProjectUnit(client, input)),
     addProjectUnits: (inputs: Inputs.AddProjectUnitInput[]) => write(() => adapter.addProjectUnits(client, inputs)),
     inviteProjectMember: () => notInSupabaseYet("inviteProjectMember"),
-    addWorkPlanItem: () => notInSupabaseYet("addWorkPlanItem"),
-    createTask: () => notInSupabaseYet("createTask"),
-    assignTask: () => notInSupabaseYet("assignTask"),
+    addWorkPlanItem: (input: Inputs.AddWorkPlanItemInput) => write(() => adapter.addWorkPlanItem(client, input)),
+    createTask: (input: Inputs.CreateTaskInput) => write(() => adapter.createTask(client, input)),
+    assignTask: (taskId: EntityId, assigneeType: TaskAssignment["assigneeType"], assigneeId: EntityId) =>
+      write(() => adapter.assignTask(client, { taskId, assigneeType, assigneeId })),
     assignWorkerToProject: () => notInSupabaseYet("assignWorkerToProject"),
     addWorker: () => notInSupabaseYet("addWorker"),
     createWorkerOnboarding: (input: { workerId: EntityId; method: "qr" | "supervisor-assisted" }) =>
@@ -324,9 +325,10 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
     addLibraryTrade: (input: Inputs.AddLibraryTradeInput) => write(() => adapter.addLibraryTrade(client, input)),
     addLibraryWorkType: (input: Inputs.AddLibraryWorkTypeInput) =>
       write(() => adapter.addLibraryWorkType(client, input)),
-    transitionTask: () => notInSupabaseYet("transitionTask"),
-    acceptTaskAssignment: () => notInSupabaseYet("acceptTaskAssignment"),
-    startTask: () => notInSupabaseYet("startTask"),
+    transitionTask: (taskId: EntityId, nextStatus: TaskStatus) =>
+      write(() => adapter.transitionTask(client, { taskId, nextStatus })),
+    acceptTaskAssignment: (taskId: EntityId) => write(() => adapter.acceptTaskAssignment(client, { taskId })),
+    startTask: (taskId: EntityId) => write(() => adapter.startTask(client, { taskId })),
     addEvidence: () => notInSupabaseYet("addEvidence"),
     submitDailyProgress: () => notInSupabaseYet("submitDailyProgress"),
     resubmitDailyProgress: () => notInSupabaseYet("resubmitDailyProgress"),

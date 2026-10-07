@@ -10,7 +10,9 @@ import type {
   AddLibraryTradeInput,
   AddLibraryWorkTypeInput,
   AddProjectUnitInput,
+  AddWorkPlanItemInput,
   CreateProjectInput,
+  CreateTaskInput,
 } from "../domain/commandInputs"
 import type {
   ConstructionDataState,
@@ -22,8 +24,12 @@ import type {
   Project,
   ProjectUnit,
   Proposal,
+  Task,
+  TaskAssignment,
+  TaskStatus,
   TaskTemplate,
   Trade,
+  WorkPlanItem,
   Worker,
   WorkerAttendance,
   WorkerOnboarding,
@@ -642,4 +648,82 @@ export async function addLibraryWorkType(
     workType: workTypeFromRow(row.workType),
     template: row.template ? taskTemplateFromRow(row.template) : (undefined as unknown as TaskTemplate),
   }
+}
+
+// ─── Task engine (batch 22) ────────────────────────────────────────────────────
+
+/**
+ * work_plan_items has no plannedQuantity/templateId columns and the domain's
+ * WorkPlanItem type has no title at all; see public.add_work_plan_item in
+ * migration 0015 (title is filled from the work type's name).
+ */
+export async function addWorkPlanItem(client: SupabaseClient, input: AddWorkPlanItemInput): Promise<WorkPlanItem> {
+  const row = await callFunction(client, "add_work_plan_item", {
+    project_id: uuidOf(client, input.projectId),
+    project_unit_id: uuidOf(client, input.projectUnitId),
+    stage_id: uuidOf(client, input.stageId),
+    trade_id: uuidOf(client, input.tradeId),
+    work_type_id: uuidOf(client, input.workTypeId),
+    planned_start: input.plannedStart ?? null,
+    due_date: input.dueDate ?? null,
+  })
+  return workPlanItemFromRow(row as WorkPlanItemRow)
+}
+
+/**
+ * tasks has no work_type_id, priority or planned_start/due_date column; those
+ * input fields are accepted but not persisted (migration 0015 header). templateId
+ * round-trips through the existing work_plan_item_id column, as taskFromRow
+ * already reads it back.
+ */
+export async function createTask(client: SupabaseClient, input: CreateTaskInput): Promise<Task> {
+  const row = await callFunction(client, "create_task", {
+    project_id: uuidOf(client, input.projectId),
+    project_unit_id: uuidOf(client, input.projectUnitId),
+    stage_id: uuidOf(client, input.stageId),
+    trade_id: uuidOf(client, input.tradeId),
+    work_type_id: uuidOf(client, input.workTypeId),
+    template_id: input.templateId ? uuidOf(client, input.templateId) : null,
+    title: input.title,
+    planned_quantity: input.plannedQuantity?.value ?? null,
+    planned_quantity_unit: input.plannedQuantity?.unit ?? null,
+    source_thread_id: input.source ? uuidOf(client, input.source.threadId) : null,
+    source_message_id: input.source ? uuidOf(client, input.source.messageId) : null,
+  })
+  return taskFromRow(row as TaskRow)
+}
+
+/**
+ * Only a worker assignee is supported: task_assignments has no assignee_type
+ * column, so it cannot store a membership/organization assignee (migration
+ * 0015 header). Re-assigning the same worker returns the existing row.
+ */
+export async function assignTask(
+  client: SupabaseClient,
+  input: { taskId: EntityId; assigneeType: TaskAssignment["assigneeType"]; assigneeId: EntityId },
+): Promise<TaskAssignment> {
+  const row = await callFunction(client, "assign_task", {
+    task_id: uuidOf(client, input.taskId),
+    assignee_type: input.assigneeType,
+    assignee_id: uuidOf(client, input.assigneeId),
+  })
+  return taskAssignmentFromRow(row as TaskAssignmentRow)
+}
+
+export async function acceptTaskAssignment(client: SupabaseClient, input: { taskId: EntityId }): Promise<void> {
+  await callFunction(client, "accept_task_assignment", { task_id: uuidOf(client, input.taskId) })
+}
+
+export async function startTask(client: SupabaseClient, input: { taskId: EntityId }): Promise<void> {
+  await callFunction(client, "start_task", { task_id: uuidOf(client, input.taskId) })
+}
+
+export async function transitionTask(
+  client: SupabaseClient,
+  input: { taskId: EntityId; nextStatus: TaskStatus },
+): Promise<void> {
+  await callFunction(client, "transition_task", {
+    task_id: uuidOf(client, input.taskId),
+    next_status: input.nextStatus,
+  })
 }

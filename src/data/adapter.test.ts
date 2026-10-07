@@ -2,17 +2,23 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { afterAll, describe, expect, it } from "vitest"
 import { ConflictError } from "../domain/errors"
 import {
+  acceptTaskAssignment,
   acceptWorkerOnboarding,
   addLibraryStage,
   addLibraryTrade,
   addLibraryWorkType,
   addProjectUnit,
   addProjectUnits,
+  addWorkPlanItem,
+  assignTask,
   createProject,
+  createTask,
   loadState,
   selectProposal,
   setStageBaselines,
+  startTask,
   submitProposal,
+  transitionTask,
   unlockRequirement,
   updateOrganizationProfile,
 } from "./adapter"
@@ -103,6 +109,9 @@ describe.skipIf(!localStack || !serviceKey)(
       membership: "test-task17-biz-membership",
       estimate: "test-task17-estimate",
       requirement: "test-task17-requirement",
+      stage: "test-task22-stage",
+      trade: "test-task22-trade",
+      workType: "test-task22-work-type",
     }
     let signedInClient: SupabaseClient | undefined
     const createdUnitIds: string[] = []
@@ -122,6 +131,10 @@ describe.skipIf(!localStack || !serviceKey)(
       if (createdUnitIds.length) {
         await admin.from("project_units").delete().in("id", createdUnitIds)
       }
+      await admin.from("tasks").delete().eq("title", "Task 22 Wiring")
+      await admin.from("work_types").delete().eq("legacy_id", legacyIds.workType)
+      await admin.from("trades").delete().eq("legacy_id", legacyIds.trade)
+      await admin.from("stages").delete().eq("legacy_id", legacyIds.stage)
     })
 
     it("loadState shows the preview-shaped fields for a partner who has not unlocked the requirement", async () => {
@@ -269,6 +282,77 @@ describe.skipIf(!localStack || !serviceKey)(
       // resolves to the seed's domain id.
       const reloaded = await loadState(signedInClient)
       expect(reloaded.projectUnits.find((u) => u.id === unit.id)?.projectId).toBe("project-sharma")
+    })
+
+    // Reuses the Arjun session above (same rate-limit reasoning as addProjectUnit
+    // above). Arjun is Sharma's unscoped project-manager (task.manage,
+    // progress.submit); worker-2 (Ravi) is already assigned to unit-sharma-house.
+    it("createTask -> assignTask -> transitionTask drive a real task through Postgres (local stack)", async () => {
+      if (!signedInClient) throw new Error("the preview test above must sign in first")
+      const admin = createClient(url, serviceKey)
+
+      const { data: project } = await admin.from("projects").select("id").eq("legacy_id", "project-sharma").single()
+      const { data: unit } = await admin.from("project_units").select("id").eq("legacy_id", "unit-sharma-house").single()
+      const { data: worker2 } = await admin.from("workers").select("id").eq("legacy_id", "worker-2").single()
+      if (!project || !unit || !worker2) throw new Error("project-sharma fixtures are missing; run db reset")
+
+      const { data: stage, error: stageError } = await admin
+        .from("stages")
+        .insert({ legacy_id: legacyIds.stage, project_id: project.id, name: "RCC", sort_order: 1, code: "RCC" })
+        .select()
+        .single()
+      if (stageError || !stage) throw new Error(stageError?.message)
+      const { data: trade, error: tradeError } = await admin
+        .from("trades")
+        .insert({ legacy_id: legacyIds.trade, project_id: null, name: "Electrical" })
+        .select()
+        .single()
+      if (tradeError || !trade) throw new Error(tradeError?.message)
+      const { data: workType, error: workTypeError } = await admin
+        .from("work_types")
+        .insert({
+          legacy_id: legacyIds.workType,
+          project_id: null,
+          name: "Wiring",
+          stage_id: stage.id,
+          trade_id: trade.id,
+          default_unit: "nos",
+        })
+        .select()
+        .single()
+      if (workTypeError || !workType) throw new Error(workTypeError?.message)
+
+      const task = await createTask(signedInClient, {
+        projectId: project.id,
+        projectUnitId: unit.id,
+        stageId: stage.id,
+        tradeId: trade.id,
+        workTypeId: workType.id,
+        title: "Task 22 Wiring",
+        priority: "medium",
+        plannedQuantity: { value: 5, unit: "nos" },
+      })
+      expect(task.status).toBe("draft")
+
+      const assignment = await assignTask(signedInClient, {
+        taskId: task.id,
+        assigneeType: "worker",
+        assigneeId: worker2.id,
+      })
+      expect(assignment.assigneeId).toBe(worker2.id)
+
+      const { data: afterAssign } = await admin.from("tasks").select("status").eq("id", task.id).single()
+      expect(afterAssign?.status).toBe("assigned")
+
+      await transitionTask(signedInClient, { taskId: task.id, nextStatus: "accepted" })
+      const { data: afterTransition } = await admin.from("tasks").select("status").eq("id", task.id).single()
+      expect(afterTransition?.status).toBe("accepted")
+
+      // An illegal move is refused with the exact domain message (ported from
+      // src/domain/constructionCommands.ts transitionTask).
+      await expect(transitionTask(signedInClient, { taskId: task.id, nextStatus: "completed" })).rejects.toThrow(
+        "A task can't move from accepted to completed.",
+      )
     })
   },
 )
@@ -519,5 +603,108 @@ describe("supabase adapter: project setup write results are mapped to the domain
 
     expect(result.workType.name).toBe("Bad Work Type")
     expect(result.workType.stageId).toBe("stage-1")
+  })
+})
+
+// Task 22 (task engine): the same row-shape concern as task 21, for this batch's
+// RPC-backed wrappers. fakeRpcClient needs no local stack.
+describe("supabase adapter: task engine write results are mapped to the domain shape", () => {
+  it("addWorkPlanItem returns a WorkPlanItem, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "plan-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      project_unit_id: "unit-row-id",
+      stage_id: "stage-row-id",
+      trade_id: "trade-row-id",
+      work_type_id: "work-row-id",
+      title: "Wiring",
+      planned_start: null,
+      planned_end: null,
+      status: "planned",
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await addWorkPlanItem(client, {
+      projectId: "proj-1",
+      projectUnitId: "unit-1",
+      stageId: "stage-1",
+      tradeId: "trade-1",
+      workTypeId: "work-1",
+      plannedQuantity: { value: 10, unit: "nos" },
+    })
+
+    expect(result.projectId).toBe("project-row-id")
+    expect(result.status).toBe("planned")
+    expect(result).not.toHaveProperty("project_unit_id")
+  })
+
+  it("createTask returns a Task, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "task-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      work_plan_item_id: null,
+      project_unit_id: "unit-row-id",
+      stage_id: "stage-row-id",
+      trade_id: "trade-row-id",
+      title: "Wire first floor",
+      status: "draft",
+      planned_quantity: 10,
+      planned_quantity_unit: "nos",
+      completed_quantity: null,
+      completed_quantity_unit: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await createTask(client, {
+      projectId: "proj-1",
+      projectUnitId: "unit-1",
+      stageId: "stage-1",
+      tradeId: "trade-1",
+      workTypeId: "work-1",
+      title: "Wire first floor",
+      priority: "medium",
+      plannedQuantity: { value: 10, unit: "nos" },
+    })
+
+    expect(result.projectId).toBe("project-row-id")
+    expect(result.status).toBe("draft")
+    expect(result.plannedQuantity).toEqual({ value: 10, unit: "nos" })
+    expect(result).not.toHaveProperty("planned_quantity")
+  })
+
+  it("assignTask returns a TaskAssignment, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "assignment-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      task_id: "task-row-id",
+      worker_id: "worker-row-id",
+      assigned_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await assignTask(client, { taskId: "task-1", assigneeType: "worker", assigneeId: "worker-1" })
+
+    expect(result.taskId).toBe("task-row-id")
+    expect(result.assigneeId).toBe("worker-row-id")
+    expect(result.assigneeType).toBe("worker")
+    expect(result.status).toBe("assigned")
+    expect(result).not.toHaveProperty("worker_id")
+  })
+
+  it("acceptTaskAssignment resolves without a return value", async () => {
+    const client = fakeRpcClient({})
+    await expect(acceptTaskAssignment(client, { taskId: "task-1" })).resolves.toBeUndefined()
+  })
+
+  it("startTask resolves without a return value", async () => {
+    const client = fakeRpcClient({})
+    await expect(startTask(client, { taskId: "task-1" })).resolves.toBeUndefined()
+  })
+
+  it("transitionTask resolves without a return value", async () => {
+    const client = fakeRpcClient({})
+    await expect(transitionTask(client, { taskId: "task-1", nextStatus: "accepted" })).resolves.toBeUndefined()
   })
 })
