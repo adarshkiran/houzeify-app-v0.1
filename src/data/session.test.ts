@@ -31,14 +31,16 @@ describe("resolveSession", () => {
     })
   })
 
-  it("returns null when the person has no membership or worker row", () => {
-    expect(
-      resolveSession({
-        person,
-        workers: [{ userId: null, organizationId: "org-1", phone: "+919000011122" }],
-        memberships: [{ personId: "someone-else", organizationId: "org-1" }],
-      }),
-    ).toBeNull()
+  it("resolves a person with no worker row and no membership to a homeowner session", () => {
+    const session = resolveSession({
+      person,
+      workers: [{ userId: null, organizationId: "org-1", phone: "+919000011122" }],
+      memberships: [{ personId: "someone-else", organizationId: "org-1" }],
+    })
+    expect(session).toEqual({
+      accountType: "homeowner",
+      personId: "person-ravi",
+    })
   })
 
   it("returns null for an unknown phone (no person row)", () => {

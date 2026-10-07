@@ -32,7 +32,8 @@ export interface ResolutionInput {
 
 /**
  * Worker rows take precedence: a person on a site team signs in as a worker.
- * Otherwise a business membership signs in as business. No row means no session.
+ * Otherwise a business membership signs in as business. A verified person with
+ * neither a worker row nor a membership signs in as a homeowner (no organization).
  */
 export function resolveSession({ person, workers, memberships }: ResolutionInput): Session | null {
   if (!person) return null
@@ -53,7 +54,7 @@ export function resolveSession({ person, workers, memberships }: ResolutionInput
       organizationId: membership.organizationId,
     }
   }
-  return null
+  return { accountType: "homeowner", personId: person.id }
 }
 
 /** Sends a one-time code by SMS to an existing demo or site phone. */
