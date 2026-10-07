@@ -350,8 +350,9 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
       write(() => adapter.addIssueEvidence(client, { issueId, items })),
     publishIssue: (issueId: EntityId, visible: boolean) =>
       write(() => adapter.publishIssue(client, { issueId, visible })),
-    uploadDocument: () => notInSupabaseYet("uploadDocument"),
-    publishDocument: () => notInSupabaseYet("publishDocument"),
+    uploadDocument: (input: Inputs.UploadDocumentInput) => write(() => adapter.uploadDocument(client, input)),
+    publishDocument: (documentId: EntityId, visible: boolean) =>
+      write(() => adapter.publishDocument(client, { documentId, visible })),
     generateEstimate: () => notInSupabaseYet("generateEstimate"),
     confirmEstimate: () => notInSupabaseYet("confirmEstimate"),
     postRequirement: () => notInSupabaseYet("postRequirement"),
@@ -371,11 +372,12 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
       write(() => adapter.selectProposal(client, { proposalId })),
     viewRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) =>
       selectViewRequirement(getState(), requirementId, partnerOrganizationId),
-    postMessage: () => notInSupabaseYet("postMessage"),
-    logCall: () => notInSupabaseYet("logCall"),
-    openDirectThread: () => notInSupabaseYet("openDirectThread"),
-    markThreadRead: () => notInSupabaseYet("markThreadRead"),
-    markThreadUnread: () => notInSupabaseYet("markThreadUnread"),
+    postMessage: (input: PostMessageInput) => write(() => adapter.postMessage(client, input)),
+    logCall: (input: LogCallInput) => write(() => adapter.logCall(client, input)),
+    openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) =>
+      write(() => adapter.openDirectThread(client, { projectId, otherMembershipId })),
+    markThreadRead: (threadId: EntityId) => write(() => adapter.markThreadRead(client, { threadId })),
+    markThreadUnread: (threadId: EntityId) => write(() => adapter.markThreadUnread(client, { threadId })),
   }
   // The adapter is async, so the write methods return promises where the
   // interface states the domain's synchronous values. Screens do not await

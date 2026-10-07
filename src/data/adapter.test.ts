@@ -18,6 +18,12 @@ import {
   createTask,
   inviteProjectMember,
   loadState,
+  logCall,
+  markThreadRead,
+  markThreadUnread,
+  openDirectThread,
+  postMessage,
+  publishDocument,
   selectProposal,
   setStageBaselines,
   startTask,
@@ -25,6 +31,7 @@ import {
   transitionTask,
   unlockRequirement,
   updateOrganizationProfile,
+  uploadDocument,
 } from "./adapter"
 import { createSupabaseClient } from "./supabaseClient"
 
@@ -969,5 +976,130 @@ describe("supabase adapter: workforce extras write results are mapped to the dom
     expect(result.workerId).toBe("worker-row-id")
     expect(result.status).toBe("cancelled")
     expect(result).not.toHaveProperty("worker_id")
+  })
+})
+
+describe("supabase adapter: documents and conversations write results are mapped to the domain shape", () => {
+  it("uploadDocument returns a Document starting private, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "document-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      title: "Site plan",
+      category: "drawing",
+      url: "https://example.com/d.pdf",
+      uploaded_by_membership_id: "membership-row-id",
+      shared_with_homeowner: false,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await uploadDocument(client, {
+      projectId: "proj-1",
+      title: "Site plan",
+      category: "drawing",
+      url: "https://example.com/d.pdf",
+    })
+
+    expect(result.projectId).toBe("project-row-id")
+    expect(result.customerVisibility).toBe("private")
+    expect(result.uploadedByMembershipId).toBe("membership-row-id")
+    expect(result).not.toHaveProperty("shared_with_homeowner")
+  })
+
+  it("publishDocument maps shared_with_homeowner to customerVisibility", async () => {
+    const client = fakeRpcClient({
+      id: "document-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      title: "Site plan",
+      category: "drawing",
+      url: "https://example.com/d.pdf",
+      uploaded_by_membership_id: "membership-row-id",
+      shared_with_homeowner: true,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await publishDocument(client, { documentId: "document-1", visible: true })
+
+    expect(result.customerVisibility).toBe("customer-visible")
+  })
+
+  it("postMessage returns a Message with the voice note mapped, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "message-row-id",
+      legacy_id: null,
+      thread_id: "thread-row-id",
+      author_membership_id: "membership-row-id",
+      body: null,
+      voice_url: "https://example.com/v.m4a",
+      voice_duration_sec: 12,
+      voice_transcript: "hello there",
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await postMessage(client, {
+      projectId: "proj-1",
+      subject: "project",
+      voice: { url: "https://example.com/v.m4a", durationSec: 12, transcript: "hello there" },
+    })
+
+    expect(result.threadId).toBe("thread-row-id")
+    expect(result.body).toBeUndefined()
+    expect(result.voice).toEqual({ url: "https://example.com/v.m4a", durationSec: 12, transcript: "hello there" })
+    expect(result).not.toHaveProperty("voice_url")
+  })
+
+  it("openDirectThread returns a Thread with participantMembershipIds mapped, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "thread-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      subject: "direct",
+      target_id: null,
+      audience: "internal",
+      participant_membership_ids: ["membership-a-row-id", "membership-b-row-id"],
+      created_at: "2026-01-01T00:00:00.000Z",
+      last_message_at: null,
+    })
+
+    const result = await openDirectThread(client, { projectId: "proj-1", otherMembershipId: "membership-b" })
+
+    expect(result.subject).toBe("direct")
+    expect(result.participantMembershipIds).toEqual(["membership-a-row-id", "membership-b-row-id"])
+    expect(result).not.toHaveProperty("participant_membership_ids")
+  })
+
+  it("logCall returns a CallLog with the other participant mapped, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "call-row-id",
+      legacy_id: null,
+      thread_id: "thread-row-id",
+      logged_by_membership_id: "membership-a-row-id",
+      other_membership_id: "membership-b-row-id",
+      type: "voice",
+      started_at: "2026-01-01T00:00:00.000Z",
+      duration_minutes: 7,
+      note: "quick sync",
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await logCall(client, {
+      threadId: "thread-1",
+      type: "voice",
+      startedAt: "2026-01-01T00:00:00.000Z",
+      durationMinutes: 7,
+      note: "quick sync",
+    })
+
+    expect(result.loggedByMembershipId).toBe("membership-a-row-id")
+    expect(result.otherMembershipId).toBe("membership-b-row-id")
+    expect(result).not.toHaveProperty("other_membership_id")
+  })
+
+  it("markThreadRead and markThreadUnread resolve without returning the raw row", async () => {
+    const client = fakeRpcClient({ ignored: "row" })
+
+    await expect(markThreadRead(client, { threadId: "thread-1" })).resolves.toBeUndefined()
+    await expect(markThreadUnread(client, { threadId: "thread-1" })).resolves.toBeUndefined()
   })
 })

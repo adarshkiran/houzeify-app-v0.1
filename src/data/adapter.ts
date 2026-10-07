@@ -21,16 +21,21 @@ import type {
   ReportIssueInput,
   ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
+  UploadDocumentInput,
 } from "../domain/commandInputs"
+import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
 import type {
+  CallLog,
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
+  Document,
   EntityId,
   Evidence,
   Issue,
   MarketplaceRequirement,
   MarketplaceUnlock,
+  Message,
   Project,
   ProjectMembership,
   ProjectUnit,
@@ -40,6 +45,7 @@ import type {
   TaskAssignment,
   TaskStatus,
   TaskTemplate,
+  Thread,
   Trade,
   WorkPlanItem,
   Worker,
@@ -968,4 +974,69 @@ export async function publishIssue(
     visible: input.visible,
   })
   return issueFromRow(row as IssueRow)
+}
+
+export async function uploadDocument(client: SupabaseClient, input: UploadDocumentInput): Promise<Document> {
+  const row = await callFunction(client, "upload_document", {
+    project_id: uuidOf(client, input.projectId),
+    title: input.title,
+    category: input.category,
+    url: input.url,
+  })
+  return documentFromRow(row as DocumentRow)
+}
+
+export async function publishDocument(
+  client: SupabaseClient,
+  input: { documentId: EntityId; visible: boolean },
+): Promise<Document> {
+  const row = await callFunction(client, "publish_document", {
+    document_id: uuidOf(client, input.documentId),
+    visible: input.visible,
+  })
+  return documentFromRow(row as DocumentRow)
+}
+
+export async function postMessage(client: SupabaseClient, input: PostMessageInput): Promise<Message> {
+  const row = await callFunction(client, "post_message", {
+    thread_id: "threadId" in input ? uuidOf(client, input.threadId) : null,
+    project_id: "threadId" in input ? null : uuidOf(client, input.projectId),
+    subject: "threadId" in input ? null : input.subject,
+    target_id: "threadId" in input ? null : input.targetId ? uuidOf(client, input.targetId) : null,
+    body: input.body ?? null,
+    voice_url: input.voice?.url ?? null,
+    voice_duration_sec: input.voice?.durationSec ?? null,
+    voice_transcript: input.voice?.transcript ?? null,
+  })
+  return messageFromRow(row as MessageRow)
+}
+
+export async function openDirectThread(
+  client: SupabaseClient,
+  input: { projectId: EntityId; otherMembershipId: EntityId },
+): Promise<Thread> {
+  const row = await callFunction(client, "open_direct_thread", {
+    project_id: uuidOf(client, input.projectId),
+    other_membership_id: uuidOf(client, input.otherMembershipId),
+  })
+  return threadFromRow(row as ThreadRow)
+}
+
+export async function markThreadRead(client: SupabaseClient, input: { threadId: EntityId }): Promise<void> {
+  await callFunction(client, "mark_thread_read", { thread_id: uuidOf(client, input.threadId) })
+}
+
+export async function markThreadUnread(client: SupabaseClient, input: { threadId: EntityId }): Promise<void> {
+  await callFunction(client, "mark_thread_unread", { thread_id: uuidOf(client, input.threadId) })
+}
+
+export async function logCall(client: SupabaseClient, input: LogCallInput): Promise<CallLog> {
+  const row = await callFunction(client, "log_call", {
+    thread_id: uuidOf(client, input.threadId),
+    type: input.type,
+    started_at: input.startedAt,
+    duration_minutes: input.durationMinutes,
+    note: input.note ?? null,
+  })
+  return callLogFromRow(row as CallLogRow)
 }
