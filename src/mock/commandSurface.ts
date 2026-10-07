@@ -276,11 +276,13 @@ function notInSupabaseYet(name: string): never {
 export function supabaseCommands(exec: SupabaseExec): CommandSurface {
   const { client, write, read, getState } = exec
   const surface = {
-    updateOrganizationProfile: () => notInSupabaseYet("updateOrganizationProfile"),
-    createProject: () => notInSupabaseYet("createProject"),
-    setStageBaselines: () => notInSupabaseYet("setStageBaselines"),
-    addProjectUnit: () => notInSupabaseYet("addProjectUnit"),
-    addProjectUnits: () => notInSupabaseYet("addProjectUnits"),
+    updateOrganizationProfile: (organizationId: EntityId, input: Inputs.BusinessProfileInput) =>
+      write(() => adapter.updateOrganizationProfile(client, { organizationId, profile: input })),
+    createProject: (input: Inputs.CreateProjectInput) => write(() => adapter.createProject(client, input)),
+    setStageBaselines: (projectId: EntityId, baselines: Record<EntityId, number>) =>
+      write(() => adapter.setStageBaselines(client, { projectId, baselines })),
+    addProjectUnit: (input: Inputs.AddProjectUnitInput) => write(() => adapter.addProjectUnit(client, input)),
+    addProjectUnits: (inputs: Inputs.AddProjectUnitInput[]) => write(() => adapter.addProjectUnits(client, inputs)),
     inviteProjectMember: () => notInSupabaseYet("inviteProjectMember"),
     addWorkPlanItem: () => notInSupabaseYet("addWorkPlanItem"),
     createTask: () => notInSupabaseYet("createTask"),
@@ -318,9 +320,10 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
       read(attendanceCommands.listAttendance(projectId, date)),
     getOwnAttendance: (projectId: EntityId, phone: string, date: ISODate) =>
       read(attendanceCommands.getOwnAttendance(projectId, phone, date)),
-    addLibraryStage: () => notInSupabaseYet("addLibraryStage"),
-    addLibraryTrade: () => notInSupabaseYet("addLibraryTrade"),
-    addLibraryWorkType: () => notInSupabaseYet("addLibraryWorkType"),
+    addLibraryStage: (input: Inputs.AddLibraryStageInput) => write(() => adapter.addLibraryStage(client, input)),
+    addLibraryTrade: (input: Inputs.AddLibraryTradeInput) => write(() => adapter.addLibraryTrade(client, input)),
+    addLibraryWorkType: (input: Inputs.AddLibraryWorkTypeInput) =>
+      write(() => adapter.addLibraryWorkType(client, input)),
     transitionTask: () => notInSupabaseYet("transitionTask"),
     acceptTaskAssignment: () => notInSupabaseYet("acceptTaskAssignment"),
     startTask: () => notInSupabaseYet("startTask"),

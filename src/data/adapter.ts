@@ -5,17 +5,30 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { ConflictError } from "../domain/errors"
 import type {
+  BusinessProfileInput,
+  AddLibraryStageInput,
+  AddLibraryTradeInput,
+  AddLibraryWorkTypeInput,
+  AddProjectUnitInput,
+  CreateProjectInput,
+} from "../domain/commandInputs"
+import type {
   ConstructionDataState,
+  ConstructionStage,
   DailyProgress,
   EntityId,
   MarketplaceRequirement,
   MarketplaceUnlock,
   Project,
+  ProjectUnit,
   Proposal,
+  TaskTemplate,
+  Trade,
   Worker,
   WorkerAttendance,
   WorkerOnboarding,
   WorkerProjectAssignment,
+  WorkType,
 } from "../domain/models"
 import { PermissionError } from "../domain/session"
 import type { Permission } from "../domain/permissions"
@@ -320,7 +333,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     workerProjectAssignments: assignments.map((r) => workerProjectAssignmentFromRow(r, toDomain)),
     workerOnboardings: onboardings.map((r) => workerOnboardingFromRow(r, toDomain)),
     workerAttendance: attendance.map((r) => workerAttendanceFromRow(r, toDomain)),
-    workTypes: workTypes.map((r) => workTypeFromRow(r)),
+    workTypes: workTypes.map((r) => workTypeFromRow(r, toDomain)),
     taskTemplates: taskTemplates.map((r) => taskTemplateFromRow(r, toDomain)),
     workPlanItems: workPlanItems.map((r) => workPlanItemFromRow(r, toDomain)),
     tasks: tasks.map((r) => taskFromRow(r, toDomain)),
@@ -496,4 +509,137 @@ export async function publishDailyProgress(
     note: input.note,
   })
   return dailyProgressFromRow(row as DailyProgressRow)
+}
+
+// ─── Project setup (batch 21) ──────────────────────────────────────────────────
+
+/** Deliberately unauthorized: see public.update_organization_profile in migration 0014. */
+export async function updateOrganizationProfile(
+  client: SupabaseClient,
+  input: { organizationId: EntityId; profile: BusinessProfileInput },
+): Promise<void> {
+  await callFunction(client, "update_organization_profile", {
+    organization_id: uuidOf(client, input.organizationId),
+    name: input.profile.name,
+    kind: input.profile.kind,
+    city: input.profile.city,
+    phone: input.profile.phone,
+    team_size: input.profile.teamSize,
+  })
+}
+
+export async function createProject(client: SupabaseClient, input: CreateProjectInput): Promise<Project> {
+  const row = await callFunction(client, "create_project", {
+    organization_id: uuidOf(client, input.organizationId),
+    name: input.name,
+    kind: input.kind,
+    status: input.status,
+    location: input.location,
+  })
+  return projectFromRow(row as ProjectRow)
+}
+
+/** project_units has no kind/code/sequence columns yet; only projectId, parentUnitId and name persist. */
+export async function addProjectUnit(client: SupabaseClient, input: AddProjectUnitInput): Promise<ProjectUnit> {
+  const { data, error } = await client
+    .from("project_units")
+    .insert({
+      project_id: uuidOf(client, input.projectId),
+      parent_id: input.parentUnitId ? uuidOf(client, input.parentUnitId) : null,
+      name: input.name,
+    })
+    .select()
+    .single()
+  if (error) throw refusalFrom(error.message)
+  return projectUnitFromRow(data as ProjectUnitRow)
+}
+
+export async function addProjectUnits(
+  client: SupabaseClient,
+  inputs: readonly AddProjectUnitInput[],
+): Promise<ProjectUnit[]> {
+  const { data, error } = await client
+    .from("project_units")
+    .insert(
+      inputs.map((input) => ({
+        project_id: uuidOf(client, input.projectId),
+        parent_id: input.parentUnitId ? uuidOf(client, input.parentUnitId) : null,
+        name: input.name,
+      })),
+    )
+    .select()
+  if (error) throw refusalFrom(error.message)
+  return (data as ProjectUnitRow[]).map((row) => projectUnitFromRow(row))
+}
+
+export async function setStageBaselines(
+  client: SupabaseClient,
+  input: { projectId: EntityId; baselines: Record<EntityId, number> },
+): Promise<Project> {
+  const baselines: Record<string, number> = {}
+  for (const [stageId, value] of Object.entries(input.baselines)) {
+    baselines[uuidOf(client, stageId)] = value
+  }
+  const row = await callFunction(client, "set_stage_baselines", {
+    project_id: uuidOf(client, input.projectId),
+    baselines,
+  })
+  return projectFromRow(row as ProjectRow)
+}
+
+export async function addLibraryStage(client: SupabaseClient, input: AddLibraryStageInput): Promise<ConstructionStage> {
+  const row = await callFunction(client, "add_library_stage", { name: input.name, code: input.code ?? null })
+  return stageFromRow(row as StageRow)
+}
+
+export async function addLibraryTrade(client: SupabaseClient, input: AddLibraryTradeInput): Promise<Trade> {
+  const row = await callFunction(client, "add_library_trade", { name: input.name, code: input.code ?? null })
+  return tradeFromRow(row as TradeRow)
+}
+
+export async function addLibraryWorkType(
+  client: SupabaseClient,
+  input: AddLibraryWorkTypeInput,
+): Promise<{ workType: WorkType; template: TaskTemplate }> {
+  const row = (await callFunction(client, "add_library_work_type", {
+    name: input.name,
+    stage_id: input.stageId ? uuidOf(client, input.stageId) : null,
+    trade_id: input.tradeId ? uuidOf(client, input.tradeId) : null,
+    new_stage_name: input.newStageName ?? null,
+    new_trade_name: input.newTradeName ?? null,
+    default_unit: input.defaultUnit,
+  })) as { workType: (WorkTypeRow & { skipped?: boolean }) | null; template: TaskTemplateRow | null }
+
+  if (!row.workType || row.workType.skipped) {
+    // Mirrors the domain's "no partial library entries" early return: an unknown
+    // stage/trade id passed straight through changes nothing in the database, so
+    // this result is constructed, not read back from a row.
+    const workType: WorkType = {
+      id: `work-${input.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`,
+      stageId: input.stageId ?? "",
+      tradeId: input.tradeId ?? "",
+      code: input.name.trim().toUpperCase(),
+      name: input.name.trim(),
+      defaultUnit: input.defaultUnit,
+    }
+    const template: TaskTemplate = {
+      id: `template-${workType.id.slice("work-".length)}`,
+      workTypeId: workType.id,
+      name: `${workType.name} — Standard`,
+      checklist: input.checklist?.map((item) => item.trim()).filter(Boolean) ?? [
+        `${workType.name} scope confirmed on site`,
+        "Quality checks completed before submission",
+        "Site evidence captured for review",
+      ],
+      requiredEvidence: input.requiredEvidence?.length ? input.requiredEvidence : ["photo"],
+      defaultUnit: workType.defaultUnit,
+      dependencyWorkTypeIds: [],
+    }
+    return { workType, template }
+  }
+
+  return {
+    workType: workTypeFromRow(row.workType),
+    template: row.template ? taskTemplateFromRow(row.template) : (undefined as unknown as TaskTemplate),
+  }
 }

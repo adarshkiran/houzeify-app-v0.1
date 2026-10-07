@@ -78,6 +78,10 @@ export interface OrganizationRow {
   id: string
   legacy_id: string | null
   name: string
+  kind: string | null
+  city: string | null
+  phone: string | null
+  team_size: string | null
   created_at: string
 }
 
@@ -85,15 +89,25 @@ export function organizationFromRow(row: OrganizationRow): Organization {
   return {
     id: ownId(row),
     name: row.name,
-    kind: "construction-company",
+    kind: (row.kind ?? "construction-company") as Organization["kind"],
     status: "active",
-    city: "",
+    city: row.city ?? "",
+    phone: row.phone ?? undefined,
+    teamSize: row.team_size ?? undefined,
     createdAt: row.created_at,
   }
 }
 
 export function organizationToRow(org: Organization): Omit<OrganizationRow, "id"> {
-  return { legacy_id: org.id, name: org.name, created_at: org.createdAt }
+  return {
+    legacy_id: org.id,
+    name: org.name,
+    kind: org.kind,
+    city: org.city || null,
+    phone: org.phone ?? null,
+    team_size: org.teamSize ?? null,
+    created_at: org.createdAt,
+  }
 }
 
 // People
@@ -167,23 +181,31 @@ export interface ProjectRow {
   organization_id: string
   name: string
   status: string
+  location: string | null
+  kind: string | null
   require_checkout: boolean
+  stage_baselines: Record<string, number> | null
+  progress: number
   created_at: string
 }
 
 export function projectFromRow(row: ProjectRow, toDomain: ToDomainId = identity): Project {
+  const stageBaselines: Record<string, number> = {}
+  for (const [stageUuid, value] of Object.entries(row.stage_baselines ?? {})) {
+    stageBaselines[toDomain(stageUuid)] = value
+  }
   return {
     id: ownId(row),
     organizationId: toDomain(row.organization_id),
     code: row.legacy_id ?? row.id,
     name: row.name,
-    kind: "individual-house",
+    kind: (row.kind ?? "individual-house") as Project["kind"],
     status: row.status as Project["status"],
-    location: "",
-    progress: 0,
+    location: row.location ?? "",
+    progress: row.progress,
     trackingStartedMidProject: false,
     requireCheckout: row.require_checkout,
-    stageBaselines: {},
+    stageBaselines,
     createdAt: row.created_at,
     updatedAt: row.created_at,
   }
@@ -195,7 +217,11 @@ export function projectToRow(p: Project): Omit<ProjectRow, "id"> {
     organization_id: p.organizationId,
     name: p.name,
     status: p.status,
+    location: p.location || null,
+    kind: p.kind,
     require_checkout: p.requireCheckout,
+    stage_baselines: p.stageBaselines,
+    progress: p.progress,
     created_at: p.createdAt,
   }
 }
@@ -239,14 +265,15 @@ export interface StageRow {
   legacy_id: string | null
   name: string
   sort_order: number
+  code: string | null
 }
 
 export function stageFromRow(row: StageRow): ConstructionStage {
-  return { id: ownId(row), code: row.legacy_id ?? row.id, name: row.name, sequence: row.sort_order }
+  return { id: ownId(row), code: row.code ?? row.legacy_id ?? row.id, name: row.name, sequence: row.sort_order }
 }
 
 export function stageToRow(s: ConstructionStage): Omit<StageRow, "id"> {
-  return { legacy_id: s.id, name: s.name, sort_order: s.sequence }
+  return { legacy_id: s.id, name: s.name, sort_order: s.sequence, code: s.code }
 }
 
 // Trades
@@ -451,24 +478,28 @@ export function workerAttendanceToRow(a: WorkerAttendance): Omit<WorkerAttendanc
   }
 }
 
-// Work types. The schema has no stage/trade/code/unit columns yet.
+// Work types. project_id is null for a library entry (shared by every project; see
+// migration 0014), the only kind this adapter writes.
 
 export interface WorkTypeRow {
   id: string
   legacy_id: string | null
-  project_id: string
+  project_id: string | null
+  stage_id: string | null
+  trade_id: string | null
   name: string
+  default_unit: string
   created_at: string
 }
 
-export function workTypeFromRow(row: WorkTypeRow): WorkType {
+export function workTypeFromRow(row: WorkTypeRow, toDomain: ToDomainId = identity): WorkType {
   return {
     id: ownId(row),
-    stageId: "",
-    tradeId: "",
+    stageId: row.stage_id ? toDomain(row.stage_id) : "",
+    tradeId: row.trade_id ? toDomain(row.trade_id) : "",
     code: row.legacy_id ?? row.id,
     name: row.name,
-    defaultUnit: "nos",
+    defaultUnit: (row.default_unit as WorkType["defaultUnit"]) ?? "nos",
   }
 }
 

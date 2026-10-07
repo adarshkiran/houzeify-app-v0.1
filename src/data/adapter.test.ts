@@ -3,10 +3,18 @@ import { afterAll, describe, expect, it } from "vitest"
 import { ConflictError } from "../domain/errors"
 import {
   acceptWorkerOnboarding,
+  addLibraryStage,
+  addLibraryTrade,
+  addLibraryWorkType,
+  addProjectUnit,
+  addProjectUnits,
+  createProject,
   loadState,
   selectProposal,
+  setStageBaselines,
   submitProposal,
   unlockRequirement,
+  updateOrganizationProfile,
 } from "./adapter"
 import { createSupabaseClient } from "./supabaseClient"
 
@@ -97,6 +105,7 @@ describe.skipIf(!localStack || !serviceKey)(
       requirement: "test-task17-requirement",
     }
     let signedInClient: SupabaseClient | undefined
+    const createdUnitIds: string[] = []
 
     afterAll(async () => {
       await signedInClient?.auth.signOut()
@@ -110,6 +119,9 @@ describe.skipIf(!localStack || !serviceKey)(
         .from("memberships")
         .delete()
         .eq("legacy_id", legacyIds.membership)
+      if (createdUnitIds.length) {
+        await admin.from("project_units").delete().in("id", createdUnitIds)
+      }
     })
 
     it("loadState shows the preview-shaped fields for a partner who has not unlocked the requirement", async () => {
@@ -227,6 +239,37 @@ describe.skipIf(!localStack || !serviceKey)(
       expect(requirement?.builtUpAreaSqft).toBe(0)
       expect(requirement?.projectName).toBe("")
     })
+
+    // Reuses the Arjun session above rather than signing in again: supabase/
+    // config.toml rate-limits SMS OTP per phone (max_frequency = 5s), and a
+    // second sign-in here would race parityCheck.test.ts's own sign-in as Arjun
+    // under vitest's default file parallelism.
+    it("addProjectUnit(s) insert rows governed by the existing project_units RLS policy", async () => {
+      if (!signedInClient) throw new Error("the preview test above must sign in first")
+
+      const unit = await addProjectUnit(signedInClient, {
+        projectId: "project-sharma",
+        kind: "location",
+        code: "T21",
+        name: "Task 21 Unit",
+      })
+      createdUnitIds.push(unit.id)
+      expect(unit.name).toBe("Task 21 Unit")
+
+      const units = await addProjectUnits(signedInClient, [
+        { projectId: "project-sharma", kind: "location", code: "T21A", name: "Task 21 Unit A" },
+        { projectId: "project-sharma", kind: "location", code: "T21B", name: "Task 21 Unit B" },
+      ])
+      createdUnitIds.push(...units.map((u) => u.id))
+      expect(units.map((u) => u.name)).toEqual(["Task 21 Unit A", "Task 21 Unit B"])
+
+      // The write's immediate return keeps raw uuid foreign keys (same accepted
+      // characteristic as unlockRequirement etc., task-15-report.md); a reload
+      // maps everything back through legacy ids, where the project reference
+      // resolves to the seed's domain id.
+      const reloaded = await loadState(signedInClient)
+      expect(reloaded.projectUnits.find((u) => u.id === unit.id)?.projectId).toBe("project-sharma")
+    })
   },
 )
 
@@ -324,5 +367,157 @@ describe("supabase adapter: write results are mapped to the domain shape", () =>
     expect(result.requireCheckout).toBe(false)
     expect(result).not.toHaveProperty("organization_id")
     expect(result).not.toHaveProperty("require_checkout")
+  })
+})
+
+// Task 21 (project setup): the same row-shape concern as above, for the batch's
+// RPC-backed wrappers. fakeRpcClient needs no local stack.
+describe("supabase adapter: project setup write results are mapped to the domain shape", () => {
+  it("createProject returns a Project, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "project-row-id",
+      legacy_id: null,
+      organization_id: "org-row-id",
+      name: "New Build",
+      status: "planning",
+      location: "Chennai",
+      kind: "individual-house",
+      require_checkout: false,
+      stage_baselines: {},
+      progress: 0,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await createProject(client, {
+      organizationId: "org-1",
+      name: "New Build",
+      code: "NB-1",
+      kind: "individual-house",
+      status: "planning",
+      location: "Chennai",
+      trackingStartedMidProject: false,
+    })
+
+    expect(result.organizationId).toBe("org-row-id")
+    expect(result.name).toBe("New Build")
+    expect(result.location).toBe("Chennai")
+    expect(result.kind).toBe("individual-house")
+    expect(result).not.toHaveProperty("organization_id")
+  })
+
+  it("updateOrganizationProfile resolves without a return value", async () => {
+    const client = fakeRpcClient({})
+    await expect(
+      updateOrganizationProfile(client, {
+        organizationId: "org-1",
+        profile: { name: "BuildRight", kind: "contractor", city: "Hyderabad", phone: "+919000000001", teamSize: "6-10" },
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it("setStageBaselines returns a Project with the recalculated progress", async () => {
+    const client = fakeRpcClient({
+      id: "project-row-id",
+      legacy_id: null,
+      organization_id: "org-row-id",
+      name: "Project",
+      status: "active",
+      location: "",
+      kind: "individual-house",
+      require_checkout: false,
+      stage_baselines: { "stage-row-id": 40 },
+      progress: 18,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await setStageBaselines(client, { projectId: "proj-1", baselines: { "stage-1": 40 } })
+
+    expect(result.progress).toBe(18)
+    expect(result.stageBaselines).toEqual({ "stage-row-id": 40 })
+  })
+
+  it("addLibraryStage returns a ConstructionStage, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "stage-row-id",
+      legacy_id: "stage-site-preparation",
+      project_id: null,
+      name: "Site Preparation",
+      sort_order: 1,
+      code: "SITEPR",
+    })
+
+    const result = await addLibraryStage(client, { name: "Site Preparation" })
+
+    expect(result.id).toBe("stage-site-preparation")
+    expect(result.name).toBe("Site Preparation")
+    expect(result.code).toBe("SITEPR")
+    expect(result).not.toHaveProperty("sort_order")
+  })
+
+  it("addLibraryTrade returns a Trade, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "trade-row-id",
+      legacy_id: "trade-civil-work",
+      project_id: null,
+      name: "Civil Work",
+    })
+
+    const result = await addLibraryTrade(client, { name: "Civil Work" })
+
+    expect(result.id).toBe("trade-civil-work")
+    expect(result.name).toBe("Civil Work")
+  })
+
+  it("addLibraryWorkType returns a WorkType and TaskTemplate, not raw rows", async () => {
+    const client = fakeRpcClient({
+      workType: {
+        id: "work-row-id",
+        legacy_id: "work-foundation-digging",
+        project_id: null,
+        stage_id: "stage-row-id",
+        trade_id: "trade-row-id",
+        name: "Foundation Digging",
+        default_unit: "m3",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      template: {
+        id: "template-row-id",
+        legacy_id: "template-foundation-digging",
+        project_id: null,
+        work_type_id: "work-row-id",
+        name: "Foundation Digging — Standard",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+    })
+
+    const result = await addLibraryWorkType(client, {
+      name: "Foundation Digging",
+      stageId: "stage-1",
+      tradeId: "trade-1",
+      defaultUnit: "m3",
+    })
+
+    expect(result.workType.id).toBe("work-foundation-digging")
+    expect(result.workType.defaultUnit).toBe("m3")
+    expect(result.template.id).toBe("template-foundation-digging")
+    expect(result.template.name).toBe("Foundation Digging — Standard")
+    expect(result.workType).not.toHaveProperty("default_unit")
+  })
+
+  it("addLibraryWorkType returns an unsaved result when the stage/trade id does not resolve to a library row", async () => {
+    const client = fakeRpcClient({
+      workType: { id: null, stageId: "stage-1", tradeId: "trade-1", name: "Bad Work Type", skipped: true },
+      template: null,
+    })
+
+    const result = await addLibraryWorkType(client, {
+      name: "Bad Work Type",
+      stageId: "stage-1",
+      tradeId: "trade-1",
+      defaultUnit: "nos",
+    })
+
+    expect(result.workType.name).toBe("Bad Work Type")
+    expect(result.workType.stageId).toBe("stage-1")
   })
 })
