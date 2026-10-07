@@ -4,7 +4,19 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { ConflictError } from "../domain/errors"
-import type { ConstructionDataState, EntityId, MarketplaceRequirement } from "../domain/models"
+import type {
+  ConstructionDataState,
+  DailyProgress,
+  EntityId,
+  MarketplaceRequirement,
+  MarketplaceUnlock,
+  Project,
+  Proposal,
+  Worker,
+  WorkerAttendance,
+  WorkerOnboarding,
+  WorkerProjectAssignment,
+} from "../domain/models"
 import { PermissionError } from "../domain/session"
 import type { Permission } from "../domain/permissions"
 import {
@@ -357,72 +369,91 @@ export interface RequirementRef {
   organizationId: EntityId
 }
 
-export function unlockRequirement(client: SupabaseClient, input: RequirementRef) {
-  return callFunction(client, "unlock_requirement", {
+export async function unlockRequirement(client: SupabaseClient, input: RequirementRef): Promise<MarketplaceUnlock> {
+  const row = await callFunction(client, "unlock_requirement", {
     requirement_id: uuidOf(client, input.requirementId),
     organization_id: uuidOf(client, input.organizationId),
   })
+  return marketplaceUnlockFromRow(row as MarketplaceUnlockRow)
 }
 
-export function submitProposal(
+export async function submitProposal(
   client: SupabaseClient,
   input: RequirementRef & { assumptions: string[]; exclusions: string[] },
-) {
-  return callFunction(client, "submit_proposal", {
+): Promise<Proposal> {
+  const row = await callFunction(client, "submit_proposal", {
     requirement_id: uuidOf(client, input.requirementId),
     organization_id: uuidOf(client, input.organizationId),
     assumptions: input.assumptions,
     exclusions: input.exclusions,
   })
+  return proposalFromRow(row as ProposalRow)
 }
 
-export function selectProposal(client: SupabaseClient, input: { proposalId: EntityId }) {
-  return callFunction(client, "select_proposal", { proposal_id: uuidOf(client, input.proposalId) })
+export async function selectProposal(client: SupabaseClient, input: { proposalId: EntityId }): Promise<Project> {
+  const row = await callFunction(client, "select_proposal", { proposal_id: uuidOf(client, input.proposalId) })
+  return projectFromRow(row as ProjectRow)
 }
 
-export function createWorkerOnboarding(client: SupabaseClient, input: { workerId: EntityId; method: string }) {
-  return callFunction(client, "create_worker_onboarding", {
+export async function createWorkerOnboarding(
+  client: SupabaseClient,
+  input: { workerId: EntityId; method: string },
+): Promise<WorkerOnboarding> {
+  const row = await callFunction(client, "create_worker_onboarding", {
     worker_id: uuidOf(client, input.workerId),
     method: input.method,
   })
+  return workerOnboardingFromRow(row as WorkerOnboardingRow)
 }
 
-export function acceptWorkerOnboarding(client: SupabaseClient, input: { onboardingId: EntityId; joinCode: string }) {
-  return callFunction(client, "accept_worker_onboarding", {
+export async function acceptWorkerOnboarding(
+  client: SupabaseClient,
+  input: { onboardingId: EntityId; joinCode: string },
+): Promise<Worker> {
+  const row = await callFunction(client, "accept_worker_onboarding", {
     onboarding_id: uuidOf(client, input.onboardingId),
     join_code: input.joinCode,
   })
+  return workerFromRow(row as WorkerRow)
 }
 
-export function acceptOwnWorkerOnboarding(client: SupabaseClient, input: { onboardingId: EntityId }) {
-  return callFunction(client, "accept_own_worker_onboarding", {
+export async function acceptOwnWorkerOnboarding(
+  client: SupabaseClient,
+  input: { onboardingId: EntityId },
+): Promise<Worker> {
+  const row = await callFunction(client, "accept_own_worker_onboarding", {
     onboarding_id: uuidOf(client, input.onboardingId),
   })
+  return workerFromRow(row as WorkerRow)
 }
 
-export function markWorkerJoined(client: SupabaseClient, input: { onboardingId: EntityId }) {
-  return callFunction(client, "mark_worker_joined", { onboarding_id: uuidOf(client, input.onboardingId) })
+export async function markWorkerJoined(client: SupabaseClient, input: { onboardingId: EntityId }): Promise<Worker> {
+  const row = await callFunction(client, "mark_worker_joined", { onboarding_id: uuidOf(client, input.onboardingId) })
+  return workerFromRow(row as WorkerRow)
 }
 
-export function endWorkerProjectAssignment(
+export async function endWorkerProjectAssignment(
   client: SupabaseClient,
   input: { assignmentId: EntityId; reason: string },
-) {
-  return callFunction(client, "end_worker_project_assignment", {
+): Promise<WorkerProjectAssignment> {
+  const row = await callFunction(client, "end_worker_project_assignment", {
     assignment_id: uuidOf(client, input.assignmentId),
     reason: input.reason,
   })
+  return workerProjectAssignmentFromRow(row as WorkerProjectAssignmentRow)
 }
 
-export function checkInWorker(client: SupabaseClient, input: { projectId: EntityId }) {
-  return callFunction(client, "check_in_worker", { project_id: uuidOf(client, input.projectId) })
+export async function checkInWorker(client: SupabaseClient, input: { projectId: EntityId }): Promise<WorkerAttendance> {
+  const row = await callFunction(client, "check_in_worker", { project_id: uuidOf(client, input.projectId) })
+  return workerAttendanceFromRow(row as WorkerAttendanceRow)
 }
 
-export function checkOutWorker(client: SupabaseClient, input: { projectId: EntityId }) {
-  return callFunction(client, "check_out_worker", { project_id: uuidOf(client, input.projectId) })
+export async function checkOutWorker(client: SupabaseClient, input: { projectId: EntityId }): Promise<WorkerAttendance> {
+  const row = await callFunction(client, "check_out_worker", { project_id: uuidOf(client, input.projectId) })
+  return workerAttendanceFromRow(row as WorkerAttendanceRow)
 }
 
-export function recordAttendance(
+export async function recordAttendance(
   client: SupabaseClient,
   input: {
     projectId: EntityId
@@ -432,8 +463,8 @@ export function recordAttendance(
     checkInAt: string | null
     checkOutAt: string | null
   },
-) {
-  return callFunction(client, "record_attendance", {
+): Promise<WorkerAttendance> {
+  const row = await callFunction(client, "record_attendance", {
     project_id: uuidOf(client, input.projectId),
     worker_id: uuidOf(client, input.workerId),
     day: input.day,
@@ -441,22 +472,28 @@ export function recordAttendance(
     check_in_at: input.checkInAt,
     check_out_at: input.checkOutAt,
   })
+  return workerAttendanceFromRow(row as WorkerAttendanceRow)
 }
 
-export function setAttendancePolicy(client: SupabaseClient, input: { projectId: EntityId; requireCheckout: boolean }) {
-  return callFunction(client, "set_attendance_policy", {
+export async function setAttendancePolicy(
+  client: SupabaseClient,
+  input: { projectId: EntityId; requireCheckout: boolean },
+): Promise<Project> {
+  const row = await callFunction(client, "set_attendance_policy", {
     project_id: uuidOf(client, input.projectId),
     require_checkout: input.requireCheckout,
   })
+  return projectFromRow(row as ProjectRow)
 }
 
-export function publishDailyProgress(
+export async function publishDailyProgress(
   client: SupabaseClient,
   input: { progressId: EntityId; decision: string; note: string | null },
-) {
-  return callFunction(client, "publish_daily_progress", {
+): Promise<DailyProgress> {
+  const row = await callFunction(client, "publish_daily_progress", {
     progress_id: uuidOf(client, input.progressId),
     decision: input.decision,
     note: input.note,
   })
+  return dailyProgressFromRow(row as DailyProgressRow)
 }

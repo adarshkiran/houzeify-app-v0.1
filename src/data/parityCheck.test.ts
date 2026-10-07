@@ -368,15 +368,15 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
 
   // ─── (b) unlockRequirement ──────────────────────────────────────────────────
   it("(b) unlockRequirement: org-buildright (as partner) unlocks the posted requirement", async () => {
-    const result = (await unlockRequirement(arjunClient, {
+    const result = await unlockRequirement(arjunClient, {
       requirementId: requirementId!,
       organizationId: orgId,
-    })) as { requirement_id: string; partner_organization_id: string; credit_transaction_id: string }
+    })
 
-    expect(result.requirement_id).toBe(requirementId)
-    expect(result.partner_organization_id).toBe(orgId)
-    expect(result.credit_transaction_id).toBeTruthy()
-    unlockCreditTransactionId = result.credit_transaction_id
+    expect(result.requirementId).toBe(requirementId)
+    expect(result.partnerOrganizationId).toBe(orgId)
+    expect(result.creditTransactionId).toBeTruthy()
+    unlockCreditTransactionId = result.creditTransactionId
 
     // Domain parity: the same unlock against the in-memory seed (augmented so
     // org-buildright is a contractor, matching the real org's kind above) with a
@@ -413,12 +413,11 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
     // field names before being returned from the write call itself).
     expect(domainResult.requirementId).toBe("req-task15")
     expect(domainResult.partnerOrganizationId).toBe("org-buildright")
-    findings.push(
-      "unlockRequirement (and submitProposal/selectProposal) return the raw snake_case Postgres row " +
-        "from the RPC (e.g. requirement_id, partner_organization_id), not the domain's camelCase shape " +
-        "(requirementId, partnerOrganizationId). loadState()'s mappers fix this on reload, but the direct " +
-        "return value handed back to callers (src/mock/ConstructionDataProvider.tsx `write`) is unmapped.",
-    )
+    // Parity: the adapter's write result is now mapped through rows.ts
+    // (marketplaceUnlockFromRow) before it reaches the caller, so both the
+    // adapter and the domain command hand back the same camelCase shape
+    // (requirementId/partnerOrganizationId/creditTransactionId), not the raw
+    // snake_case Postgres row (see task-20-report.md).
   })
 
   it("(b) unlockRequirement is reflected in loadState (reloaded as the admin/service role)", async () => {
@@ -436,26 +435,22 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
 
   // ─── (c) submitProposal, selectProposal ─────────────────────────────────────
   it("(c) submitProposal: org-buildright proposes on the unlocked requirement", async () => {
-    const result = (await submitProposal(arjunClient, {
+    const result = await submitProposal(arjunClient, {
       requirementId: requirementId!,
       organizationId: orgId,
       assumptions: ["Standard soil conditions"],
       exclusions: ["Interior design"],
-    })) as { id: string; requirement_id: string; status: string; total: number }
+    })
     proposalId = result.id
-    expect(result.requirement_id).toBe(requirementId)
+    expect(result.requirementId).toBe(requirementId)
     expect(result.status).toBe("submitted")
     expect(result.total).toBeGreaterThan(0)
   })
 
   it("(c) selectProposal: the homeowner awards the proposal and a project is created", async () => {
-    const result = (await selectProposal(homeownerClient, { proposalId: proposalId! })) as {
-      id: string
-      organization_id: string
-      status: string
-    }
+    const result = await selectProposal(homeownerClient, { proposalId: proposalId! })
     createdProjectId = result.id
-    expect(result.organization_id).toBe(orgId)
+    expect(result.organizationId).toBe(orgId)
     expect(result.status).toBe("planning")
 
     const state = await loadState(admin)
@@ -468,12 +463,12 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
 
   // ─── (d) createWorkerOnboarding, acceptOwnWorkerOnboarding ──────────────────
   it("(d) createWorkerOnboarding: Arjun invites the test worker to join", async () => {
-    const result = (await createWorkerOnboarding(arjunClient, {
+    const result = await createWorkerOnboarding(arjunClient, {
       workerId: testWorkerId!,
       method: "supervisor-assisted",
-    })) as { id: string; worker_id: string; status: string; method: string }
+    })
     onboardingId = result.id
-    expect(result.worker_id).toBe(testWorkerId)
+    expect(result.workerId).toBe(testWorkerId)
     expect(result.status).toBe("invited")
     expect(result.method).toBe("supervisor-assisted")
 
@@ -495,11 +490,10 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
   })
 
   it("(d) acceptOwnWorkerOnboarding: the worker's own session accepts and the worker goes active", async () => {
-    const result = (await acceptOwnWorkerOnboarding(homeownerClient, { onboardingId: onboardingId! })) as {
-      id: string
-      status: string
-    }
-    expect(result.id).toBe(testWorkerId)
+    const result = await acceptOwnWorkerOnboarding(homeownerClient, { onboardingId: onboardingId! })
+    // workerFromRow's id is `legacy_id ?? id` (the A1 domain-id convention), not
+    // the raw uuid `testWorkerId` captured from the insert — matches loadState.
+    expect(result.id).toBe(L("worker"))
     expect(result.status).toBe("active")
 
     const state = await loadState(admin)
@@ -511,29 +505,21 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
 
   // ─── (e) checkInWorker, checkOutWorker (Ravi / worker-2 / Sharma) ───────────
   it("(e) checkInWorker: Ravi checks in to the Sharma project", async () => {
-    const result = (await checkInWorker(raviClient, { projectId: sharmaProjectId })) as {
-      worker_id: string
-      project_id: string
-      check_in_at: string | null
-      check_out_at: string | null
-      status: string
-    }
-    expect(result.worker_id).toBe(worker2Id)
-    expect(result.project_id).toBe(sharmaProjectId)
-    expect(result.check_in_at).toBeTruthy()
-    expect(result.check_out_at).toBeNull()
+    const result = await checkInWorker(raviClient, { projectId: sharmaProjectId })
+    expect(result.workerId).toBe(worker2Id)
+    expect(result.projectId).toBe(sharmaProjectId)
+    expect(result.checkInAt).toBeTruthy()
+    // WorkerAttendance.checkOutAt is optional (undefined), not null — workerAttendanceFromRow
+    // converts the row's `check_out_at: null` to `undefined` to match the domain model.
+    expect(result.checkOutAt).toBeUndefined()
     expect(result.status).toBe("present")
   })
 
   it("(e) checkOutWorker: Ravi checks out of the Sharma project", async () => {
-    const result = (await checkOutWorker(raviClient, { projectId: sharmaProjectId })) as {
-      worker_id: string
-      check_in_at: string | null
-      check_out_at: string | null
-    }
-    expect(result.worker_id).toBe(worker2Id)
-    expect(result.check_in_at).toBeTruthy()
-    expect(result.check_out_at).toBeTruthy()
+    const result = await checkOutWorker(raviClient, { projectId: sharmaProjectId })
+    expect(result.workerId).toBe(worker2Id)
+    expect(result.checkInAt).toBeTruthy()
+    expect(result.checkOutAt).toBeTruthy()
 
     // Domain parity: attendanceCommands.checkInWorker/checkOutWorker produce the
     // same WorkerAttendance shape (status "present", both timestamps set, same
@@ -551,36 +537,36 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
   // ─── (f) recordAttendance (Arjun, supervisor, for worker-1 on Tech Park) ────
   it("(f) recordAttendance: Arjun records attendance for worker-1 on Tech Park", async () => {
     const today = new Date().toISOString().slice(0, 10)
-    const result = (await recordAttendance(arjunClient, {
+    const result = await recordAttendance(arjunClient, {
       projectId: techParkProjectId,
       workerId: worker1Id,
       day: today,
       status: "present",
       checkInAt: new Date().toISOString(),
       checkOutAt: null,
-    })) as { worker_id: string; status: string; recorded_by: string }
-    expect(result.worker_id).toBe(worker1Id)
+    })
+    expect(result.workerId).toBe(worker1Id)
     expect(result.status).toBe("present")
-    expect(result.recorded_by).toBe("supervisor")
+    expect(result.recordedBy).toBe("supervisor")
   })
 
   // ─── (g) publishDailyProgress: review → approve → publish ──────────────────
   it("(g) publishDailyProgress: approve then publish the submitted update", async () => {
-    const approved = (await publishDailyProgress(arjunClient, {
+    const approved = await publishDailyProgress(arjunClient, {
       progressId: dailyProgressId!,
       decision: "approve",
       note: null,
-    })) as { review_status: string; publication_status: string }
-    expect(approved.review_status).toBe("approved")
-    expect(approved.publication_status).toBe("private")
+    })
+    expect(approved.reviewStatus).toBe("approved")
+    expect(approved.publicationStatus).toBe("private")
 
-    const published = (await publishDailyProgress(arjunClient, {
+    const published = await publishDailyProgress(arjunClient, {
       progressId: dailyProgressId!,
       decision: "publish",
       note: null,
-    })) as { review_status: string; publication_status: string }
-    expect(published.review_status).toBe("approved")
-    expect(published.publication_status).toBe("published")
+    })
+    expect(published.reviewStatus).toBe("approved")
+    expect(published.publicationStatus).toBe("published")
 
     const state = await loadState(admin)
     const progress = state.dailyProgress.find((p) => p.id === L("progress"))
