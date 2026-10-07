@@ -283,13 +283,15 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
       write(() => adapter.setStageBaselines(client, { projectId, baselines })),
     addProjectUnit: (input: Inputs.AddProjectUnitInput) => write(() => adapter.addProjectUnit(client, input)),
     addProjectUnits: (inputs: Inputs.AddProjectUnitInput[]) => write(() => adapter.addProjectUnits(client, inputs)),
-    inviteProjectMember: () => notInSupabaseYet("inviteProjectMember"),
+    inviteProjectMember: (input: Inputs.InviteProjectMemberInput) =>
+      write(() => adapter.inviteProjectMember(client, input)),
     addWorkPlanItem: (input: Inputs.AddWorkPlanItemInput) => write(() => adapter.addWorkPlanItem(client, input)),
     createTask: (input: Inputs.CreateTaskInput) => write(() => adapter.createTask(client, input)),
     assignTask: (taskId: EntityId, assigneeType: TaskAssignment["assigneeType"], assigneeId: EntityId) =>
       write(() => adapter.assignTask(client, { taskId, assigneeType, assigneeId })),
-    assignWorkerToProject: () => notInSupabaseYet("assignWorkerToProject"),
-    addWorker: () => notInSupabaseYet("addWorker"),
+    assignWorkerToProject: (input: Inputs.AssignWorkerToProjectInput) =>
+      write(() => adapter.assignWorkerToProject(client, input)),
+    addWorker: (input: Inputs.AddWorkerInput) => write(() => adapter.addWorker(client, input)),
     createWorkerOnboarding: (input: { workerId: EntityId; method: "qr" | "supervisor-assisted" }) =>
       write(() => adapter.createWorkerOnboarding(client, input)),
     acceptWorkerOnboarding: (onboardingId: EntityId, joinCode?: string) =>
@@ -297,7 +299,8 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
     // The session identifies the worker, so the phone argument is not sent.
     acceptOwnWorkerOnboarding: (onboardingId: EntityId) =>
       write(() => adapter.acceptOwnWorkerOnboarding(client, { onboardingId })),
-    cancelWorkerOnboarding: () => notInSupabaseYet("cancelWorkerOnboarding"),
+    cancelWorkerOnboarding: (onboardingId: EntityId) =>
+      write(() => adapter.cancelWorkerOnboarding(client, { onboardingId })),
     endWorkerProjectAssignment: (assignmentId: EntityId, reason: AssignmentEndReason) =>
       write(() => adapter.endWorkerProjectAssignment(client, { assignmentId, reason })),
     recordAttendance: (input: RecordAttendanceInput) =>

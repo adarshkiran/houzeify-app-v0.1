@@ -9,10 +9,14 @@ import {
   addLibraryWorkType,
   addProjectUnit,
   addProjectUnits,
+  addWorker,
   addWorkPlanItem,
   assignTask,
+  assignWorkerToProject,
+  cancelWorkerOnboarding,
   createProject,
   createTask,
+  inviteProjectMember,
   loadState,
   selectProposal,
   setStageBaselines,
@@ -113,6 +117,11 @@ describe.skipIf(!localStack || !serviceKey)(
       trade: "test-task22-trade",
       workType: "test-task22-work-type",
     }
+    const workforcePhones = {
+      added: "+919000099001",
+      invitedContractor: "+919000099002",
+      invitedWorker: "+919000099003",
+    }
     let signedInClient: SupabaseClient | undefined
     const createdUnitIds: string[] = []
 
@@ -135,6 +144,26 @@ describe.skipIf(!localStack || !serviceKey)(
       await admin.from("work_types").delete().eq("legacy_id", legacyIds.workType)
       await admin.from("trades").delete().eq("legacy_id", legacyIds.trade)
       await admin.from("stages").delete().eq("legacy_id", legacyIds.stage)
+      // Task 23 (workforce extras) fixtures: delete children before parents.
+      const { data: workforceWorkers } = await admin
+        .from("workers")
+        .select("id")
+        .in("phone", Object.values(workforcePhones))
+      const workforceWorkerIds = (workforceWorkers ?? []).map((w) => w.id)
+      if (workforceWorkerIds.length) {
+        await admin.from("worker_project_assignments").delete().in("worker_id", workforceWorkerIds)
+        await admin.from("worker_onboardings").delete().in("worker_id", workforceWorkerIds)
+        await admin.from("workers").delete().in("id", workforceWorkerIds)
+      }
+      const { data: workforcePeople } = await admin
+        .from("people")
+        .select("id")
+        .in("phone", Object.values(workforcePhones))
+      const workforcePersonIds = (workforcePeople ?? []).map((p) => p.id)
+      if (workforcePersonIds.length) {
+        await admin.from("memberships").delete().in("person_id", workforcePersonIds)
+        await admin.from("people").delete().in("id", workforcePersonIds)
+      }
     })
 
     it("loadState shows the preview-shaped fields for a partner who has not unlocked the requirement", async () => {
@@ -353,6 +382,97 @@ describe.skipIf(!localStack || !serviceKey)(
       await expect(transitionTask(signedInClient, { taskId: task.id, nextStatus: "completed" })).rejects.toThrow(
         "A task can't move from accepted to completed.",
       )
+    })
+
+    // Reuses the Arjun session above. Arjun has workforce.manage both on
+    // org-buildright (organization-level checks) and on project-sharma
+    // (project-scoped checks).
+    it("addWorker -> assignWorkerToProject -> inviteProjectMember -> cancelWorkerOnboarding drive real workforce writes through Postgres (local stack)", async () => {
+      if (!signedInClient) throw new Error("the preview test above must sign in first")
+      const admin = createClient(url, serviceKey)
+
+      const { data: org } = await admin.from("organizations").select("id").eq("legacy_id", "org-buildright").single()
+      const { data: project } = await admin.from("projects").select("id").eq("legacy_id", "project-sharma").single()
+      if (!org || !project) throw new Error("org-buildright/project-sharma fixtures are missing; run db reset")
+
+      const added = await addWorker(signedInClient, {
+        organizationId: org.id,
+        name: "Task 23 Worker",
+        phone: workforcePhones.added,
+        tradeIds: [],
+      })
+      expect(added.worker.status).toBe("invited")
+      expect(added.assignment).toBeUndefined()
+
+      // The shared duplicate-phone check (assert_phone_free) refuses a second
+      // worker with the same phone in the organization.
+      await expect(
+        addWorker(signedInClient, {
+          organizationId: org.id,
+          name: "Dup Worker",
+          phone: workforcePhones.added,
+          tradeIds: [],
+        }),
+      ).rejects.toThrow("A worker with this phone number already exists in your organization.")
+
+      // An invited worker's assignment starts invited (R12), not active.
+      const assignment = await assignWorkerToProject(signedInClient, {
+        workerId: added.worker.id,
+        projectId: project.id,
+      })
+      expect(assignment.status).toBe("invited")
+      expect(assignment.startedAt).toBeUndefined()
+
+      // Assigning the same worker to the same project again is refused.
+      await expect(
+        assignWorkerToProject(signedInClient, { workerId: added.worker.id, projectId: project.id }),
+      ).rejects.toThrow("This worker is already assigned to this project.")
+
+      // inviteProjectMember: a non-worker role creates no worker record.
+      const contractorMembership = await inviteProjectMember(signedInClient, {
+        projectId: project.id,
+        name: "Task 23 Contractor",
+        phone: workforcePhones.invitedContractor,
+        role: "contractor",
+      })
+      expect(contractorMembership.role).toBe("contractor")
+      expect(contractorMembership.status).toBe("invited")
+
+      // inviteProjectMember's worker role shares assert_phone_free with addWorker.
+      await expect(
+        inviteProjectMember(signedInClient, {
+          projectId: project.id,
+          name: "Dup Via Invite",
+          phone: workforcePhones.added,
+          role: "worker",
+        }),
+      ).rejects.toThrow("A worker with this phone number already exists in your organization.")
+
+      const workerMembership = await inviteProjectMember(signedInClient, {
+        projectId: project.id,
+        name: "Task 23 Invited Worker",
+        phone: workforcePhones.invitedWorker,
+        role: "worker",
+      })
+      expect(workerMembership.role).toBe("worker")
+
+      // cancelWorkerOnboarding: only an invited (not yet accepted) onboarding
+      // can be cancelled. addWorker already created a manual onboarding for
+      // `added.worker` (newWorkerRecord), so reuse it rather than starting a
+      // second one -- a worker has at most one open onboarding.
+      const { data: onboardingRow } = await admin
+        .from("worker_onboardings")
+        .select("id")
+        .eq("worker_id", added.worker.id)
+        .single()
+      if (!onboardingRow) throw new Error("addWorker should have created a manual onboarding")
+
+      const cancelled = await cancelWorkerOnboarding(signedInClient, { onboardingId: onboardingRow.id })
+      expect(cancelled.status).toBe("cancelled")
+
+      await expect(
+        cancelWorkerOnboarding(signedInClient, { onboardingId: onboardingRow.id }),
+      ).rejects.toThrow("Only an invitation that hasn't been accepted can be cancelled.")
     })
   },
 )
@@ -706,5 +826,148 @@ describe("supabase adapter: task engine write results are mapped to the domain s
   it("transitionTask resolves without a return value", async () => {
     const client = fakeRpcClient({})
     await expect(transitionTask(client, { taskId: "task-1", nextStatus: "accepted" })).resolves.toBeUndefined()
+  })
+})
+
+// Task 23 (workforce extras): the same row-shape concern as tasks 21/22, for
+// this batch's RPC-backed wrappers. fakeRpcClient needs no local stack.
+describe("supabase adapter: workforce extras write results are mapped to the domain shape", () => {
+  it("addWorker returns { worker, assignment }, not the raw nested row", async () => {
+    const client = fakeRpcClient({
+      worker: {
+        id: "worker-row-id",
+        legacy_id: null,
+        organization_id: "org-row-id",
+        user_id: null,
+        phone: "+919000000001",
+        name: "New Worker",
+        trade_ids: [],
+        languages: ["en"],
+        onboarding_method: "manual",
+        status: "invited",
+      },
+      assignment: {
+        id: "assignment-row-id",
+        legacy_id: null,
+        project_id: "project-row-id",
+        worker_id: "worker-row-id",
+        project_unit_ids: [],
+        started_at: null,
+        ended_at: null,
+        end_reason: null,
+        status: "invited",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+    })
+
+    const result = await addWorker(client, {
+      organizationId: "org-1",
+      name: "New Worker",
+      phone: "+919000000001",
+      tradeIds: [],
+      projectId: "project-1",
+    })
+
+    expect(result.worker.organizationId).toBe("org-row-id")
+    expect(result.worker.status).toBe("invited")
+    expect(result.assignment?.projectId).toBe("project-row-id")
+    expect(result.assignment?.status).toBe("invited")
+    expect(result).not.toHaveProperty("organization_id")
+  })
+
+  it("addWorker with no project returns an undefined assignment", async () => {
+    const client = fakeRpcClient({
+      worker: {
+        id: "worker-row-id",
+        legacy_id: null,
+        organization_id: "org-row-id",
+        user_id: null,
+        phone: "+919000000002",
+        name: "Unassigned Worker",
+        trade_ids: [],
+        languages: ["en"],
+        onboarding_method: "manual",
+        status: "invited",
+      },
+      assignment: null,
+    })
+
+    const result = await addWorker(client, {
+      organizationId: "org-1",
+      name: "Unassigned Worker",
+      phone: "+919000000002",
+      tradeIds: [],
+    })
+
+    expect(result.assignment).toBeUndefined()
+  })
+
+  it("inviteProjectMember returns a ProjectMembership, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "membership-row-id",
+      legacy_id: null,
+      person_id: "person-row-id",
+      project_id: "project-row-id",
+      role: "contractor",
+      permissions: ["project.read", "task.manage", "progress.submit", "evidence.capture"],
+      scope: { projectUnitIds: [], stageIds: [], tradeIds: [] },
+      status: "invited",
+    })
+
+    const result = await inviteProjectMember(client, {
+      projectId: "proj-1",
+      name: "New Contractor",
+      phone: "+919000000003",
+      role: "contractor",
+    })
+
+    expect(result.projectId).toBe("project-row-id")
+    expect(result.principalId).toBe("person-row-id")
+    expect(result.status).toBe("invited")
+    expect(result).not.toHaveProperty("person_id")
+  })
+
+  it("assignWorkerToProject returns a WorkerProjectAssignment, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "assignment-row-id",
+      legacy_id: null,
+      project_id: "project-row-id",
+      worker_id: "worker-row-id",
+      project_unit_ids: [],
+      started_at: null,
+      ended_at: null,
+      end_reason: null,
+      status: "invited",
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await assignWorkerToProject(client, { workerId: "worker-1", projectId: "proj-1" })
+
+    expect(result.projectId).toBe("project-row-id")
+    expect(result.workerId).toBe("worker-row-id")
+    expect(result.status).toBe("invited")
+    expect(result.startedAt).toBeUndefined()
+    expect(result).not.toHaveProperty("worker_id")
+  })
+
+  it("cancelWorkerOnboarding returns a WorkerOnboarding, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "onboarding-row-id",
+      legacy_id: null,
+      worker_id: "worker-row-id",
+      organization_id: "org-row-id",
+      method: "manual",
+      status: "cancelled",
+      join_code: null,
+      invited_at: "2026-01-01T00:00:00.000Z",
+      accepted_at: null,
+      expires_at: null,
+    })
+
+    const result = await cancelWorkerOnboarding(client, { onboardingId: "onboarding-1" })
+
+    expect(result.workerId).toBe("worker-row-id")
+    expect(result.status).toBe("cancelled")
+    expect(result).not.toHaveProperty("worker_id")
   })
 })

@@ -10,9 +10,12 @@ import type {
   AddLibraryTradeInput,
   AddLibraryWorkTypeInput,
   AddProjectUnitInput,
+  AddWorkerInput,
   AddWorkPlanItemInput,
+  AssignWorkerToProjectInput,
   CreateProjectInput,
   CreateTaskInput,
+  InviteProjectMemberInput,
 } from "../domain/commandInputs"
 import type {
   ConstructionDataState,
@@ -22,6 +25,7 @@ import type {
   MarketplaceRequirement,
   MarketplaceUnlock,
   Project,
+  ProjectMembership,
   ProjectUnit,
   Proposal,
   Task,
@@ -460,6 +464,69 @@ export async function endWorkerProjectAssignment(
     reason: input.reason,
   })
   return workerProjectAssignmentFromRow(row as WorkerProjectAssignmentRow)
+}
+
+export async function assignWorkerToProject(
+  client: SupabaseClient,
+  input: AssignWorkerToProjectInput,
+): Promise<WorkerProjectAssignment> {
+  const row = await callFunction(client, "assign_worker_to_project", {
+    worker_id: uuidOf(client, input.workerId),
+    project_id: uuidOf(client, input.projectId),
+    project_unit_ids: input.projectUnitIds?.length
+      ? input.projectUnitIds.map((id) => uuidOf(client, id))
+      : null,
+    trade_ids: input.tradeIds?.length ? input.tradeIds.map((id) => uuidOf(client, id)) : null,
+  })
+  return workerProjectAssignmentFromRow(row as WorkerProjectAssignmentRow)
+}
+
+export async function addWorker(
+  client: SupabaseClient,
+  input: AddWorkerInput,
+): Promise<{ worker: Worker; assignment?: WorkerProjectAssignment }> {
+  const row = await callFunction(client, "add_worker", {
+    organization_id: uuidOf(client, input.organizationId),
+    name: input.name,
+    phone: input.phone ?? null,
+    trade_ids: input.tradeIds.map((id) => uuidOf(client, id)),
+    languages: input.languages?.length ? input.languages : ["en"],
+    project_id: input.projectId ? uuidOf(client, input.projectId) : null,
+    project_unit_ids: input.projectUnitIds?.length
+      ? input.projectUnitIds.map((id) => uuidOf(client, id))
+      : null,
+  })
+  const result = row as { worker: WorkerRow; assignment: WorkerProjectAssignmentRow | null }
+  return {
+    worker: workerFromRow(result.worker),
+    assignment: result.assignment ? workerProjectAssignmentFromRow(result.assignment) : undefined,
+  }
+}
+
+export async function inviteProjectMember(
+  client: SupabaseClient,
+  input: InviteProjectMemberInput,
+): Promise<ProjectMembership> {
+  const row = await callFunction(client, "invite_project_member", {
+    project_id: uuidOf(client, input.projectId),
+    name: input.name,
+    phone: input.phone ?? null,
+    role: input.role,
+    project_unit_ids: input.projectUnitIds?.length
+      ? input.projectUnitIds.map((id) => uuidOf(client, id))
+      : null,
+  })
+  return membershipFromRow(row as MembershipRow)
+}
+
+export async function cancelWorkerOnboarding(
+  client: SupabaseClient,
+  input: { onboardingId: EntityId },
+): Promise<WorkerOnboarding> {
+  const row = await callFunction(client, "cancel_worker_onboarding", {
+    onboarding_id: uuidOf(client, input.onboardingId),
+  })
+  return workerOnboardingFromRow(row as WorkerOnboardingRow)
 }
 
 export async function checkInWorker(client: SupabaseClient, input: { projectId: EntityId }): Promise<WorkerAttendance> {
