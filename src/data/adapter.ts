@@ -24,13 +24,16 @@ import type {
   UploadDocumentInput,
 } from "../domain/commandInputs"
 import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
+import type { GenerateEstimateInput } from "../domain/estimateCommands"
 import type {
   CallLog,
   ConstructionDataState,
   ConstructionStage,
+  CreditWallet,
   DailyProgress,
   Document,
   EntityId,
+  Estimate,
   Evidence,
   Issue,
   MarketplaceRequirement,
@@ -440,6 +443,45 @@ export async function submitProposal(
 export async function selectProposal(client: SupabaseClient, input: { proposalId: EntityId }): Promise<Project> {
   const row = await callFunction(client, "select_proposal", { proposal_id: uuidOf(client, input.proposalId) })
   return projectFromRow(row as ProjectRow)
+}
+
+export async function generateEstimate(
+  client: SupabaseClient,
+  input: GenerateEstimateInput,
+): Promise<Estimate> {
+  const row = await callFunction(client, "generate_estimate", {
+    project_name: input.projectName,
+    property_type: input.propertyType,
+    location: input.location,
+    built_up_area_sqft: input.builtUpAreaSqft,
+    floors: input.floors,
+    construction_level: input.constructionLevel,
+  })
+  return estimateFromRow(row as EstimateRow)
+}
+
+export async function confirmEstimate(client: SupabaseClient, input: { estimateId: EntityId }): Promise<Estimate> {
+  const row = await callFunction(client, "confirm_estimate", { estimate_id: uuidOf(client, input.estimateId) })
+  return estimateFromRow(row as EstimateRow)
+}
+
+export async function postRequirement(
+  client: SupabaseClient,
+  input: { estimateId: EntityId },
+): Promise<MarketplaceRequirement> {
+  const row = await callFunction(client, "post_requirement", { estimate_id: uuidOf(client, input.estimateId) })
+  return marketplaceRequirementFromRow(row as MarketplaceRequirementRow)
+}
+
+export async function purchaseCredits(
+  client: SupabaseClient,
+  input: { organizationId: EntityId; credits: number },
+): Promise<CreditWallet> {
+  const row = await callFunction(client, "purchase_credits", {
+    organization_id: uuidOf(client, input.organizationId),
+    credits: input.credits,
+  })
+  return creditWalletFromRow(row as CreditWalletRow)
 }
 
 export async function createWorkerOnboarding(

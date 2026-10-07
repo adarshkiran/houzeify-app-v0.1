@@ -14,8 +14,10 @@ import {
   assignTask,
   assignWorkerToProject,
   cancelWorkerOnboarding,
+  confirmEstimate,
   createProject,
   createTask,
+  generateEstimate,
   inviteProjectMember,
   loadState,
   logCall,
@@ -23,7 +25,9 @@ import {
   markThreadUnread,
   openDirectThread,
   postMessage,
+  postRequirement,
   publishDocument,
+  purchaseCredits,
   selectProposal,
   setStageBaselines,
   startTask,
@@ -1101,5 +1105,108 @@ describe("supabase adapter: documents and conversations write results are mapped
 
     await expect(markThreadRead(client, { threadId: "thread-1" })).resolves.toBeUndefined()
     await expect(markThreadUnread(client, { threadId: "thread-1" })).resolves.toBeUndefined()
+  })
+})
+
+// Task 26 (estimates and billing, the final unwired batch): the same row-shape
+// concern as above, for this batch's RPC-backed wrappers. fakeRpcClient needs
+// no local stack.
+describe("supabase adapter: estimates and billing write results are mapped to the domain shape", () => {
+  it("generateEstimate returns an Estimate, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "estimate-row-id",
+      legacy_id: null,
+      homeowner_person_id: "person-row-id",
+      project_name: "Parity House",
+      property_type: "independent",
+      location: "Hyderabad, Telangana",
+      built_up_area_sqft: 1000,
+      floors: 2,
+      construction_level: "standard",
+      total_low: 1667219.4,
+      total_high: 1957170.6,
+      breakdown: { materials: 1025400, labour: 466500, finishing: 234000, contingency: 86295 },
+      review_status: "draft",
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await generateEstimate(client, {
+      projectName: "Parity House",
+      propertyType: "independent",
+      location: "Hyderabad, Telangana",
+      builtUpAreaSqft: 1000,
+      floors: 2,
+      constructionLevel: "standard",
+    })
+
+    expect(result.homeownerPersonId).toBe("person-row-id")
+    expect(result.reviewStatus).toBe("draft")
+    expect(result.breakdown.materials).toBe(1025400)
+    expect(result).not.toHaveProperty("homeowner_person_id")
+    expect(result).not.toHaveProperty("review_status")
+  })
+
+  it("confirmEstimate returns an Estimate, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "estimate-row-id",
+      legacy_id: null,
+      homeowner_person_id: "person-row-id",
+      project_name: "Parity House",
+      property_type: "independent",
+      location: "Hyderabad, Telangana",
+      built_up_area_sqft: 1000,
+      floors: 2,
+      construction_level: "standard",
+      total_low: 1667219.4,
+      total_high: 1957170.6,
+      breakdown: { materials: 1025400, labour: 466500, finishing: 234000, contingency: 86295 },
+      review_status: "confirmed",
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await confirmEstimate(client, { estimateId: "estimate-1" })
+
+    expect(result.reviewStatus).toBe("confirmed")
+    expect(result).not.toHaveProperty("review_status")
+  })
+
+  it("postRequirement returns a MarketplaceRequirement, not the raw row", async () => {
+    const client = fakeRpcClient({
+      id: "requirement-row-id",
+      legacy_id: null,
+      estimate_id: "estimate-row-id",
+      homeowner_person_id: "person-row-id",
+      project_name: "Parity House",
+      location: "Hyderabad, Telangana",
+      built_up_area_sqft: 1000,
+      construction_level: "standard",
+      property_type: "independent",
+      estimate_total_low: 1667219.4,
+      estimate_total_high: 1957170.6,
+      status: "posted",
+      posted_at: "2026-01-01T00:00:00.000Z",
+      awarded_proposal_id: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })
+
+    const result = await postRequirement(client, { estimateId: "estimate-1" })
+
+    expect(result.estimateId).toBe("estimate-row-id")
+    expect(result.status).toBe("posted")
+    expect(result).not.toHaveProperty("estimate_id")
+    expect(result).not.toHaveProperty("posted_at")
+  })
+
+  it("purchaseCredits returns a CreditWallet, not the raw row", async () => {
+    const client = fakeRpcClient({
+      organization_id: "org-row-id",
+      balance: 170,
+    })
+
+    const result = await purchaseCredits(client, { organizationId: "org-1", credits: 150 })
+
+    expect(result.organizationId).toBe("org-row-id")
+    expect(result.balance).toBe(170)
+    expect(result).not.toHaveProperty("organization_id")
   })
 })

@@ -265,10 +265,6 @@ export interface SupabaseExec {
   getState: () => ConstructionDataState
 }
 
-function notInSupabaseYet(name: string): never {
-  throw new Error(`${name} is not available with the Supabase data source yet.`)
-}
-
 /**
  * Supabase-mode surface. Writes that have an adapter function return a promise
  * (the adapter is async). Commands without one throw a clear error when called.
@@ -353,12 +349,13 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
     uploadDocument: (input: Inputs.UploadDocumentInput) => write(() => adapter.uploadDocument(client, input)),
     publishDocument: (documentId: EntityId, visible: boolean) =>
       write(() => adapter.publishDocument(client, { documentId, visible })),
-    generateEstimate: () => notInSupabaseYet("generateEstimate"),
-    confirmEstimate: () => notInSupabaseYet("confirmEstimate"),
-    postRequirement: () => notInSupabaseYet("postRequirement"),
+    generateEstimate: (input: GenerateEstimateInput) => write(() => adapter.generateEstimate(client, input)),
+    confirmEstimate: (estimateId: EntityId) => write(() => adapter.confirmEstimate(client, { estimateId })),
+    postRequirement: (estimateId: EntityId) => write(() => adapter.postRequirement(client, { estimateId })),
     unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) =>
       write(() => adapter.unlockRequirement(client, { requirementId, organizationId: partnerOrganizationId })),
-    purchaseCredits: () => notInSupabaseYet("purchaseCredits"),
+    purchaseCredits: (organizationId: EntityId, credits: number) =>
+      write(() => adapter.purchaseCredits(client, { organizationId, credits })),
     submitProposal: (requirementId: EntityId, partnerOrganizationId: EntityId, input: SubmitProposalInput) =>
       write(() =>
         adapter.submitProposal(client, {
