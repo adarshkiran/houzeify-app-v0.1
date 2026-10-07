@@ -332,16 +332,24 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
       write(() => adapter.transitionTask(client, { taskId, nextStatus })),
     acceptTaskAssignment: (taskId: EntityId) => write(() => adapter.acceptTaskAssignment(client, { taskId })),
     startTask: (taskId: EntityId) => write(() => adapter.startTask(client, { taskId })),
-    addEvidence: () => notInSupabaseYet("addEvidence"),
-    submitDailyProgress: () => notInSupabaseYet("submitDailyProgress"),
-    resubmitDailyProgress: () => notInSupabaseYet("resubmitDailyProgress"),
-    reviewDailyProgress: () => notInSupabaseYet("reviewDailyProgress"),
-    publishDailyProgress: () => notInSupabaseYet("publishDailyProgress"),
-    reportIssue: () => notInSupabaseYet("reportIssue"),
-    assignIssue: () => notInSupabaseYet("assignIssue"),
-    transitionIssue: () => notInSupabaseYet("transitionIssue"),
-    addIssueEvidence: () => notInSupabaseYet("addIssueEvidence"),
-    publishIssue: () => notInSupabaseYet("publishIssue"),
+    addEvidence: (input: Inputs.AddEvidenceInput) => write(() => adapter.addEvidence(client, input)),
+    submitDailyProgress: (input: Inputs.SubmitDailyProgressInput) =>
+      write(() => adapter.submitDailyProgress(client, input)),
+    resubmitDailyProgress: (previousId: EntityId, input: Inputs.ResubmitDailyProgressInput) =>
+      write(() => adapter.resubmitDailyProgress(client, previousId, input)),
+    reviewDailyProgress: (progressId: EntityId, decision: ReviewDecision, note?: string) =>
+      write(() => adapter.reviewDailyProgress(client, { progressId, decision, note })),
+    publishDailyProgress: (progressId: EntityId, evidenceIds: EntityId[]) =>
+      write(() => adapter.publishDailyProgress(client, { progressId, evidenceIds })),
+    reportIssue: (input: Inputs.ReportIssueInput) => write(() => adapter.reportIssue(client, input)),
+    assignIssue: (issueId: EntityId, membershipId: EntityId | undefined) =>
+      write(() => adapter.assignIssue(client, { issueId, membershipId })),
+    transitionIssue: (issueId: EntityId, next: Issue["status"], resolutionNote?: string) =>
+      write(() => adapter.transitionIssue(client, { issueId, next, resolutionNote })),
+    addIssueEvidence: (issueId: EntityId, items: Inputs.IssueEvidenceInput[]) =>
+      write(() => adapter.addIssueEvidence(client, { issueId, items })),
+    publishIssue: (issueId: EntityId, visible: boolean) =>
+      write(() => adapter.publishIssue(client, { issueId, visible })),
     uploadDocument: () => notInSupabaseYet("uploadDocument"),
     publishDocument: () => notInSupabaseYet("publishDocument"),
     generateEstimate: () => notInSupabaseYet("generateEstimate"),

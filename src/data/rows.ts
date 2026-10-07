@@ -751,6 +751,7 @@ export interface EvidenceRow {
   project_unit_id: string | null
   task_id: string | null
   daily_progress_id: string | null
+  issue_id: string | null
   type: string
   url: string
   thumbnail_url: string | null
@@ -806,7 +807,9 @@ export function documentFromRow(row: DocumentRow, toDomain: ToDomainId = identit
   }
 }
 
-// Issues. There is no backing column for evidenceIds; it loads as [].
+// Issues. evidenceIds has no column of its own on this table -- it is derived
+// by the caller from evidence rows whose issue_id (migration 0017) points here
+// and passed in, same pattern as dailyProgressFromRow's evidenceIds.
 
 export interface IssueRow {
   id: string
@@ -831,7 +834,11 @@ export interface IssueRow {
   closed_at: string | null
 }
 
-export function issueFromRow(row: IssueRow, toDomain: ToDomainId = identity): Issue {
+export function issueFromRow(
+  row: IssueRow,
+  toDomain: ToDomainId = identity,
+  evidenceIds: EntityId[] = [],
+): Issue {
   return {
     id: ownId(row),
     projectId: toDomain(row.project_id),
@@ -845,7 +852,7 @@ export function issueFromRow(row: IssueRow, toDomain: ToDomainId = identity): Is
     severity: row.severity as Issue["severity"],
     status: row.status as Issue["status"],
     assignedMembershipId: row.assigned_membership_id ? toDomain(row.assigned_membership_id) : undefined,
-    evidenceIds: [],
+    evidenceIds,
     customerVisibility: row.customer_visible ? "customer-visible" : "private",
     createdByMembershipId: toDomain(row.created_by_membership_id),
     createdAt: row.created_at,

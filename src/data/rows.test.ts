@@ -323,6 +323,7 @@ describe("evidence and document row mapping", () => {
       project_unit_id: "unit-uuid",
       task_id: "task-uuid",
       daily_progress_id: "dp-uuid",
+      issue_id: null,
       type: "photo",
       url: "https://example.com/photo.jpg",
       thumbnail_url: null,

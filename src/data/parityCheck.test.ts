@@ -23,6 +23,7 @@ import {
   loadState,
   publishDailyProgress,
   recordAttendance,
+  reviewDailyProgress,
   selectProposal,
   submitProposal,
   unlockRequirement,
@@ -554,26 +555,26 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
     expect(result.recordedBy).toBe("supervisor")
   })
 
-  // ─── (g) publishDailyProgress: review → approve → publish ──────────────────
-  it("(g) publishDailyProgress: approve then publish the submitted update", async () => {
-    const approved = await publishDailyProgress(arjunClient, {
+  // ─── (g) reviewDailyProgress / publishDailyProgress: approve → publish ──────
+  // Exercises the real command surface's two-command split (migration 0017),
+  // not the combined three-argument function migration 0008 created.
+  it("(g) reviewDailyProgress/publishDailyProgress: approve then publish the submitted update", async () => {
+    await reviewDailyProgress(arjunClient, {
       progressId: dailyProgressId!,
       decision: "approve",
-      note: null,
     })
-    expect(approved.reviewStatus).toBe("approved")
-    expect(approved.publicationStatus).toBe("private")
+    let state = await loadState(admin)
+    let progress = state.dailyProgress.find((p) => p.id === L("progress"))
+    expect(progress?.reviewStatus).toBe("approved")
+    expect(progress?.publicationStatus).toBe("private")
 
-    const published = await publishDailyProgress(arjunClient, {
-      progressId: dailyProgressId!,
-      decision: "publish",
-      note: null,
-    })
-    expect(published.reviewStatus).toBe("approved")
-    expect(published.publicationStatus).toBe("published")
+    // This fixture has no evidence attached, so publishing with no ids is valid
+    // (mirrors src/domain/constructionCommands.ts publishDailyProgress with an
+    // empty evidenceIds selection).
+    await publishDailyProgress(arjunClient, { progressId: dailyProgressId!, evidenceIds: [] })
 
-    const state = await loadState(admin)
-    const progress = state.dailyProgress.find((p) => p.id === L("progress"))
+    state = await loadState(admin)
+    progress = state.dailyProgress.find((p) => p.id === L("progress"))
     expect(progress?.reviewStatus).toBe("approved")
     expect(progress?.publicationStatus).toBe("published")
   })

@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { ConflictError } from "../domain/errors"
 import type {
   BusinessProfileInput,
+  AddEvidenceInput,
   AddLibraryStageInput,
   AddLibraryTradeInput,
   AddLibraryWorkTypeInput,
@@ -16,18 +17,25 @@ import type {
   CreateProjectInput,
   CreateTaskInput,
   InviteProjectMemberInput,
+  IssueEvidenceInput,
+  ReportIssueInput,
+  ResubmitDailyProgressInput,
+  SubmitDailyProgressInput,
 } from "../domain/commandInputs"
 import type {
   ConstructionDataState,
   ConstructionStage,
   DailyProgress,
   EntityId,
+  Evidence,
+  Issue,
   MarketplaceRequirement,
   MarketplaceUnlock,
   Project,
   ProjectMembership,
   ProjectUnit,
   Proposal,
+  ReviewDecision,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -317,6 +325,16 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     evidenceIds: evidenceIdsByProgress.get(row.id) ?? [],
   }))
 
+  // Evidence attached to an issue (migration 0017's evidence.issue_id), grouped
+  // back onto the issue the same way progress evidence is grouped above.
+  const evidenceIdsByIssue = new Map<string, EntityId[]>()
+  for (const row of evidence) {
+    if (!row.issue_id) continue
+    const list = evidenceIdsByIssue.get(row.issue_id) ?? []
+    list.push(row.legacy_id ?? row.id)
+    evidenceIdsByIssue.set(row.issue_id, list)
+  }
+
   // Marketplace requirements: the preview view gives every posted requirement
   // a business member can see; the base table (RLS: owner or unlocked
   // partner, migration 0005) gives the full row wherever the caller may read
@@ -351,7 +369,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     dailyProgress: dailyProgressWithEvidenceIds,
     evidence: evidence.map((r) => evidenceFromRow(r, toDomain)),
     documents: documents.map((r) => documentFromRow(r, toDomain)),
-    issues: issues.map((r) => issueFromRow(r, toDomain)),
+    issues: issues.map((r) => issueFromRow(r, toDomain, evidenceIdsByIssue.get(r.id) ?? [])),
     threads: threads.map((r) => threadFromRow(r, toDomain)),
     messages: messages.map((r) => messageFromRow(r, toDomain)),
     threadReads: threadReads.map((r) => threadReadFromRow(r, toDomain)),
@@ -572,18 +590,6 @@ export async function setAttendancePolicy(
   return projectFromRow(row as ProjectRow)
 }
 
-export async function publishDailyProgress(
-  client: SupabaseClient,
-  input: { progressId: EntityId; decision: string; note: string | null },
-): Promise<DailyProgress> {
-  const row = await callFunction(client, "publish_daily_progress", {
-    progress_id: uuidOf(client, input.progressId),
-    decision: input.decision,
-    note: input.note,
-  })
-  return dailyProgressFromRow(row as DailyProgressRow)
-}
-
 // ─── Project setup (batch 21) ──────────────────────────────────────────────────
 
 /** Deliberately unauthorized: see public.update_organization_profile in migration 0014. */
@@ -793,4 +799,173 @@ export async function transitionTask(
     task_id: uuidOf(client, input.taskId),
     next_status: input.nextStatus,
   })
+}
+
+// ─── Progress & issues (batch 24) ──────────────────────────────────────────────
+// See migration 0017's header for how reviewDailyProgress/publishDailyProgress
+// resolve the surface mismatch against the three-argument publish_daily_progress
+// function migration 0008 created (kept, unexported, for its own existing callers).
+
+function evidenceDraftToJson(
+  client: SupabaseClient,
+  items: SubmitDailyProgressInput["evidence"],
+): Record<string, unknown>[] {
+  return items.map((item) => ({
+    type: item.type,
+    url: item.url,
+    thumbnailUrl: item.thumbnailUrl ?? null,
+    caption: item.caption ?? null,
+    capturedByWorkerId: item.capturedByWorkerId ? uuidOf(client, item.capturedByWorkerId) : null,
+  }))
+}
+
+export async function submitDailyProgress(
+  client: SupabaseClient,
+  input: SubmitDailyProgressInput,
+): Promise<DailyProgress> {
+  const row = await callFunction(client, "submit_daily_progress", {
+    project_id: uuidOf(client, input.projectId),
+    project_unit_id: uuidOf(client, input.projectUnitId),
+    task_id: input.taskId ? uuidOf(client, input.taskId) : null,
+    stage_id: uuidOf(client, input.stageId),
+    trade_id: uuidOf(client, input.tradeId),
+    work_type_id: uuidOf(client, input.workTypeId),
+    workers_present: input.workersPresent,
+    progress_after: input.progressAfter ?? null,
+    completed_quantity: input.completedQuantity?.value ?? null,
+    completed_quantity_unit: input.completedQuantity?.unit ?? null,
+    today_summary: input.todaySummary,
+    tomorrow_plan: input.tomorrowPlan,
+    yesterday_summary: input.yesterdaySummary ?? null,
+    blocker_summary: input.blockerSummary ?? null,
+    evidence: evidenceDraftToJson(client, input.evidence),
+  })
+  return dailyProgressFromRow(row as DailyProgressRow)
+}
+
+export async function resubmitDailyProgress(
+  client: SupabaseClient,
+  previousId: EntityId,
+  input: ResubmitDailyProgressInput,
+): Promise<DailyProgress> {
+  const row = await callFunction(client, "resubmit_daily_progress", {
+    previous_id: uuidOf(client, previousId),
+    workers_present: input.workersPresent,
+    progress_after: input.progressAfter ?? null,
+    completed_quantity: input.completedQuantity?.value ?? null,
+    completed_quantity_unit: input.completedQuantity?.unit ?? null,
+    today_summary: input.todaySummary,
+    tomorrow_plan: input.tomorrowPlan,
+    yesterday_summary: input.yesterdaySummary ?? null,
+    blocker_summary: input.blockerSummary ?? null,
+    keep_evidence_ids: input.keepEvidenceIds.map((id) => uuidOf(client, id)),
+    evidence: evidenceDraftToJson(client, input.evidence),
+  })
+  return dailyProgressFromRow(row as DailyProgressRow)
+}
+
+export async function reviewDailyProgress(
+  client: SupabaseClient,
+  input: { progressId: EntityId; decision: ReviewDecision; note?: string },
+): Promise<void> {
+  await callFunction(client, "review_daily_progress", {
+    progress_id: uuidOf(client, input.progressId),
+    decision: input.decision,
+    note: input.note ?? null,
+  })
+}
+
+export async function publishDailyProgress(
+  client: SupabaseClient,
+  input: { progressId: EntityId; evidenceIds: EntityId[] },
+): Promise<void> {
+  await callFunction(client, "publish_daily_progress_evidence", {
+    progress_id: uuidOf(client, input.progressId),
+    evidence_ids: input.evidenceIds.map((id) => uuidOf(client, id)),
+  })
+}
+
+export async function addEvidence(client: SupabaseClient, input: AddEvidenceInput): Promise<Evidence> {
+  const row = await callFunction(client, "add_evidence", {
+    project_id: uuidOf(client, input.projectId),
+    project_unit_id: input.projectUnitId ? uuidOf(client, input.projectUnitId) : null,
+    task_id: input.taskId ? uuidOf(client, input.taskId) : null,
+    daily_progress_id: input.dailyProgressId ? uuidOf(client, input.dailyProgressId) : null,
+    type: input.type,
+    url: input.url,
+    thumbnail_url: input.thumbnailUrl ?? null,
+    caption: input.caption ?? null,
+    captured_by_worker_id: input.capturedByWorkerId ? uuidOf(client, input.capturedByWorkerId) : null,
+    customer_visibility: input.customerVisibility ?? null,
+  })
+  return evidenceFromRow(row as EvidenceRow)
+}
+
+export async function reportIssue(client: SupabaseClient, input: ReportIssueInput): Promise<Issue> {
+  const row = await callFunction(client, "report_issue", {
+    project_id: uuidOf(client, input.projectId),
+    project_unit_id: input.projectUnitId ? uuidOf(client, input.projectUnitId) : null,
+    task_id: input.taskId ? uuidOf(client, input.taskId) : null,
+    daily_progress_id: input.dailyProgressId ? uuidOf(client, input.dailyProgressId) : null,
+    title: input.title,
+    description: input.description,
+    severity: input.severity,
+    evidence: (input.evidence ?? []).map((item) => ({
+      type: item.type,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl ?? null,
+      caption: item.caption ?? null,
+    })),
+    source_thread_id: input.source ? uuidOf(client, input.source.threadId) : null,
+    source_message_id: input.source ? uuidOf(client, input.source.messageId) : null,
+  })
+  return issueFromRow(row as IssueRow)
+}
+
+export async function assignIssue(
+  client: SupabaseClient,
+  input: { issueId: EntityId; membershipId: EntityId | undefined },
+): Promise<void> {
+  await callFunction(client, "assign_issue", {
+    issue_id: uuidOf(client, input.issueId),
+    membership_id: input.membershipId ? uuidOf(client, input.membershipId) : null,
+  })
+}
+
+export async function transitionIssue(
+  client: SupabaseClient,
+  input: { issueId: EntityId; next: Issue["status"]; resolutionNote?: string },
+): Promise<void> {
+  await callFunction(client, "transition_issue", {
+    issue_id: uuidOf(client, input.issueId),
+    next_status: input.next,
+    resolution_note: input.resolutionNote ?? null,
+  })
+}
+
+export async function addIssueEvidence(
+  client: SupabaseClient,
+  input: { issueId: EntityId; items: IssueEvidenceInput[] },
+): Promise<Evidence[]> {
+  const row = await callFunction(client, "add_issue_evidence", {
+    issue_id: uuidOf(client, input.issueId),
+    items: input.items.map((item) => ({
+      type: item.type,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl ?? null,
+      caption: item.caption ?? null,
+    })),
+  })
+  return (row as EvidenceRow[]).map((r) => evidenceFromRow(r))
+}
+
+export async function publishIssue(
+  client: SupabaseClient,
+  input: { issueId: EntityId; visible: boolean },
+): Promise<Issue> {
+  const row = await callFunction(client, "publish_issue", {
+    issue_id: uuidOf(client, input.issueId),
+    visible: input.visible,
+  })
+  return issueFromRow(row as IssueRow)
 }
