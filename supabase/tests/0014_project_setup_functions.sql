@@ -1,5 +1,5 @@
 begin;
-select plan(43);
+select plan(44);
 
 -- Fixtures are inserted as the table owner (bypasses RLS). Each call is made as
 -- one signed-in person by setting the JWT claims for the transaction.
@@ -47,7 +47,9 @@ insert into memberships (id, legacy_id, person_id, organization_id, project_id, 
   ('00000000-0000-0000-0000-000000001471', 'm-t14-pm', '00000000-0000-0000-0000-0000000014d1', '00000000-0000-0000-0000-0000000014a0',
     '00000000-0000-0000-0000-0000000014f1', 'project-manager', array['project.read','project.manage'], 'active'),
   ('00000000-0000-0000-0000-000000001472', 'm-t14-wk', '00000000-0000-0000-0000-0000000014d2', '00000000-0000-0000-0000-0000000014a0',
-    '00000000-0000-0000-0000-0000000014f1', 'worker', array['progress.submit'], 'active');
+    '00000000-0000-0000-0000-0000000014f1', 'worker', array['progress.submit'], 'active'),
+  ('00000000-0000-0000-0000-000000001473', 'm-t14-orgmgr', '00000000-0000-0000-0000-0000000014d1', '00000000-0000-0000-0000-0000000014a0',
+    null, 'business-owner', array['project.manage'], 'active');
 
 -- Structural checks
 select has_function('public', 'update_organization_profile', array['uuid','text','text','text','text','text'], 'update_organization_profile exists');
@@ -59,12 +61,18 @@ select has_function('public', 'add_library_work_type', array['text','uuid','uuid
 select is_definer('public', 'create_project', array['uuid','text','text','text','text'], 'create_project is security definer');
 select is_definer('public', 'set_stage_baselines', array['uuid','jsonb'], 'set_stage_baselines is security definer');
 
--- update_organization_profile: no permission check at all (deliberately unauthorized,
--- as src/domain/constructionCommands.ts). Anyone, even someone with no membership, can fill it.
+-- update_organization_profile: requires an active org-level (project_id is null)
+-- membership with project.manage in this organization (migration 0020 closed the
+-- "deliberately unauthorized" gap -- it let anyone rewrite any organization).
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000014e3"}', true);
+select throws_ok(
+  $$select public.update_organization_profile('00000000-0000-0000-0000-0000000014a0', 'BuildRight Co', 'contractor', 'Hyderabad', '+919000000001', '6-10')$$,
+  'P0001', 'permission:Missing permission "project.manage"', 'an unrelated session cannot fill the organization profile');
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000014e1"}', true);
 select lives_ok(
   $$select public.update_organization_profile('00000000-0000-0000-0000-0000000014a0', 'BuildRight Co', 'contractor', 'Hyderabad', '+919000000001', '6-10')$$,
-  'an unrelated session can still fill the organization profile');
+  'a session with org-level project.manage fills the organization profile');
 select is((select name from organizations where id = '00000000-0000-0000-0000-0000000014a0'), 'BuildRight Co', 'the name is set');
 select is((select kind from organizations where id = '00000000-0000-0000-0000-0000000014a0'), 'contractor', 'the kind is set');
 select is((select city from organizations where id = '00000000-0000-0000-0000-0000000014a0'), 'Hyderabad', 'the city is set');
