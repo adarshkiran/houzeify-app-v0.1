@@ -60,7 +60,11 @@ const domainSeedAsContractor: ConstructionDataState = {
 }
 
 describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (local stack)", () => {
-  const admin: SupabaseClient = createClient(url, serviceKey)
+  // describe.skipIf still evaluates this body to collect tests even when the
+  // suite is skipped, so the client must not be constructed eagerly at the top
+  // level (createClient throws immediately without a key). Build it lazily and
+  // only use it from inside it()/beforeAll(), which never run when skipped.
+  const admin: SupabaseClient = (localStack && serviceKey ? createClient(url, serviceKey) : null) as SupabaseClient
   const findings: string[] = []
 
   let orgId: string
