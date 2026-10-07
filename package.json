@@ -10,7 +10,7 @@
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",
     "db:start": "npx supabase start",
-    "db:reset": "npx supabase db reset",
+    "db:reset": "npx supabase db reset && npx tsx --env-file=.env.local scripts/seed-supabase.ts",
     "db:test": "npx supabase test db",
     "test": "vitest run",
     "test:watch": "vitest"
