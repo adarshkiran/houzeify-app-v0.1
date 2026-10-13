@@ -97,11 +97,16 @@ on conflict (legacy_id) do nothing;
 insert into memberships (legacy_id, person_id, organization_id, project_id, role, permissions, scope, status)
 select 'membership-worker-ravi-sharma', person.id, o.id, p.id, 'worker',
   array['project.read','progress.submit','evidence.capture'],
-  '{"projectUnitIds": ["unit-sharma-house"], "stageIds": [], "tradeIds": ["trade-civil"]}'::jsonb,
+  jsonb_build_object(
+    'projectUnitIds', jsonb_build_array(unit.id),
+    'stageIds', '[]'::jsonb,
+    'tradeIds', '["trade-civil"]'::jsonb
+  ),
   'active'
 from projects p
 cross join organizations o
 cross join people person
+join project_units unit on unit.legacy_id = 'unit-sharma-house' and unit.project_id = p.id
 where o.legacy_id = 'org-buildright'
   and p.legacy_id = 'project-sharma'
   and person.legacy_id = 'person-ravi'
