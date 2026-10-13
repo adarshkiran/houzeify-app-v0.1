@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(27);
 
 -- Fixtures are inserted as the table owner (bypasses RLS). Each check then acts
 -- as one signed-in person by switching role and setting the JWT claims for the
@@ -62,14 +62,30 @@ insert into worker_project_assignments (id, legacy_id, project_id, worker_id, pr
 insert into tasks (id, legacy_id, project_id, title, status) values
   ('00000000-0000-0000-0000-000000002271', 'task-t22', '00000000-0000-0000-0000-000000002212', 'Pour slab', 'assigned');
 
--- ── M1: create_project requires org-level project.manage, not a project-scoped grant ──
+-- ── M1: create_project requires project.manage somewhere in the org (project-scoped or org-level) ──
+-- Migration 0022 originally required an org-level (project_id is null)
+-- membership specifically, on the theory that authorizeOrganization's
+-- `permission` argument meant project.manage had to be held at the
+-- organization level. Task 30's scoped re-review verified the actual domain
+-- code (src/domain/constructionCommands.ts authorizeOrganization) and found
+-- that reading was wrong -- it does not check project_id scoping at all, only
+-- accountType and organizationId -- and that the stricter rule was a live
+-- regression (seeded business users like Arjun, who only hold project-scoped
+-- project-manager memberships, could no longer create a project at all).
+-- Migration 0023's R1 fix corrects this: project.manage on any project in the
+-- org is sufficient, same as a project-scoped member granting a membership
+-- (see 0023's R2 test for why that is still safe). A worker with no
+-- project.manage anywhere in the org is still refused, same as 0014.
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000002231"}'; -- projPm: project.manage scoped to project A only
-select throws_ok(
+select lives_ok(
   $$select public.create_project('00000000-0000-0000-0000-000000002201', 'Sneaky Project', 'individual-house', 'active', 'Hyderabad')$$,
-  'P0001', 'permission:Missing permission "project.manage"', 'm1: a project-scoped member without org-level project.manage cannot create a project');
+  'm1: a project-scoped project.manage holder can create a project too (0023 R1)');
 reset role;
+select is(
+  (select count(*)::int from projects where organization_id = '00000000-0000-0000-0000-000000002201' and name = 'Sneaky Project'),
+  1, 'm1: the project-scoped member''s project was created');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000002232"}'; -- orgMgr: org-level project.manage in org A
