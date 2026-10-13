@@ -666,36 +666,29 @@ export async function createProject(client: SupabaseClient, input: CreateProject
   return projectFromRow(row as ProjectRow)
 }
 
-/** project_units has no kind/code/sequence columns yet; only projectId, parentUnitId and name persist. */
+/**
+ * project_units has no kind/code/sequence columns yet; only projectId,
+ * parentUnitId and name persist. Routed through add_project_units (migration
+ * 0024), the only write path that checks the caller's membership scope and
+ * that parent_id belongs to the same project -- the direct-table insert this
+ * replaced skipped both (task 31 / T2).
+ */
 export async function addProjectUnit(client: SupabaseClient, input: AddProjectUnitInput): Promise<ProjectUnit> {
-  const { data, error } = await client
-    .from("project_units")
-    .insert({
-      project_id: uuidOf(client, input.projectId),
-      parent_id: input.parentUnitId ? uuidOf(client, input.parentUnitId) : null,
-      name: input.name,
-    })
-    .select()
-    .single()
-  if (error) throw refusalFrom(error.message)
-  return projectUnitFromRow(data as ProjectUnitRow)
+  const [unit] = await addProjectUnits(client, [input])
+  return unit
 }
 
 export async function addProjectUnits(
   client: SupabaseClient,
   inputs: readonly AddProjectUnitInput[],
 ): Promise<ProjectUnit[]> {
-  const { data, error } = await client
-    .from("project_units")
-    .insert(
-      inputs.map((input) => ({
-        project_id: uuidOf(client, input.projectId),
-        parent_id: input.parentUnitId ? uuidOf(client, input.parentUnitId) : null,
-        name: input.name,
-      })),
-    )
-    .select()
-  if (error) throw refusalFrom(error.message)
+  const data = await callFunction(client, "add_project_units", {
+    units: inputs.map((input) => ({
+      projectId: uuidOf(client, input.projectId),
+      parentId: input.parentUnitId ? uuidOf(client, input.parentUnitId) : null,
+      name: input.name,
+    })),
+  })
   return (data as ProjectUnitRow[]).map((row) => projectUnitFromRow(row))
 }
 

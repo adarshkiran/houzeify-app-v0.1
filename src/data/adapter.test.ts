@@ -47,6 +47,21 @@ function fakeRpcClient(row: Record<string, unknown>): SupabaseClient {
   } as unknown as SupabaseClient
 }
 
+/** Same as fakeRpcClient, but for an rpc (like add_project_units) that
+ * returns `setof`, i.e. an array of rows, and records the args it was called
+ * with so a test can assert on the shape sent to Postgres. */
+function fakeRpcRowsClient(
+  rows: Record<string, unknown>[],
+  onCall?: (name: string, args: Record<string, unknown>) => void,
+): SupabaseClient {
+  return {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      onCall?.(name, args)
+      return { data: rows, error: null }
+    },
+  } as unknown as SupabaseClient
+}
+
 // Runs only against the local Supabase stack (VITE_SUPABASE_URL on 127.0.0.1).
 // RLS hides construction rows from the anon key until someone signs in (task 13),
 // so the load assertions use the local service-role key, read at runtime from
@@ -618,6 +633,51 @@ describe("supabase adapter: project setup write results are mapped to the domain
     expect(result.location).toBe("Chennai")
     expect(result.kind).toBe("individual-house")
     expect(result).not.toHaveProperty("organization_id")
+  })
+
+  // Task 31 / T2: addProjectUnit(s) used to be the only direct-table writes
+  // in the adapter; they now route through add_project_units (migration
+  // 0024) like every other write, and must map rows through rows.ts the
+  // same way.
+  it("addProjectUnit calls add_project_units with one unit and maps the returned row", async () => {
+    let calledWith: Record<string, unknown> | undefined
+    const client = fakeRpcRowsClient(
+      [{ id: "unit-row-id", legacy_id: null, project_id: "project-row-id", parent_id: null, name: "New Unit" }],
+      (name, args) => {
+        expect(name).toBe("add_project_units")
+        calledWith = args
+      },
+    )
+
+    const result = await addProjectUnit(client, {
+      projectId: "project-1",
+      kind: "location",
+      code: "U1",
+      name: "New Unit",
+    })
+
+    expect(result.projectId).toBe("project-row-id")
+    expect(result.name).toBe("New Unit")
+    expect(result).not.toHaveProperty("project_id")
+    expect(calledWith).toEqual({
+      units: [{ projectId: "project-1", parentId: null, name: "New Unit" }],
+    })
+  })
+
+  it("addProjectUnits calls add_project_units with every unit and maps each returned row", async () => {
+    const client = fakeRpcRowsClient([
+      { id: "unit-row-1", legacy_id: null, project_id: "project-row-id", parent_id: null, name: "Unit A" },
+      { id: "unit-row-2", legacy_id: null, project_id: "project-row-id", parent_id: "unit-row-1", name: "Unit B" },
+    ])
+
+    const results = await addProjectUnits(client, [
+      { projectId: "project-1", kind: "location", code: "A", name: "Unit A" },
+      { projectId: "project-1", parentUnitId: "unit-1", kind: "location", code: "B", name: "Unit B" },
+    ])
+
+    expect(results.map((u) => u.name)).toEqual(["Unit A", "Unit B"])
+    expect(results[1].parentUnitId).toBe("unit-row-1")
+    expect(results[0]).not.toHaveProperty("parent_id")
   })
 
   it("updateOrganizationProfile resolves without a return value", async () => {
