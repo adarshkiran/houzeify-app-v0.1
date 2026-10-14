@@ -17,6 +17,7 @@ import {
 import { emptyConstructionState, loadState } from "../data/adapter"
 import { createLatestWinsLoader } from "../data/latestLoad"
 import { getSupabaseClient } from "../data/supabaseClient"
+import { sessionDataKey } from "../session/dataKey"
 import { SUPABASE_DATA_SOURCE, useSession } from "../session/SessionProvider"
 import {
   createInMemoryRepository,
@@ -50,6 +51,12 @@ export type { AttendancePunchInput, CommandSurface } from "./commandSurface"
 
 export type ConstructionDataContextValue = CommandSurface & {
   state: ConstructionDataState
+  /**
+   * False while the signed-in person's data is still loading. Anything that
+   * decides from `state` (route guards) must wait for it, or it sees an empty
+   * project list and treats real projects as unknown.
+   */
+  loaded: boolean
 }
 
 export { getAllowedTaskTransitions, canTransitionTask }
@@ -93,6 +100,13 @@ export default function ConstructionDataProvider({
   const sessionRef = useRef(session)
   sessionRef.current = session
 
+  // Whose data `state` currently holds ("none" once signed out). The state is
+  // trustworthy for routing only when this matches the current session.
+  const sessionKey = sessionDataKey(session)
+  const sessionKeyRef = useRef(sessionKey)
+  sessionKeyRef.current = sessionKey
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+
   /** Commits a new state for rendering and for the next command. */
   const commit = useCallback((next: ConstructionDataState) => {
     stateRef.current = next
@@ -131,7 +145,15 @@ export default function ConstructionDataProvider({
   // through one loader so only the newest result is committed, and results that
   // were in flight across a sign-out or account switch are dropped.
   const loader = useRef(
-    client ? createLatestWinsLoader(() => loadState(client), commit) : null,
+    client
+      ? createLatestWinsLoader(
+          () => loadState(client),
+          (next) => {
+            commit(next)
+            setLoadedKey(sessionKeyRef.current)
+          },
+        )
+      : null,
   ).current
 
   // Load the state the signed-in person can read; clear it on sign-out.
@@ -140,11 +162,14 @@ export default function ConstructionDataProvider({
     loader.invalidate()
     if (!session) {
       commit(emptyConstructionState())
+      setLoadedKey(sessionDataKey(null))
       return
     }
-    loader
-      .reload()
-      .catch((error: unknown) => console.warn("[data] load failed:", error))
+    loader.reload().catch((error: unknown) => {
+      console.warn("[data] load failed:", error)
+      // Stop waiting; routing then proceeds with whatever the person can see.
+      setLoadedKey(sessionKeyRef.current)
+    })
   }, [client, loader, session, commit])
 
   /** Supabase mode: one adapter write, then a reload so the screens see the stored rows. */
@@ -167,8 +192,8 @@ export default function ConstructionDataProvider({
   )
 
   const value = useMemo<ConstructionDataContextValue>(
-    () => ({ ...surface, state }),
-    [surface, state],
+    () => ({ ...surface, state, loaded: !client || loadedKey === sessionKey }),
+    [surface, state, client, loadedKey, sessionKey],
   )
 
   return (
