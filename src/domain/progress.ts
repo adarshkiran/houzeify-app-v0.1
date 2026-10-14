@@ -25,7 +25,7 @@ export const STAGE_WEIGHTS: Readonly<Record<string, number>> = {
   FIN: 10,
 }
 
-const DONE_STATUSES: ReadonlySet<Task["status"]> = new Set(["approved", "completed"])
+export const DONE_STATUSES: ReadonlySet<Task["status"]> = new Set(["approved", "completed"])
 
 /** How complete one task is, 0–100. */
 export function taskPercent(task: Task): number {
