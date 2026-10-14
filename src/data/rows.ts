@@ -596,6 +596,7 @@ export interface TaskRow {
   project_unit_id: string | null
   stage_id: string | null
   trade_id: string | null
+  work_type_id: string | null
   title: string
   status: string
   planned_quantity: number | null
@@ -617,7 +618,7 @@ export function taskFromRow(row: TaskRow, toDomain: ToDomainId = identity): Task
     projectUnitId: row.project_unit_id ? toDomain(row.project_unit_id) : "",
     stageId: row.stage_id ? toDomain(row.stage_id) : "",
     tradeId: row.trade_id ? toDomain(row.trade_id) : "",
-    workTypeId: "",
+    workTypeId: row.work_type_id ? toDomain(row.work_type_id) : "",
     templateId: row.work_plan_item_id ? toDomain(row.work_plan_item_id) : undefined,
     title: row.title,
     status: row.status as TaskStatus,

@@ -69,6 +69,12 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
   const findings: string[] = []
 
   let orgId: string
+  // org-buildright's real kind/wallet, captured before this suite's own
+  // fixtures temporarily overwrite them, so cleanup can restore the exact
+  // prior values instead of deleting the wallet or guessing kind was null —
+  // this file's own header promises it "never touches the demo seed rows."
+  let originalOrgKind: string | null = null
+  let originalWalletBalance: number | null = null
   let arjunPersonId: string
   let homeownerPersonId: string
   let raviPersonId: string
@@ -137,7 +143,13 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
     await admin.from("credit_transactions").delete().eq("organization_id", orgId).eq("kind", "unlock").is("requirement_id", null)
     await admin.from("subscriptions").delete().eq("legacy_id", L("subscription"))
     await admin.from("plans").delete().eq("legacy_id", L("plan"))
-    await admin.from("credit_wallets").delete().eq("organization_id", orgId)
+    // Restore org-buildright's real wallet balance rather than deleting the
+    // row outright -- it is the demo seed's row, not this suite's own.
+    if (originalWalletBalance !== null) {
+      await admin.from("credit_wallets").upsert({ organization_id: orgId, balance: originalWalletBalance })
+    } else {
+      await admin.from("credit_wallets").delete().eq("organization_id", orgId)
+    }
     await admin.from("memberships").delete().eq("legacy_id", L("biz-membership"))
 
     if (onboardingId) await admin.from("worker_onboardings").delete().eq("id", onboardingId)
@@ -164,7 +176,11 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
         .eq("date", todayKolkata)
     }
 
-    await admin.from("organizations").update({ kind: null }).eq("legacy_id", "org-buildright")
+    // Restore org-buildright's real kind -- the real seed now sets it to
+    // 'contractor' (supabase/seed.sql), not null; hardcoding null here used
+    // to silently undo that for every later test/dev-server run in this
+    // stack until the next db reset.
+    await admin.from("organizations").update({ kind: originalOrgKind }).eq("legacy_id", "org-buildright")
   }
 
   beforeAll(async () => {
@@ -178,6 +194,15 @@ describe.skipIf(!localStack || !serviceKey)("Task 15: adapter parity check (loca
     techParkProjectId = await idByLegacy("projects", "project-tech-park")
     sharmaUnitId = await idByLegacy("project_units", "unit-sharma-house")
     raviMembershipId = await idByLegacy("memberships", "membership-worker-ravi-sharma")
+
+    const { data: orgBefore } = await admin.from("organizations").select("kind").eq("id", orgId).single()
+    originalOrgKind = orgBefore?.kind ?? null
+    const { data: walletBefore } = await admin
+      .from("credit_wallets")
+      .select("balance")
+      .eq("organization_id", orgId)
+      .maybeSingle()
+    originalWalletBalance = walletBefore?.balance ?? null
 
     await cleanupFixtures() // clean slate from any previous aborted run
 

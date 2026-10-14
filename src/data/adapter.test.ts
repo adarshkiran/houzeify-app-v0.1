@@ -101,17 +101,18 @@ describe.skipIf(!localStack || !serviceKey)(
     })
 
     // The task 11 seed (supabase/seed.sql) has no rows at all for most of the
-    // phase-11 collections (no stages/tasks/progress, per the ledger's task 12
-    // report). loadState must still return [] for them, never undefined, so a
-    // screen reading `state.tasks.length` etc. does not crash before any of
-    // this data exists.
+    // phase-11 collections. loadState must still return [] for them, never
+    // undefined, so a screen reading `state.tasks.length` etc. does not crash
+    // before any of this data exists. The seed does now populate one task
+    // (and its work type/stage/trade) on Sharma Residence, and one estimate +
+    // posted marketplace requirement from the demo homeowner, to exercise
+    // the daily progress and marketplace unlock flows live -- see the
+    // dedicated assertions below for those.
     it("returns [] (not undefined) for every collection the seed does not populate", async () => {
       const state = await loadState(createClient(url, serviceKey))
       const emptyForNow: (keyof typeof state)[] = [
-        "workTypes",
         "taskTemplates",
         "workPlanItems",
-        "tasks",
         "assignments",
         "dailyProgress",
         "evidence",
@@ -121,7 +122,6 @@ describe.skipIf(!localStack || !serviceKey)(
         "messages",
         "threadReads",
         "callLogs",
-        "estimates",
         "unlocks",
         "proposals",
       ]
@@ -131,11 +131,11 @@ describe.skipIf(!localStack || !serviceKey)(
         )
         expect(state[key], `${key} has no seed data yet`).toEqual([])
       }
-      // The seed has no posted marketplace_requirements either (none of the
-      // seeded memberships are organization-level, so none can act as a
-      // business/partner caller against the view); see the business-session
-      // test below, which creates its own fixtures for that.
-      expect(state.requirements).toEqual([])
+      expect(state.tasks.map((t) => t.title)).toEqual(["Backfill around footings — Grid A"])
+      expect(state.tasks[0]?.status).toBe("open")
+      expect(state.workTypes.map((w) => w.name)).toEqual(["Backfilling"])
+      expect(state.estimates.map((e) => e.projectName)).toEqual(["Rao Farmhouse"])
+      expect(state.requirements.map((r) => r.status)).toEqual(["posted"])
     })
   },
 )
@@ -402,6 +402,7 @@ describe.skipIf(!localStack || !serviceKey)(
         plannedQuantity: { value: 5, unit: "nos" },
       })
       expect(task.status).toBe("draft")
+      expect(task.workTypeId).toBe(workType.id)
 
       const assignment = await assignTask(signedInClient, {
         taskId: task.id,
@@ -853,6 +854,7 @@ describe("supabase adapter: task engine write results are mapped to the domain s
       project_unit_id: "unit-row-id",
       stage_id: "stage-row-id",
       trade_id: "trade-row-id",
+      work_type_id: "work-row-id",
       title: "Wire first floor",
       status: "draft",
       planned_quantity: 10,
@@ -875,6 +877,7 @@ describe("supabase adapter: task engine write results are mapped to the domain s
 
     expect(result.projectId).toBe("project-row-id")
     expect(result.status).toBe("draft")
+    expect(result.workTypeId).toBe("work-row-id")
     expect(result.plannedQuantity).toEqual({ value: 10, unit: "nos" })
     expect(result).not.toHaveProperty("planned_quantity")
   })

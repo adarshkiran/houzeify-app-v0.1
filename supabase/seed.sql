@@ -2,8 +2,8 @@
 -- Auth users are created by scripts/seed-supabase.ts, which sets people.auth_user_id.
 -- Phone numbers here are Supabase test numbers: local and staging only.
 
-insert into organizations (legacy_id, name)
-values ('org-buildright', 'BuildRight Construction')
+insert into organizations (legacy_id, name, kind)
+values ('org-buildright', 'BuildRight Construction', 'contractor')
 on conflict (legacy_id) do nothing;
 
 insert into people (legacy_id, phone, full_name)
@@ -180,3 +180,64 @@ select 'credit-grant-buildright', o.id, 'grant', 30, 30, '2026-01-10T09:00:00+05
 from organizations o
 where o.legacy_id = 'org-buildright'
 on conflict (legacy_id) do nothing;
+
+-- One open task on Sharma Residence (src/mock/seed.ts task-13's shape).
+-- Unlike the mock model, stages/trades/work_types are project-scoped (not a
+-- shared library) in this schema, and daily_progress requires all three
+-- NOT NULL, so each needs its own project-scoped row here, not just a title.
+insert into stages (legacy_id, project_id, name, sort_order)
+select 'stage-sharma-foundation', p.id, 'Foundation', 2
+from projects p where p.legacy_id = 'project-sharma'
+on conflict (legacy_id) do nothing;
+
+insert into trades (legacy_id, project_id, name)
+select 'trade-sharma-civil', p.id, 'Civil'
+from projects p where p.legacy_id = 'project-sharma'
+on conflict (legacy_id) do nothing;
+
+insert into work_types (legacy_id, project_id, stage_id, trade_id, name, default_unit)
+select 'work-type-sharma-backfilling', p.id, s.id, t.id, 'Backfilling', 'm3'
+from projects p
+join stages s on s.legacy_id = 'stage-sharma-foundation'
+join trades t on t.legacy_id = 'trade-sharma-civil'
+where p.legacy_id = 'project-sharma'
+on conflict (legacy_id) do nothing;
+
+insert into tasks (legacy_id, project_id, project_unit_id, stage_id, trade_id, work_type_id, title, status, created_at)
+select 'task-sharma-backfill', p.id, u.id, s.id, t.id, w.id, 'Backfill around footings — Grid A', 'open', '2026-09-25T09:00:00+05:30'::timestamptz
+from projects p
+join project_units u on u.legacy_id = 'unit-sharma-house' and u.project_id = p.id
+join stages s on s.legacy_id = 'stage-sharma-foundation'
+join trades t on t.legacy_id = 'trade-sharma-civil'
+join work_types w on w.legacy_id = 'work-type-sharma-backfilling'
+where p.legacy_id = 'project-sharma'
+on conflict (legacy_id) do nothing;
+
+-- One posted marketplace requirement from a homeowner outside org-buildright's
+-- own projects (src/mock/seed.ts's estimates/marketplaceRequirements are both
+-- empty, so this has no mock-seed precedent to mirror), so the Opportunities
+-- screen has something for a partner organization to unlock.
+insert into estimates (legacy_id, homeowner_person_id, project_name, property_type, location,
+  built_up_area_sqft, construction_level, total_low, total_high, review_status, created_at)
+select 'estimate-rao-farmhouse', person.id, 'Rao Farmhouse', 'farmhouse', 'Shamshabad, Telangana',
+  3200, 'premium', 4200000, 5100000, 'confirmed', '2026-09-20T09:00:00+05:30'::timestamptz
+from people person
+where person.legacy_id = 'person-demo-homeowner'
+on conflict (legacy_id) do nothing;
+
+-- No legacy_id here, unlike the rest of this file: post_requirement (the real
+-- command) never sets one, and a legacy_id would wrongly give this row a
+-- stable domain id even where RLS only grants the raw-uuid-keyed preview (see
+-- supabase/migrations/0005_rls.sql's marketplace_requirement_previews and
+-- 0025's toDomain-mapping note) -- breaking the unlock flow's held reference
+-- the moment unlock grants full visibility and the id would otherwise switch
+-- out from under it. Guarded by existence instead of ON CONFLICT (legacy_id).
+insert into marketplace_requirements (estimate_id, homeowner_person_id, project_name, location,
+  built_up_area_sqft, construction_level, property_type, estimate_total_low, estimate_total_high, status, posted_at, created_at)
+select e.id, person.id, e.project_name, e.location,
+  e.built_up_area_sqft, e.construction_level, e.property_type, e.total_low, e.total_high,
+  'posted', '2026-09-20T09:05:00+05:30'::timestamptz, '2026-09-20T09:05:00+05:30'::timestamptz
+from estimates e
+join people person on person.id = e.homeowner_person_id
+where e.legacy_id = 'estimate-rao-farmhouse'
+  and not exists (select 1 from marketplace_requirements r where r.estimate_id = e.id);

@@ -1,5 +1,5 @@
 begin;
-select plan(52);
+select plan(57);
 
 -- Fixtures are inserted as the table owner (bypasses RLS). Each function call
 -- is made as one signed-in person by setting the JWT claims for the transaction.
@@ -194,6 +194,51 @@ select is((select status from marketplace_requirements where id = '00000000-0000
 select throws_ok(
   format($$select public.select_proposal(%L)$$, (select id from proposals where partner_organization_id = '00000000-0000-0000-0000-0000000006b3' and requirement_id = '00000000-0000-0000-0000-0000000006a7')),
   'P0001', 'conflict:This requirement is no longer open.', 'a second selection on the awarded requirement is refused');
+
+-- is_business_member (and therefore unlock_requirement/submit_proposal/purchase_credits)
+-- must accept a project-scoped business membership, not only an org-level one.
+-- Nothing in seed data or any command ever creates an org-level-only membership
+-- for a real business user, so a fixture using only org-level rows (like the
+-- rest of this file) would never catch a regression here.
+insert into organizations (id, legacy_id, name, kind) values
+  ('00000000-0000-0000-0000-0000000006b5', 'org-t7-e', 'Partner E', 'contractor');
+insert into subscriptions (id, legacy_id, organization_id, plan_id, status) values
+  ('00000000-0000-0000-0000-0000000006c5', 'sub-t7-e', '00000000-0000-0000-0000-0000000006b5', '00000000-0000-0000-0000-0000000006a0', 'active');
+insert into credit_wallets (organization_id, balance) values
+  ('00000000-0000-0000-0000-0000000006b5', 30);
+insert into projects (id, legacy_id, organization_id, name) values
+  ('00000000-0000-0000-0000-0000000006f5', 'proj-t7-e', '00000000-0000-0000-0000-0000000006b5', 'Partner E Internal Project');
+insert into people (id, legacy_id, phone, full_name, auth_user_id) values
+  ('00000000-0000-0000-0000-0000000006d6', 'person-t7-e', '+6598000707', 'Partner E user', null),
+  ('00000000-0000-0000-0000-0000000006d7', 'person-t7-home2', '+6598000708', 'Homeowner T7 Two', null);
+insert into auth.users (id) values
+  ('00000000-0000-0000-0000-0000000006e6'),
+  ('00000000-0000-0000-0000-0000000006e7');
+update people set auth_user_id = '00000000-0000-0000-0000-0000000006e6' where id = '00000000-0000-0000-0000-0000000006d6';
+update people set auth_user_id = '00000000-0000-0000-0000-0000000006e7' where id = '00000000-0000-0000-0000-0000000006d7';
+insert into memberships (id, legacy_id, person_id, organization_id, project_id, role, permissions) values
+  ('00000000-0000-0000-0000-0000000006f6', 'm-t7-e', '00000000-0000-0000-0000-0000000006d6', '00000000-0000-0000-0000-0000000006b5',
+   '00000000-0000-0000-0000-0000000006f5', 'project-manager', array[]::text[]);
+insert into estimates (id, legacy_id, homeowner_person_id, project_name, property_type, location, built_up_area_sqft,
+  construction_level, total_low, total_high, review_status) values
+  ('00000000-0000-0000-0000-0000000006a9', 'est-t7-3', '00000000-0000-0000-0000-0000000006d7', 'Villa T7 Two', 'independent',
+   'Plot 4, Road 1, Hyderabad, Telangana', 1100, 'standard', 950000, 1150000, 'confirmed');
+insert into marketplace_requirements (id, legacy_id, estimate_id, homeowner_person_id, project_name, location,
+  built_up_area_sqft, construction_level, property_type, estimate_total_low, estimate_total_high, status, posted_at) values
+  ('00000000-0000-0000-0000-0000000006aa', 'req-t7-3', '00000000-0000-0000-0000-0000000006a9', '00000000-0000-0000-0000-0000000006d7',
+   'Villa T7 Two', 'Plot 4, Road 1, Hyderabad, Telangana', 1100, 'standard', 'independent', 950000, 1150000, 'posted', now());
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000006e6"}', true);
+select ok(public.is_business_member('00000000-0000-0000-0000-0000000006b5'), 'a project-scoped business membership counts as is_business_member');
+select is((select count(*)::int from marketplace_requirement_previews where id = '00000000-0000-0000-0000-0000000006aa'), 1,
+  'a project-scoped business membership sees a posted requirement in the preview view');
+select lives_ok(
+  $$select public.unlock_requirement('00000000-0000-0000-0000-0000000006aa', '00000000-0000-0000-0000-0000000006b5')$$,
+  'a project-scoped business membership can unlock a requirement for its organization');
+select is((select balance from credit_wallets where organization_id = '00000000-0000-0000-0000-0000000006b5'), 20, 'the unlock debits 10 credits');
+select lives_ok(
+  $$select public.submit_proposal('00000000-0000-0000-0000-0000000006aa', '00000000-0000-0000-0000-0000000006b5', array[]::text[], array[]::text[])$$,
+  'a project-scoped business membership can submit a proposal after unlocking');
 
 select * from finish();
 rollback;
