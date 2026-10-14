@@ -284,6 +284,25 @@ describe("pendingRedirect", () => {
     })
   })
 
+  // A reload on a project screen: the session is back, but the signed-in
+  // person's projects have not loaded yet. The route is denied as an unknown
+  // project and, acted on, bounced the user to the dashboard. The caller must
+  // hold the redirect until data has loaded too (App's `ready && loaded`).
+  it("holds off the unknown-project denial seen before the person's data has loaded", () => {
+    const beforeDataLoads = resolveRoute(
+      { screen: "project-overview", params: { project_id: "p1" } },
+      { session: manager, memberships: [], knownProjectIds: new Set() },
+    )
+    expect(beforeDataLoads).toMatchObject({ ok: false, reason: "unknown-project" })
+    expect(pendingRedirect(false, beforeDataLoads)).toBeNull()
+
+    const afterDataLoads = resolveRoute(
+      { screen: "project-overview", params: { project_id: "p1" } },
+      ctx(manager),
+    )
+    expect(afterDataLoads).toEqual({ ok: true })
+  })
+
   it("never redirects an ok decision, ready or not", () => {
     const okDecision = resolveRoute({ screen: "welcome", params: {} }, {
       session: null,

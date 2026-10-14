@@ -93,7 +93,7 @@ function readLocation(): RouteLocation {
 
 export default function App() {
   const { session, ready, signOut } = useSession()
-  const { state } = useConstructionData()
+  const { state, loaded } = useConstructionData()
   const [location, setLocation] = useState<RouteLocation>(readLocation)
   const [phone, setPhone] = useState('98765 43210')
 
@@ -144,7 +144,13 @@ export default function App() {
   // for an instant, and the hash rewrite below would then strand them there
   // even after the session resolves. So the redirect is held off, and the
   // decision above is not acted on, until `ready` is true.
-  const redirect = pendingRedirect(ready, decision)
+  //
+  // The same applies to the data load: project access is decided from
+  // `state.projects` and `state.memberships`, which are empty until the
+  // signed-in person's data has loaded. Deciding earlier read every project as
+  // unknown and sent a refresh on a project screen to the dashboard.
+  const routingReady = ready && loaded
+  const redirect = pendingRedirect(routingReady, decision)
   useEffect(() => {
     if (redirect) goTo(redirect, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,7 +159,7 @@ export default function App() {
   const { screen, params } = location
   const projectId = params.project_id
 
-  if (!ready) {
+  if (!routingReady) {
     return (
       <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
         <SplashScreen />
