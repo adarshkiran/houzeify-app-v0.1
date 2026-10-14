@@ -450,6 +450,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     {
       title: "Worker",
       key: "worker",
+      width: 220,
       render: (_, worker) => (
         <Flex align="center" gap="small" className="min-w-0">
           <Avatar>{worker.name.charAt(0)}</Avatar>
@@ -465,6 +466,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     {
       title: "Trades",
       key: "trades",
+      width: 160,
       responsive: ["md"],
       render: (_, worker) => (
         <Space size={[4, 4]} wrap>
@@ -477,6 +479,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     {
       title: "Projects",
       key: "projects",
+      width: 300,
       render: (_, worker) => {
         const assignments = getActiveAssignmentsForWorker(state, worker.id)
         if (!assignments.length) {
@@ -512,7 +515,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       title: "Languages",
       dataIndex: "languages",
       key: "languages",
-      width: 140,
+      width: 120,
       responsive: ["lg"],
       render: (languages: string[]) => languages.join(", "),
     },
@@ -538,7 +541,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     {
       title: "Onboarding",
       key: "onboarding",
-      width: 180,
+      width: 140,
       responsive: ["lg"],
       render: (_, worker) => {
         const open = openOnboardingFor(state, worker.id)
@@ -731,7 +734,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
             columns={columns}
             dataSource={filteredWorkers}
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 1100 }}
+            scroll={{ x: 1500 }}
           />
         </Card>
       </Flex>

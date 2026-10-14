@@ -104,7 +104,7 @@ describe.skipIf(!localStack || !serviceKey)(
     // phase-11 collections. loadState must still return [] for them, never
     // undefined, so a screen reading `state.tasks.length` etc. does not crash
     // before any of this data exists. The seed does now populate one task
-    // (and its work type/stage/trade) on Sharma Residence, and one estimate +
+    // on Sharma Residence (on the shared library stage/trade/work type, which the seed also populates), and one estimate +
     // posted marketplace requirement from the demo homeowner, to exercise
     // the daily progress and marketplace unlock flows live -- see the
     // dedicated assertions below for those.
@@ -133,7 +133,11 @@ describe.skipIf(!localStack || !serviceKey)(
       }
       expect(state.tasks.map((t) => t.title)).toEqual(["Backfill around footings — Grid A"])
       expect(state.tasks[0]?.status).toBe("open")
-      expect(state.workTypes.map((w) => w.name)).toEqual(["Backfilling"])
+      expect(state.stages).toHaveLength(9)
+      expect(state.trades).toHaveLength(10)
+      expect(state.workTypes).toHaveLength(80)
+      expect(state.workTypes.find((w) => w.id === "work-backfilling")?.name).toBe("Backfilling")
+      expect(state.tasks[0]?.workTypeId).toBe("work-backfilling")
       expect(state.estimates.map((e) => e.projectName)).toEqual(["Rao Farmhouse"])
       expect(state.requirements.map((r) => r.status)).toEqual(["posted"])
     })

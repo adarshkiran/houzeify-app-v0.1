@@ -140,15 +140,15 @@ select is(
 -- add_library_stage / add_library_trade / add_library_work_type: a worker-only session is refused
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000014e2"}', true);
 select throws_ok(
-  $$select public.add_library_stage('Site Preparation', null)$$,
+  $$select public.add_library_stage('Landscaping', null)$$,
   'P0001', 'permission:Missing permission "project.manage"', 'a worker cannot add a library stage');
 
 -- add_library_stage: a project manager (business-side staff) can add one, and a repeat add returns the same row
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000014e1"}', true);
-select lives_ok($$select public.add_library_stage('Site Preparation', null)$$, 'the manager adds a library stage');
-select is((select count(*)::int from stages where name = 'Site Preparation' and project_id is null), 1, 'the stage is added to the library, not a project');
-select lives_ok($$select public.add_library_stage('Site Preparation', null)$$, 'adding the same stage name again does not fail');
-select is((select count(*)::int from stages where name = 'Site Preparation' and project_id is null), 1, 'a repeat add does not duplicate the stage');
+select lives_ok($$select public.add_library_stage('Landscaping', null)$$, 'the manager adds a library stage');
+select is((select count(*)::int from stages where name = 'Landscaping' and project_id is null), 1, 'the stage is added to the library, not a project');
+select lives_ok($$select public.add_library_stage('Landscaping', null)$$, 'adding the same stage name again does not fail');
+select is((select count(*)::int from stages where name = 'Landscaping' and project_id is null), 1, 'a repeat add does not duplicate the stage');
 
 -- add_library_trade
 select lives_ok($$select public.add_library_trade('Civil Work', null)$$, 'the manager adds a library trade');
