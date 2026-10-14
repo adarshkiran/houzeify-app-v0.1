@@ -181,35 +181,134 @@ from organizations o
 where o.legacy_id = 'org-buildright'
 on conflict (legacy_id) do nothing;
 
--- One open task on Sharma Residence (src/mock/seed.ts task-13's shape).
--- Unlike the mock model, stages/trades/work_types are project-scoped (not a
--- shared library) in this schema, and daily_progress requires all three
--- NOT NULL, so each needs its own project-scoped row here, not just a title.
-insert into stages (legacy_id, project_id, name, sort_order)
-select 'stage-sharma-foundation', p.id, 'Foundation', 2
-from projects p where p.legacy_id = 'project-sharma'
+-- Construction library (project_id null): the shared catalogue of stages, trades and
+-- work types from src/mock/seed.ts. Workers' trade_ids and tasks reference these by
+-- legacy id, so without them every trade/work-type name resolves to "Unknown".
+-- src/data/seedLibrary.test.ts fails if this block drifts from the mock seed.
+insert into stages (legacy_id, project_id, code, name, sort_order)
+values
+  ('stage-site-prep', null, 'SITE', 'Site Preparation', 1),
+  ('stage-foundation', null, 'FND', 'Foundation', 2),
+  ('stage-rcc', null, 'RCC', 'RCC Structure', 3),
+  ('stage-masonry', null, 'MSN', 'Masonry', 4),
+  ('stage-plaster', null, 'PLS', 'Plastering', 5),
+  ('stage-waterproofing', null, 'WPF', 'Waterproofing', 6),
+  ('stage-services', null, 'SRV', 'Services', 7),
+  ('stage-flooring', null, 'FLR', 'Flooring', 8),
+  ('stage-finishing', null, 'FIN', 'Finishing', 9)
 on conflict (legacy_id) do nothing;
 
 insert into trades (legacy_id, project_id, name)
-select 'trade-sharma-civil', p.id, 'Civil'
-from projects p where p.legacy_id = 'project-sharma'
+values
+  ('trade-survey', null, 'Survey'),
+  ('trade-civil', null, 'Civil'),
+  ('trade-reinforcement', null, 'Reinforcement'),
+  ('trade-formwork', null, 'Formwork'),
+  ('trade-masonry', null, 'Masonry'),
+  ('trade-waterproofing', null, 'Waterproofing'),
+  ('trade-plumbing', null, 'Plumbing'),
+  ('trade-electrical', null, 'Electrical'),
+  ('trade-flooring', null, 'Flooring'),
+  ('trade-painting', null, 'Painting')
 on conflict (legacy_id) do nothing;
 
 insert into work_types (legacy_id, project_id, stage_id, trade_id, name, default_unit)
-select 'work-type-sharma-backfilling', p.id, s.id, t.id, 'Backfilling', 'm3'
-from projects p
-join stages s on s.legacy_id = 'stage-sharma-foundation'
-join trades t on t.legacy_id = 'trade-sharma-civil'
-where p.legacy_id = 'project-sharma'
+select v.legacy_id, null, st.id, tr.id, v.name, v.default_unit
+from (values
+  ('work-site-survey', 'stage-site-prep', 'trade-survey', 'Site Survey', 'm2'),
+  ('work-soil-investigation', 'stage-site-prep', 'trade-survey', 'Soil Investigation', 'nos'),
+  ('work-site-clearing', 'stage-site-prep', 'trade-civil', 'Site Clearing', 'm2'),
+  ('work-demolition', 'stage-site-prep', 'trade-civil', 'Demolition', 'hour'),
+  ('work-temporary-fencing-and-hoarding', 'stage-site-prep', 'trade-civil', 'Temporary Fencing and Hoarding', 'm'),
+  ('work-grid-setting-out', 'stage-site-prep', 'trade-survey', 'Grid Setting Out', 'nos'),
+  ('work-benchmark-establishment', 'stage-site-prep', 'trade-survey', 'Benchmark Establishment', 'nos'),
+  ('work-site-excavation', 'stage-site-prep', 'trade-civil', 'Site Excavation', 'm3'),
+  ('work-dewatering', 'stage-site-prep', 'trade-civil', 'Dewatering', 'day'),
+  ('work-temporary-access-road', 'stage-site-prep', 'trade-civil', 'Temporary Access Road', 'm2'),
+  ('work-temporary-power', 'stage-site-prep', 'trade-electrical', 'Temporary Power', 'nos'),
+  ('work-temporary-water', 'stage-site-prep', 'trade-plumbing', 'Temporary Water', 'nos'),
+  ('work-site-office-setup', 'stage-site-prep', 'trade-civil', 'Site Office Setup', 'nos'),
+  ('work-material-storage-setup', 'stage-site-prep', 'trade-civil', 'Material Storage Setup', 'nos'),
+  ('work-safety-signage-and-barricading', 'stage-site-prep', 'trade-civil', 'Safety Signage and Barricading', 'nos'),
+  ('work-foundation-excavation', 'stage-foundation', 'trade-civil', 'Foundation Excavation', 'm3'),
+  ('work-pcc', 'stage-foundation', 'trade-civil', 'PCC', 'm3'),
+  ('work-footing', 'stage-foundation', 'trade-civil', 'Footing', 'nos'),
+  ('work-footing-reinforcement', 'stage-foundation', 'trade-reinforcement', 'Footing Reinforcement', 'kg'),
+  ('work-footing-shuttering', 'stage-foundation', 'trade-formwork', 'Footing Shuttering', 'm2'),
+  ('work-footing-concrete', 'stage-foundation', 'trade-civil', 'Footing Concrete', 'm3'),
+  ('work-backfilling', 'stage-foundation', 'trade-civil', 'Backfilling', 'm3'),
+  ('work-column-reinforcement', 'stage-rcc', 'trade-reinforcement', 'Column Reinforcement', 'kg'),
+  ('work-column-shuttering', 'stage-rcc', 'trade-formwork', 'Column Shuttering', 'm2'),
+  ('work-column-casting', 'stage-rcc', 'trade-civil', 'Column Casting', 'm3'),
+  ('work-beam-reinforcement', 'stage-rcc', 'trade-reinforcement', 'Beam Reinforcement', 'kg'),
+  ('work-beam-shuttering', 'stage-rcc', 'trade-formwork', 'Beam Shuttering', 'm2'),
+  ('work-beam-casting', 'stage-rcc', 'trade-civil', 'Beam Casting', 'm3'),
+  ('work-slab-reinforcement', 'stage-rcc', 'trade-reinforcement', 'Slab Reinforcement', 'kg'),
+  ('work-slab-shuttering', 'stage-rcc', 'trade-formwork', 'Slab Shuttering', 'm2'),
+  ('work-slab-casting', 'stage-rcc', 'trade-civil', 'Slab Casting', 'm3'),
+  ('work-de-shuttering', 'stage-rcc', 'trade-formwork', 'De-shuttering', 'm2'),
+  ('work-curing', 'stage-rcc', 'trade-civil', 'Curing', 'day'),
+  ('work-brick-masonry', 'stage-masonry', 'trade-masonry', 'Brick Masonry', 'm2'),
+  ('work-aac-block-work', 'stage-masonry', 'trade-masonry', 'AAC Block Work', 'm2'),
+  ('work-internal-wall', 'stage-masonry', 'trade-masonry', 'Internal Wall', 'm2'),
+  ('work-external-wall', 'stage-masonry', 'trade-masonry', 'External Wall', 'm2'),
+  ('work-partition-wall', 'stage-masonry', 'trade-masonry', 'Partition Wall', 'm2'),
+  ('work-lintel', 'stage-masonry', 'trade-civil', 'Lintel', 'm3'),
+  ('work-parapet', 'stage-masonry', 'trade-masonry', 'Parapet', 'm2'),
+  ('work-internal-plaster', 'stage-plaster', 'trade-civil', 'Internal Plaster', 'm2'),
+  ('work-external-plaster', 'stage-plaster', 'trade-civil', 'External Plaster', 'm2'),
+  ('work-ceiling-plaster', 'stage-plaster', 'trade-civil', 'Ceiling Plaster', 'm2'),
+  ('work-surface-preparation', 'stage-plaster', 'trade-civil', 'Surface Preparation', 'm2'),
+  ('work-foundation-waterproofing', 'stage-waterproofing', 'trade-waterproofing', 'Foundation Waterproofing', 'm2'),
+  ('work-basement-waterproofing', 'stage-waterproofing', 'trade-waterproofing', 'Basement Waterproofing', 'm2'),
+  ('work-toilet-waterproofing', 'stage-waterproofing', 'trade-waterproofing', 'Toilet Waterproofing', 'm2'),
+  ('work-balcony-waterproofing', 'stage-waterproofing', 'trade-waterproofing', 'Balcony Waterproofing', 'm2'),
+  ('work-terrace-waterproofing', 'stage-waterproofing', 'trade-waterproofing', 'Terrace Waterproofing', 'm2'),
+  ('work-water-tank-waterproofing', 'stage-waterproofing', 'trade-waterproofing', 'Water Tank Waterproofing', 'm2'),
+  ('work-water-supply', 'stage-services', 'trade-plumbing', 'Water Supply', 'm'),
+  ('work-drainage', 'stage-services', 'trade-plumbing', 'Drainage', 'm'),
+  ('work-soil-pipe', 'stage-services', 'trade-plumbing', 'Soil Pipe', 'm'),
+  ('work-waste-pipe', 'stage-services', 'trade-plumbing', 'Waste Pipe', 'm'),
+  ('work-toilet-plumbing', 'stage-services', 'trade-plumbing', 'Toilet Plumbing', 'nos'),
+  ('work-kitchen-plumbing', 'stage-services', 'trade-plumbing', 'Kitchen Plumbing', 'nos'),
+  ('work-pressure-testing', 'stage-services', 'trade-plumbing', 'Pressure Testing', 'nos'),
+  ('work-leak-testing', 'stage-services', 'trade-plumbing', 'Leak Testing', 'nos'),
+  ('work-conduit', 'stage-services', 'trade-electrical', 'Conduit', 'm'),
+  ('work-switch-box', 'stage-services', 'trade-electrical', 'Switch Box', 'nos'),
+  ('work-wiring', 'stage-services', 'trade-electrical', 'Wiring', 'm'),
+  ('work-db-installation', 'stage-services', 'trade-electrical', 'DB Installation', 'nos'),
+  ('work-lighting-points', 'stage-services', 'trade-electrical', 'Lighting Points', 'nos'),
+  ('work-power-points', 'stage-services', 'trade-electrical', 'Power Points', 'nos'),
+  ('work-earthing', 'stage-services', 'trade-electrical', 'Earthing', 'nos'),
+  ('work-electrical-testing', 'stage-services', 'trade-electrical', 'Electrical Testing', 'nos'),
+  ('work-floor-tiles', 'stage-flooring', 'trade-flooring', 'Floor Tiles', 'm2'),
+  ('work-wall-tiles', 'stage-flooring', 'trade-flooring', 'Wall Tiles', 'm2'),
+  ('work-marble', 'stage-flooring', 'trade-flooring', 'Marble', 'm2'),
+  ('work-granite', 'stage-flooring', 'trade-flooring', 'Granite', 'm2'),
+  ('work-skirting', 'stage-flooring', 'trade-flooring', 'Skirting', 'm'),
+  ('work-staircase', 'stage-flooring', 'trade-flooring', 'Staircase', 'm2'),
+  ('work-grouting', 'stage-flooring', 'trade-flooring', 'Grouting', 'm2'),
+  ('work-polishing', 'stage-flooring', 'trade-flooring', 'Polishing', 'm2'),
+  ('work-putty', 'stage-finishing', 'trade-painting', 'Putty', 'm2'),
+  ('work-primer', 'stage-finishing', 'trade-painting', 'Primer', 'm2'),
+  ('work-internal-paint', 'stage-finishing', 'trade-painting', 'Internal Paint', 'm2'),
+  ('work-external-paint', 'stage-finishing', 'trade-painting', 'External Paint', 'm2'),
+  ('work-texture', 'stage-finishing', 'trade-painting', 'Texture', 'm2'),
+  ('work-touch-up', 'stage-finishing', 'trade-painting', 'Touch-up', 'm2')
+) as v(legacy_id, stage_legacy_id, trade_legacy_id, name, default_unit)
+join stages st on st.legacy_id = v.stage_legacy_id
+join trades tr on tr.legacy_id = v.trade_legacy_id
 on conflict (legacy_id) do nothing;
 
+-- One open task on Sharma Residence (src/mock/seed.ts task-13), on the library
+-- stage/trade/work type above. daily_progress requires all three NOT NULL.
 insert into tasks (legacy_id, project_id, project_unit_id, stage_id, trade_id, work_type_id, title, status, created_at)
 select 'task-sharma-backfill', p.id, u.id, s.id, t.id, w.id, 'Backfill around footings — Grid A', 'open', '2026-09-25T09:00:00+05:30'::timestamptz
 from projects p
 join project_units u on u.legacy_id = 'unit-sharma-house' and u.project_id = p.id
-join stages s on s.legacy_id = 'stage-sharma-foundation'
-join trades t on t.legacy_id = 'trade-sharma-civil'
-join work_types w on w.legacy_id = 'work-type-sharma-backfilling'
+join stages s on s.legacy_id = 'stage-foundation'
+join trades t on t.legacy_id = 'trade-civil'
+join work_types w on w.legacy_id = 'work-backfilling'
 where p.legacy_id = 'project-sharma'
 on conflict (legacy_id) do nothing;
 

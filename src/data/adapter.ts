@@ -3,7 +3,7 @@
 // those stay in src/domain and in the functions themselves.
 
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { ConflictError } from "../domain/errors"
+import { ConflictError, IntegrityError } from "../domain/errors"
 import type {
   BusinessProfileInput,
   AddEvidenceInput,
@@ -138,10 +138,32 @@ type Keyed = { id: string; legacy_id: string | null }
 /** Domain id → uuid for each client, filled by loadState, used when a write names an id. */
 const uuidByDomainId = new WeakMap<SupabaseClient, Map<EntityId, string>>()
 
-async function selectAll<T>(client: SupabaseClient, table: string): Promise<T[]> {
-  const { data, error } = await client.from(table).select("*")
-  if (error) throw new Error(error.message)
-  return (data ?? []) as T[]
+// PostgREST caps a response at max_rows (supabase/config.toml, 1000) and truncates
+// silently. The first page is read exactly as before (natural order, one request),
+// which is all a table under the cap ever needs. Only a full first page can mean
+// truncation, so then every page is re-read in a stable order until one is short.
+const PAGE_SIZE = 1000
+
+export async function selectAll<T>(
+  client: SupabaseClient,
+  table: string,
+  orderBy: string | string[] = "id",
+): Promise<T[]> {
+  const first = await client.from(table).select("*").range(0, PAGE_SIZE - 1)
+  if (first.error) throw refusalFrom(first.error.message, first.error.code)
+  const firstRows = (first.data ?? []) as T[]
+  if (firstRows.length < PAGE_SIZE) return firstRows
+
+  const columns = Array.isArray(orderBy) ? orderBy : [orderBy]
+  const rows: T[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let query = client.from(table).select("*")
+    for (const column of columns) query = query.order(column)
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1)
+    if (error) throw refusalFrom(error.message, error.code)
+    rows.push(...((data ?? []) as T[]))
+    if ((data?.length ?? 0) < PAGE_SIZE) return rows
+  }
 }
 
 /** A ConstructionDataState with no rows: what supabase mode shows before sign-in. */
@@ -248,7 +270,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     selectAll<IssueRow & Keyed>(client, "issues"),
     selectAll<ThreadRow & Keyed>(client, "threads"),
     selectAll<MessageRow & Keyed>(client, "messages"),
-    selectAll<ThreadReadRow>(client, "thread_reads"),
+    selectAll<ThreadReadRow>(client, "thread_reads", ["thread_id", "membership_id"]),
     selectAll<CallLogRow & Keyed>(client, "call_logs"),
     selectAll<EstimateRow & Keyed>(client, "estimates"),
     selectAll<MarketplaceRequirementRow & Keyed>(client, "marketplace_requirements"),
@@ -257,7 +279,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     selectAll<ProposalRow & Keyed>(client, "proposals"),
     selectAll<PlanRow & Keyed>(client, "plans"),
     selectAll<SubscriptionRow & Keyed>(client, "subscriptions"),
-    selectAll<CreditWalletRow>(client, "credit_wallets"),
+    selectAll<CreditWalletRow>(client, "credit_wallets", "organization_id"),
     selectAll<CreditTransactionRow & Keyed>(client, "credit_transactions"),
   ])
 
@@ -394,14 +416,36 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
   }
 }
 
-/** A refusal raised by a B4 function: `conflict:` and `permission:` prefixes become typed errors. */
-export function refusalFrom(message: string): Error {
+/**
+ * Hand-written sentences the B4 functions raise without a `conflict:` prefix and
+ * with no placeholders, so they are safe to show. src/data/refusals.test.ts fails
+ * when a migration adds another unclassified one.
+ */
+export const USER_FACING_RAISES: readonly string[] = [
+  "Give the issue a title.",
+  "A unit, task or issue conversation needs its target.",
+  "Stage and trade are required to add a work type",
+  "The conversation message for this record wasn't found.",
+]
+
+/**
+ * A failure from a B4 function or table read. `conflict:` and `permission:`
+ * prefixes become typed errors, as do known user-facing sentences. Anything else
+ * carrying a database code (an unprefixed raise naming ids, a constraint, a
+ * syntax or RLS error) becomes a bare IntegrityError, which describeCommandError
+ * renders with fixed text, so raw Postgres wording never reaches the UI.
+ */
+export function refusalFrom(message: string, code?: string): Error {
   if (message.startsWith("conflict:")) return new ConflictError(message.slice("conflict:".length))
   if (message.startsWith("permission:")) {
     const quoted = /"([^"]+)"/.exec(message)
     return new PermissionError((quoted?.[1] ?? "") as Permission)
   }
-  return new Error(message)
+  if (USER_FACING_RAISES.includes(message)) return new ConflictError(message)
+  if (!code) return new Error(message)
+  console.warn(`[supabase] unmapped database error ${code}: ${message}`)
+  if (code === "42501") return new PermissionError("" as Permission)
+  return new IntegrityError(message)
 }
 
 function uuidOf(client: SupabaseClient, id: EntityId): string {
@@ -410,7 +454,7 @@ function uuidOf(client: SupabaseClient, id: EntityId): string {
 
 async function callFunction(client: SupabaseClient, name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await client.rpc(name, args)
-  if (error) throw refusalFrom(error.message)
+  if (error) throw refusalFrom(error.message, error.code)
   return data
 }
 
