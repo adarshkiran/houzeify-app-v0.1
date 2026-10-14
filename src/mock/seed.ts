@@ -1495,4 +1495,5 @@ export const seedConstructionData: ConstructionDataState = {
       createdAt: "2026-01-10T09:00:00+05:30",
     },
   ],
+  projectReports: [],
 }

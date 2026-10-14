@@ -1,5 +1,5 @@
-import { useMemo } from "react"
-import { Alert, Avatar, Card, Col, Empty, Flex, List, Row, Statistic, Table, Tag, Typography } from "antd"
+import { useMemo, useState } from "react"
+import { Alert, Avatar, Button, Card, Col, Empty, Flex, List, Row, Statistic, Table, Tag, Typography } from "antd"
 import type { TableProps } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
@@ -10,11 +10,13 @@ import type { Navigate } from "../domain/navigation"
 import {
   analyzeProject,
   type DelaySignal,
+  type ProjectReport as ProjectReportData,
   type ReportStatus,
   type SignalKind,
   type StageAnalysis,
 } from "../domain/projectAnalysis"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
+import { useCommand } from "../session/useCommand"
 
 const { Paragraph, Text, Title } = Typography
 
@@ -34,13 +36,39 @@ const SIGNAL_LABELS: Record<SignalKind, string> = {
   "aging-issue": "Open issue",
 }
 
-function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projectId: EntityId }) {
-  const { state } = useConstructionData()
+/** The Asia/Kolkata calendar date of an instant, matching the report's own `asOf`. */
+const approvalDate = (instant: string) => attendanceDate(new Date(instant))
 
-  const report = useMemo(() => {
+function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projectId: EntityId }) {
+  const { state, approveProjectReport } = useConstructionData()
+  const run = useCommand()
+  const [viewingId, setViewingId] = useState<string | null>(null)
+  const [approving, setApproving] = useState(false)
+
+  const live = useMemo(() => {
     const now = new Date()
     return analyzeProject(state, projectId, attendanceDate(now), now.toISOString())
   }, [state, projectId])
+
+  const saved = useMemo(
+    () =>
+      state.projectReports
+        .filter((item) => item.projectId === projectId)
+        .sort((a, b) => b.approvedAt.localeCompare(a.approvedAt)),
+    [state.projectReports, projectId],
+  )
+  const snapshot = saved.find((item) => item.id === viewingId)
+  const report: ProjectReportData | undefined = snapshot?.report ?? live
+  const personName = (personId: string) =>
+    state.people.find((person) => person.id === personId)?.name ?? "a project manager"
+
+  const approve = async () => {
+    if (!live || approving) return
+    setApproving(true)
+    const outcome = await run(() => approveProjectReport(live), { success: "Report approved and saved." })
+    setApproving(false)
+    if (outcome.ok) setViewingId(outcome.value.id)
+  }
 
   const openSignal = (signal: DelaySignal) => {
     if (signal.taskId) onNavigate("task-detail", { project_id: projectId, task_id: signal.taskId })
@@ -77,13 +105,30 @@ function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projec
               message={
                 <Flex align="center" gap="small" wrap>
                   <Text strong>{STATUS_PRESENTATION[report.status].label}</Text>
-                  <Tag>AI draft, not reviewed</Tag>
+                  {snapshot ? (
+                    <Tag color="success">
+                      Approved by {personName(snapshot.approvedBy)} on {approvalDate(snapshot.approvedAt)}
+                    </Tag>
+                  ) : (
+                    <Tag>AI draft, not reviewed</Tag>
+                  )}
                   <Text type="secondary">
                     As of {report.asOf} · confidence {report.confidence}
                   </Text>
                 </Flex>
               }
               description={report.summary[0]}
+              action={
+                snapshot ? (
+                  <Button size="small" onClick={() => setViewingId(null)}>
+                    Back to live report
+                  </Button>
+                ) : (
+                  <Button type="primary" size="small" loading={approving} onClick={() => void approve()}>
+                    Approve and save
+                  </Button>
+                )
+              }
             />
 
             <Row gutter={[16, 16]}>
@@ -184,6 +229,35 @@ function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projec
                   {report.issues.oldestSerious.ageDays} days).
                 </Paragraph>
               ) : null}
+            </Card>
+
+            <Card
+              title={
+                <Title level={5} className="company-heading! m-0!">
+                  Saved reports
+                </Title>
+              }
+            >
+              <List
+                dataSource={saved}
+                locale={{ emptyText: "No approved reports yet. Approve the live report to keep a snapshot." }}
+                renderItem={(item) => (
+                  <List.Item
+                    className="cursor-pointer"
+                    onClick={() => setViewingId(item.id)}
+                    extra={item.id === viewingId ? <Tag color="processing">Viewing</Tag> : undefined}
+                  >
+                    <Flex gap="small" align="center" wrap>
+                      <Tag color={STATUS_PRESENTATION[item.status].type === "success" ? "success" : STATUS_PRESENTATION[item.status].type === "warning" ? "warning" : STATUS_PRESENTATION[item.status].type === "error" ? "error" : "default"}>
+                        {STATUS_PRESENTATION[item.status].label}
+                      </Tag>
+                      <Text>
+                        As of {item.asOf} · approved by {personName(item.approvedBy)} on {approvalDate(item.approvedAt)}
+                      </Text>
+                    </Flex>
+                  </List.Item>
+                )}
+              />
             </Card>
 
             <Card className="company-hozie-card" variant="borderless">

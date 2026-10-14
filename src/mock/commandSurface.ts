@@ -15,6 +15,8 @@ import type { LogCallInput, PostMessageInput } from "../domain/conversationComma
 import * as estimateCommands from "../domain/estimateCommands"
 import type { GenerateEstimateInput } from "../domain/estimateCommands"
 import * as marketplaceCommands from "../domain/marketplaceCommands"
+import * as projectReportCommands from "../domain/projectReportCommands"
+import type { ProjectReport } from "../domain/projectAnalysis"
 import type { SubmitProposalInput } from "../domain/marketplaceCommands"
 import { viewRequirement as selectViewRequirement } from "../domain/marketplaceVisibility"
 import * as commands from "../domain/constructionCommands"
@@ -38,6 +40,7 @@ import type {
   ProjectUnit,
   Proposal,
   ReviewDecision,
+  SavedProjectReport,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -144,6 +147,7 @@ export interface CommandSurface {
   publishDocument: (documentId: EntityId, visible: boolean) => Document
   generateEstimate: (input: GenerateEstimateInput) => Estimate
   confirmEstimate: (estimateId: EntityId) => Estimate
+  approveProjectReport: (report: ProjectReport) => SavedProjectReport
   postRequirement: (estimateId: EntityId) => MarketplaceRequirement
   unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => MarketplaceUnlock
   purchaseCredits: (organizationId: EntityId, credits: number) => CreditWallet
@@ -233,6 +237,7 @@ export function memoryCommands(exec: MemoryExec): CommandSurface {
     publishDocument: (id, visible) => run(commands.publishDocument(id, visible)),
     generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
     confirmEstimate: (estimateId) => run(estimateCommands.confirmEstimate(estimateId)),
+    approveProjectReport: (report) => run(projectReportCommands.approveProjectReport(report)),
     postRequirement: (estimateId) => run(marketplaceCommands.postRequirement(estimateId)),
     unlockRequirement: (requirementId, partnerOrganizationId) =>
       run(marketplaceCommands.unlockRequirement(requirementId, partnerOrganizationId)),
@@ -351,6 +356,7 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
       write(() => adapter.publishDocument(client, { documentId, visible })),
     generateEstimate: (input: GenerateEstimateInput) => write(() => adapter.generateEstimate(client, input)),
     confirmEstimate: (estimateId: EntityId) => write(() => adapter.confirmEstimate(client, { estimateId })),
+    approveProjectReport: (report: ProjectReport) => write(() => adapter.approveProjectReport(client, { report })),
     postRequirement: (estimateId: EntityId) => write(() => adapter.postRequirement(client, { estimateId })),
     unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) =>
       write(() => adapter.unlockRequirement(client, { requirementId, organizationId: partnerOrganizationId })),

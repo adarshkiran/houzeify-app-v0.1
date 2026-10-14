@@ -60,7 +60,9 @@ import type {
   WorkerProjectAssignment,
   WorkPlanItem,
   WorkType,
+  SavedProjectReport,
 } from "../domain/models"
+import type { ProjectReport } from "../domain/projectAnalysis"
 
 /** Maps a uuid foreign key to the domain id it is known by. */
 export type ToDomainId = (uuid: string) => string
@@ -1246,6 +1248,45 @@ export function creditTransactionFromRow(
     amount: row.amount,
     balanceAfter: row.balance_after,
     requirementId: row.requirement_id ? toDomain(row.requirement_id) : undefined,
+    createdAt: row.created_at,
+  }
+}
+
+// Project AI report snapshots. `payload` is the report as approved (its own
+// projectId holds the uuid the adapter sent); the stamped columns win over it.
+
+export interface ProjectReportRow {
+  id: string
+  project_id: string
+  as_of: string
+  status: string
+  engine: string
+  payload: ProjectReport
+  generated_at: string
+  approved_by: string
+  approved_at: string
+  created_at: string
+}
+
+export function projectReportFromRow(
+  row: ProjectReportRow,
+  toDomain: ToDomainId = identity,
+): SavedProjectReport {
+  const approvedBy = toDomain(row.approved_by)
+  return {
+    id: row.id,
+    projectId: toDomain(row.project_id),
+    asOf: row.as_of,
+    status: row.status as SavedProjectReport["status"],
+    report: {
+      ...row.payload,
+      projectId: toDomain(row.project_id),
+      reviewStatus: "approved",
+      approvedBy,
+      approvedAt: row.approved_at,
+    },
+    approvedBy,
+    approvedAt: row.approved_at,
     createdAt: row.created_at,
   }
 }
