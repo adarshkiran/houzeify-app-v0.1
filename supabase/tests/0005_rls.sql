@@ -1,5 +1,5 @@
 begin;
-select plan(28);
+select plan(35);
 
 -- Fixtures are inserted as the table owner (bypasses RLS). Each check then acts
 -- as one authenticated user; counts are recorded in rls_probe while the role is
@@ -149,6 +149,18 @@ insert into credit_transactions (id, legacy_id, organization_id, kind, amount, b
   ('10000000-0000-0000-0000-000000000f21', 'rls-ct-1', '10000000-0000-0000-0000-000000000003', 'unlock', -10, 0,
    '10000000-0000-0000-0000-000000000f12');
 
+-- Org A's own billing state, to probe organizations/subscriptions/credit_wallets
+-- visibility for its project-scoped staff (rls-m-sup), worker (rls-m-worker) and
+-- homeowner (rls-m-home) memberships -- none of which has project_id null. This
+-- is the exact shape the live walkthrough's B2 finding reproduced: a business
+-- user with only project-scoped memberships could not see their own org's wallet.
+insert into plans (id, legacy_id, name, price_label, entitlements, monthly_credits) values
+  ('10000000-0000-0000-0000-000000000c01', 'rls-plan', 'RLS Plan', '0', array[]::text[], 0);
+insert into subscriptions (id, legacy_id, organization_id, plan_id, status) values
+  ('10000000-0000-0000-0000-000000000c02', 'rls-sub-a', '10000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000c01', 'active');
+insert into credit_wallets (organization_id, balance) values ('10000000-0000-0000-0000-000000000001', 5);
+
 insert into marketplace_unlocks (id, legacy_id, requirement_id, partner_organization_id, credit_transaction_id) values
   ('10000000-0000-0000-0000-000000000f22', 'rls-unl-1', '10000000-0000-0000-0000-000000000f12',
    '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000f21');
@@ -185,6 +197,8 @@ insert into rls_probe select 'worker_other_attendance', count(*) from worker_att
 insert into rls_probe select 'worker_own_row', count(*) from workers where id = '10000000-0000-0000-0000-000000000601';
 insert into rls_probe select 'worker_other_row', count(*) from workers where id = '10000000-0000-0000-0000-000000000602';
 insert into rls_probe select 'worker_tasks', count(*) from tasks where project_id = '10000000-0000-0000-0000-000000000301';
+insert into rls_probe select 'worker_org_profile', count(*) from organizations where id = '10000000-0000-0000-0000-000000000001';
+insert into rls_probe select 'worker_org_wallet', count(*) from credit_wallets where organization_id = '10000000-0000-0000-0000-000000000001';
 do $$
 begin
   begin
@@ -204,6 +218,9 @@ set local request.jwt.claims = '{"sub": "10000000-0000-0000-0000-000000000203"}'
 insert into rls_probe select 'scoped_task_in_stage', count(*) from tasks where id = '10000000-0000-0000-0000-000000000801';
 insert into rls_probe select 'scoped_task_outside_stage', count(*) from tasks where id = '10000000-0000-0000-0000-000000000802';
 insert into rls_probe select 'supervisor_attendance', count(*) from worker_attendance where project_id = '10000000-0000-0000-0000-000000000301';
+insert into rls_probe select 'supervisor_org_profile', count(*) from organizations where id = '10000000-0000-0000-0000-000000000001';
+insert into rls_probe select 'supervisor_org_subscription', count(*) from subscriptions where organization_id = '10000000-0000-0000-0000-000000000001';
+insert into rls_probe select 'supervisor_org_wallet', count(*) from credit_wallets where organization_id = '10000000-0000-0000-0000-000000000001';
 reset role;
 
 -- Homeowner: customer-visible rows only
@@ -219,6 +236,8 @@ insert into rls_probe select 'home_own_thread', count(*) from threads where id =
 insert into rls_probe select 'home_tasks', count(*) from tasks;
 insert into rls_probe select 'home_visible_issues', count(*) from issues;
 insert into rls_probe select 'home_private_document', count(*) from documents where id = '10000000-0000-0000-0000-000000000d04';
+insert into rls_probe select 'home_org_profile', count(*) from organizations where id = '10000000-0000-0000-0000-000000000001';
+insert into rls_probe select 'home_org_wallet', count(*) from credit_wallets where organization_id = '10000000-0000-0000-0000-000000000001';
 reset role;
 
 -- Cross-organization user
@@ -249,10 +268,15 @@ select is((select n from rls_probe where name = 'worker_own_row'), 1::bigint, 'a
 select is((select n from rls_probe where name = 'worker_other_row'), 0::bigint, 'a worker cannot read another worker row');
 select is((select n from rls_probe where name = 'worker_tasks'), 2::bigint, 'a worker reads unscoped project tasks');
 select is((select n from rls_probe where name = 'worker_attendance_write_refused'), 1::bigint, 'a worker cannot write attendance directly');
+select is((select n from rls_probe where name = 'worker_org_profile'), 1::bigint, 'a worker with only a project-scoped membership still reads their organization profile');
+select is((select n from rls_probe where name = 'worker_org_wallet'), 0::bigint, 'a worker cannot read the organization credit wallet');
 
 select is((select n from rls_probe where name = 'scoped_task_in_stage'), 1::bigint, 'a stage-scoped supervisor reads a task in their stage');
 select is((select n from rls_probe where name = 'scoped_task_outside_stage'), 0::bigint, 'a stage-scoped supervisor cannot read a task outside their stage');
 select is((select n from rls_probe where name = 'supervisor_attendance'), 2::bigint, 'a supervisor reads attendance for the project');
+select is((select n from rls_probe where name = 'supervisor_org_profile'), 1::bigint, 'a project-scoped business staff membership reads the organization profile');
+select is((select n from rls_probe where name = 'supervisor_org_subscription'), 1::bigint, 'a project-scoped business staff membership reads the organization subscription');
+select is((select n from rls_probe where name = 'supervisor_org_wallet'), 1::bigint, 'a project-scoped business staff membership reads the organization credit wallet');
 
 select is((select n from rls_probe where name = 'home_unpublished_evidence'), 0::bigint, 'a homeowner cannot read unpublished evidence');
 select is((select n from rls_probe where name = 'home_visible_evidence'), 1::bigint, 'a homeowner reads customer-visible evidence');
@@ -264,6 +288,8 @@ select is((select n from rls_probe where name = 'home_own_thread'), 1::bigint, '
 select is((select n from rls_probe where name = 'home_tasks'), 0::bigint, 'a homeowner cannot read internal tasks');
 select is((select n from rls_probe where name = 'home_visible_issues'), 1::bigint, 'a homeowner reads only customer-visible issues');
 select is((select n from rls_probe where name = 'home_private_document'), 0::bigint, 'a homeowner cannot read a document not shared with them');
+select is((select n from rls_probe where name = 'home_org_profile'), 1::bigint, 'a homeowner reads the contractor organization profile');
+select is((select n from rls_probe where name = 'home_org_wallet'), 0::bigint, 'a homeowner cannot read the contractor organization credit wallet');
 
 select is((select n from rls_probe where name = 'other_org_project_one'), 0::bigint, 'a user from another organization reads nothing in the project');
 select is((select n from rls_probe where name = 'other_org_own_project'), 1::bigint, 'a user reads their own organization project');
