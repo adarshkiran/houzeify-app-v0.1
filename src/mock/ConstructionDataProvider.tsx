@@ -15,6 +15,7 @@ import {
   getAllowedTaskTransitions,
 } from "../domain/taskTransitions"
 import { emptyConstructionState, loadState } from "../data/adapter"
+import { createLatestWinsLoader } from "../data/latestLoad"
 import { getSupabaseClient } from "../data/supabaseClient"
 import { SUPABASE_DATA_SOURCE, useSession } from "../session/SessionProvider"
 import {
@@ -126,32 +127,35 @@ export default function ConstructionDataProvider({
     [clock, ids],
   )
 
-  // Supabase mode: load the state the signed-in person can read; clear it on sign-out.
+  // Supabase mode: every load (sign-in, and the reload after each write) goes
+  // through one loader so only the newest result is committed, and results that
+  // were in flight across a sign-out or account switch are dropped.
+  const loader = useRef(
+    client ? createLatestWinsLoader(() => loadState(client), commit) : null,
+  ).current
+
+  // Load the state the signed-in person can read; clear it on sign-out.
   useEffect(() => {
-    if (!client) return
-    let active = true
+    if (!client || !loader) return
+    loader.invalidate()
     if (!session) {
       commit(emptyConstructionState())
       return
     }
-    loadState(client)
-      .then((next) => {
-        if (active) commit(next)
-      })
+    loader
+      .reload()
       .catch((error: unknown) => console.warn("[data] load failed:", error))
-    return () => {
-      active = false
-    }
-  }, [client, session, commit])
+  }, [client, loader, session, commit])
 
   /** Supabase mode: one adapter write, then a reload so the screens see the stored rows. */
   const write = useCallback(
     async <T,>(call: () => Promise<T>): Promise<T> => {
       const result = await call()
-      if (client) commit(await loadState(client))
+      // No reload after sign-out: it would load as anonymous and replace the cleared state.
+      if (loader && sessionRef.current) await loader.reload()
       return result
     },
-    [client, commit],
+    [loader],
   )
 
   const surface = useMemo<CommandSurface>(
