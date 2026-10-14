@@ -78,7 +78,7 @@ export function viewRequirement(
       ...base,
       estimateTotalLow: range.low,
       estimateTotalHigh: range.high,
-      areaBand: areaBand(requirement.builtUpAreaSqft),
+      areaBand: requirement.areaBand ?? areaBand(requirement.builtUpAreaSqft),
     }
   }
   const exact = {

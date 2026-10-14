@@ -1086,6 +1086,7 @@ export function marketplaceRequirementFromPreviewRow(
     builtUpAreaSqft: 0,
     constructionLevel: "standard",
     propertyType: row.property_type,
+    areaBand: row.area_band,
     estimateTotalLow: row.estimate_total_low,
     estimateTotalHigh: row.estimate_total_high,
     status: row.status as MarketplaceRequirement["status"],
