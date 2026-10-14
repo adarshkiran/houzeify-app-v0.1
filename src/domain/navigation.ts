@@ -290,3 +290,23 @@ export function resolveRoute(
 
   return { ok: true }
 }
+
+/**
+ * The redirect the app should act on for a route decision, held off while
+ * the session bootstrap (the persisted-session check against the real
+ * Supabase Auth server) is still pending (`ready` false).
+ *
+ * `resolveRoute` sees `session: null` for the instant before that check
+ * resolves, which is indistinguishable from an actual signed-out visitor.
+ * Acting on that denial — rewriting the URL hash to `login` — would strand
+ * a signed-in user there even after their session resolves a moment later,
+ * since the hash has already moved. Returning `null` here until `ready` is
+ * true means no redirect fires, and the caller should instead show a
+ * loading state for that instant.
+ */
+export function pendingRedirect(
+  ready: boolean,
+  decision: RouteDecision,
+): RouteLocation | null {
+  return ready && !decision.ok ? decision.redirect : null
+}

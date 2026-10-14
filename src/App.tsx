@@ -22,6 +22,7 @@ import {
   isAppScreen,
   nextParams,
   parseHash,
+  pendingRedirect,
   resolveRoute,
   type RouteLocation,
 } from './domain/navigation'
@@ -90,7 +91,7 @@ function readLocation(): RouteLocation {
 }
 
 export default function App() {
-  const { session, signOut } = useSession()
+  const { session, ready, signOut } = useSession()
   const { state } = useConstructionData()
   const [location, setLocation] = useState<RouteLocation>(readLocation)
   const [phone, setPhone] = useState('98765 43210')
@@ -136,8 +137,13 @@ export default function App() {
     knownProjectIds,
   })
 
-  // Empty hash (or an unknown one) lands on the splash, which then routes on.
-  const redirect = decision.ok ? null : decision.redirect
+  // While the persisted session is still being checked against the real
+  // Supabase Auth server (see SessionProvider's `ready`), `session` reads as
+  // null. Routing on that would bounce a signed-in user to the login screen
+  // for an instant, and the hash rewrite below would then strand them there
+  // even after the session resolves. So the redirect is held off, and the
+  // decision above is not acted on, until `ready` is true.
+  const redirect = pendingRedirect(ready, decision)
   useEffect(() => {
     if (redirect) goTo(redirect, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,6 +151,14 @@ export default function App() {
 
   const { screen, params } = location
   const projectId = params.project_id
+
+  if (!ready) {
+    return (
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+        <SplashScreen />
+      </div>
+    )
+  }
 
   if (!decision.ok) return null
 

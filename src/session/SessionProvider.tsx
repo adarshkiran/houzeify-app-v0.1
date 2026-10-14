@@ -45,6 +45,15 @@ function writeStoredSession(session: Session | null) {
 
 interface SessionContextValue {
   session: Session | null
+  /**
+   * False only while the Supabase mode's initial session bootstrap (the
+   * persisted-session check against the real Supabase Auth server) is still
+   * in flight. Always true outside Supabase mode, where session state is
+   * read from localStorage synchronously. Callers that route on `session`
+   * must wait for `ready` first, or a persisted session reads as signed-out
+   * for the instant before the check resolves.
+   */
+  ready: boolean
   signIn: (session: Session) => void
   signOut: () => void
 }
@@ -55,6 +64,7 @@ export default function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() =>
     SUPABASE_DATA_SOURCE ? null : readStoredSession(),
   )
+  const [ready, setReady] = useState(!SUPABASE_DATA_SOURCE)
   const client: SupabaseClient | null = SUPABASE_DATA_SOURCE ? getSupabaseClient() : null
 
   // Supabase mode: the session follows the auth state, resolved to a role.
@@ -67,12 +77,18 @@ export default function SessionProvider({ children }: { children: ReactNode }) {
         if (active) setSession(next)
       } catch {
         if (active) setSession(null)
+      } finally {
+        if (active) setReady(true)
       }
     }
     const { data } = client.auth.onAuthStateChange((_event, authSession) => {
       // Deferred: supabase-js forbids awaiting auth calls inside this callback.
-      if (!authSession) setSession(null)
-      else setTimeout(() => void refresh(), 0)
+      if (!authSession) {
+        setSession(null)
+        setReady(true)
+      } else {
+        setTimeout(() => void refresh(), 0)
+      }
     })
     void refresh()
     return () => {
@@ -93,8 +109,8 @@ export default function SessionProvider({ children }: { children: ReactNode }) {
   }, [client])
 
   const value = useMemo(
-    () => ({ session, signIn, signOut }),
-    [session, signIn, signOut],
+    () => ({ session, ready, signIn, signOut }),
+    [session, ready, signIn, signOut],
   )
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
 }
