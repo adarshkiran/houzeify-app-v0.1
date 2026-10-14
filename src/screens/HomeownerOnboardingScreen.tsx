@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import LogoHorizontal from '../components/LogoHorizontal'
 import PublicBackButton from '../components/PublicBackButton'
-import { DEMO_IDENTITIES, useSession } from '../session/SessionProvider'
+import { usePhoneOtp } from '../session/PhoneOtpCard'
+import { DEMO_IDENTITIES, SUPABASE_DATA_SOURCE, useSession } from '../session/SessionProvider'
 
 // ─── Ambient background ───────────────────────────────────────────────────────
 
@@ -195,17 +196,35 @@ export default function HomeownerOnboardingScreen({
   const [selectedType, setSelectedType] = useState<string | null>(null)
   const [location, setLocation] = useState('')
   const [locationFocused, setLocationFocused] = useState(false)
+  const [showSignIn, setShowSignIn] = useState(false)
+  const [phoneValue, setPhoneValue] = useState('')
+  const [codeValue, setCodeValue] = useState('')
+  const otp = usePhoneOtp()
 
   const canContinue = !!selectedType && location.trim().length > 1
 
-  const handleContinue = () => {
-    if (!canContinue || !selectedType) return
-    signIn(DEMO_IDENTITIES.homeowner)
+  const goToDashboard = () => {
+    if (!selectedType) return
     onNavigate('dashboard-home', {
       property_type: selectedType,
       location: location.trim(),
       user_role: 'homeowner',
     })
+  }
+
+  const handleContinue = () => {
+    if (!canContinue || !selectedType) return
+    if (SUPABASE_DATA_SOURCE) {
+      setShowSignIn(true)
+      return
+    }
+    signIn(DEMO_IDENTITIES.homeowner)
+    goToDashboard()
+  }
+
+  const handleVerify = async () => {
+    const next = await otp.confirmCode(codeValue)
+    if (next) goToDashboard()
   }
 
   return (
@@ -347,6 +366,59 @@ export default function HomeownerOnboardingScreen({
           >
             Continue →
           </button>
+
+          {SUPABASE_DATA_SOURCE && showSignIn && (
+            <div
+              className="w-full max-w-[360px] flex flex-col gap-3"
+              style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
+            >
+              {otp.phase === 'phone' ? (
+                <form
+                  className="flex flex-col gap-3"
+                  onSubmit={e => { e.preventDefault(); void otp.requestCode(phoneValue) }}
+                >
+                  <label className="text-[13px] font-semibold text-[#242326]">Phone number</label>
+                  <input
+                    type="tel"
+                    autoComplete="tel"
+                    value={phoneValue}
+                    onChange={e => setPhoneValue(e.target.value)}
+                    className="h-[48px] px-3.5 rounded-[12px] border border-[#E3DDD7] bg-white text-[15px] text-[#242326] outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={otp.busy || !phoneValue.trim()}
+                    className="h-[48px] rounded-[12px] bg-[#722ED1] text-white text-[14px] font-semibold disabled:opacity-50"
+                  >
+                    Send code
+                  </button>
+                </form>
+              ) : (
+                <form
+                  className="flex flex-col gap-3"
+                  onSubmit={e => { e.preventDefault(); void handleVerify() }}
+                >
+                  <label className="text-[13px] font-semibold text-[#242326]">One-time code</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={codeValue}
+                    onChange={e => setCodeValue(e.target.value)}
+                    className="h-[48px] px-3.5 rounded-[12px] border border-[#E3DDD7] bg-white text-[15px] text-[#242326] outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={otp.busy || !codeValue.trim()}
+                    className="h-[48px] rounded-[12px] bg-[#722ED1] text-white text-[14px] font-semibold disabled:opacity-50"
+                  >
+                    Verify and continue
+                  </button>
+                </form>
+              )}
+              {otp.error && <p className="text-[13px] text-[#C0392B] m-0">{otp.error}</p>}
+            </div>
+          )}
 
           <p
             className="text-[11px] text-[#9A949D] text-center m-0"

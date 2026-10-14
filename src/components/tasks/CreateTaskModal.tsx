@@ -70,7 +70,7 @@ export default function CreateTaskModal({
     })
   }, [open, draft, form, state.workTypes])
 
-  const handleCreate = (values: TaskFormValues) => {
+  const handleCreate = async (values: TaskFormValues) => {
     const workType = state.workTypes.find((item) => item.id === values.workTypeId)
     if (!workType) return
     const template = state.taskTemplates.find(
@@ -93,13 +93,13 @@ export default function CreateTaskModal({
       dueDate: values.dueDate,
       source,
     }
-    const outcome = run(() => createTask(input), {
+    const outcome = await run(() => createTask(input), {
       success: values.assigneeId ? undefined : "Task created",
     })
     if (!outcome.ok) return
     const task = outcome.value
     if (values.assigneeId) {
-      const assigned = run(() => assignTask(task.id, "worker", values.assigneeId!), {
+      const assigned = await run(() => assignTask(task.id, "worker", values.assigneeId!), {
         success: "Task created and assigned",
       })
       if (!assigned.ok) message.warning("Task created, but it couldn't be assigned — assign it from the task page.")

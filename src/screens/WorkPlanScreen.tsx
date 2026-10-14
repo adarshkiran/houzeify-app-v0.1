@@ -122,7 +122,7 @@ function WorkPlan({
     },
   ]
 
-  const handleAdd = (values: PlanFormValues) => {
+  const handleAdd = async (values: PlanFormValues) => {
     const workType = state.workTypes.find((item) => item.id === values.workTypeId)
     if (!workType) return
     const template = state.taskTemplates.find(
@@ -139,7 +139,7 @@ function WorkPlan({
       plannedStart: values.plannedStart,
       dueDate: values.dueDate,
     }
-    const outcome = run(() => addWorkPlanItem(input), { success: "Planned work added" })
+    const outcome = await run(() => addWorkPlanItem(input), { success: "Planned work added" })
     if (!outcome.ok) return
     form.resetFields()
     setModalOpen(false)

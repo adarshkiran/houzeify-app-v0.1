@@ -2,76 +2,31 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react"
-import type * as Inputs from "../domain/commandInputs"
-import * as attendanceCommands from "../domain/attendanceCommands"
-import type {
-  RecordAttendanceInput,
-  WorkerPhoneInput,
-} from "../domain/attendanceCommands"
-import * as billingCommands from "../domain/billingCommands"
-import type { CreditWallet } from "../domain/models"
-import * as conversationCommands from "../domain/conversationCommands"
-import type { LogCallInput, PostMessageInput } from "../domain/conversationCommands"
-import * as estimateCommands from "../domain/estimateCommands"
-import type { GenerateEstimateInput } from "../domain/estimateCommands"
-import * as marketplaceCommands from "../domain/marketplaceCommands"
-import { viewRequirement as selectViewRequirement } from "../domain/marketplaceVisibility"
-import type { SubmitProposalInput } from "../domain/marketplaceCommands"
-import * as commands from "../domain/constructionCommands"
-import type {
-  AssignmentEndReason,
-  CallLog,
-  ConstructionDataState,
-  ConstructionStage,
-  DailyProgress,
-  Document,
-  EntityId,
-  Estimate,
-  Evidence,
-  ISODate,
-  Issue,
-  MarketplaceRequirement,
-  MarketplaceUnlock,
-  Message,
-  Project,
-  ProjectMembership,
-  ProjectUnit,
-  Proposal,
-  ReviewDecision,
-  Task,
-  TaskAssignment,
-  TaskStatus,
-  TaskTemplate,
-  Thread,
-  Trade,
-  WorkerAttendance,
-  WorkPlanItem,
-  WorkType,
-  Worker,
-  WorkerOnboarding,
-  WorkerProjectAssignment,
-} from "../domain/models"
-import type {
-  Clock,
-  Command,
-  ConstructionRepository,
-  IdGenerator,
-} from "../domain/ports"
+import type { ConstructionDataState } from "../domain/models"
+import type { Clock, Command, ConstructionRepository, IdGenerator } from "../domain/ports"
 import {
   canTransitionTask,
   getAllowedTaskTransitions,
 } from "../domain/taskTransitions"
-import { useSession } from "../session/SessionProvider"
+import { emptyConstructionState, loadState } from "../data/adapter"
+import { getSupabaseClient } from "../data/supabaseClient"
+import { SUPABASE_DATA_SOURCE, useSession } from "../session/SessionProvider"
 import {
   createInMemoryRepository,
   systemClock,
   uuidGenerator,
 } from "./repository"
+import {
+  memoryCommands,
+  supabaseCommands,
+  type CommandSurface,
+} from "./commandSurface"
 
 export type {
   AddEvidenceInput,
@@ -90,104 +45,10 @@ export type {
   ResubmitDailyProgressInput,
   SubmitDailyProgressInput,
 } from "../domain/commandInputs"
+export type { AttendancePunchInput, CommandSurface } from "./commandSurface"
 
-interface ConstructionDataContextValue {
+export type ConstructionDataContextValue = CommandSurface & {
   state: ConstructionDataState
-  updateOrganizationProfile: (
-    organizationId: EntityId,
-    input: Inputs.BusinessProfileInput,
-  ) => void
-  createProject: (input: Inputs.CreateProjectInput) => Project
-  setStageBaselines: (
-    projectId: EntityId,
-    baselines: Record<EntityId, number>,
-  ) => Project
-  addProjectUnit: (input: Inputs.AddProjectUnitInput) => ProjectUnit
-  addProjectUnits: (inputs: Inputs.AddProjectUnitInput[]) => ProjectUnit[]
-  inviteProjectMember: (input: Inputs.InviteProjectMemberInput) => ProjectMembership
-  addWorkPlanItem: (input: Inputs.AddWorkPlanItemInput) => WorkPlanItem
-  createTask: (input: Inputs.CreateTaskInput) => Task
-  assignTask: (
-    taskId: EntityId,
-    assigneeType: TaskAssignment["assigneeType"],
-    assigneeId: EntityId,
-  ) => TaskAssignment
-  assignWorkerToProject: (
-    input: Inputs.AssignWorkerToProjectInput,
-  ) => WorkerProjectAssignment
-  addWorker: (input: Inputs.AddWorkerInput) => {
-    worker: Worker
-    assignment?: WorkerProjectAssignment
-  }
-  createWorkerOnboarding: (input: {
-    workerId: EntityId
-    method: "qr" | "supervisor-assisted"
-  }) => WorkerOnboarding
-  acceptWorkerOnboarding: (onboardingId: EntityId, joinCode?: string) => Worker
-  acceptOwnWorkerOnboarding: (onboardingId: EntityId, phone: string) => Worker
-  cancelWorkerOnboarding: (onboardingId: EntityId) => WorkerOnboarding
-  endWorkerProjectAssignment: (
-    assignmentId: EntityId,
-    reason: AssignmentEndReason,
-  ) => WorkerProjectAssignment
-  recordAttendance: (input: RecordAttendanceInput) => WorkerAttendance
-  checkInWorker: (input: WorkerPhoneInput) => WorkerAttendance
-  checkOutWorker: (input: WorkerPhoneInput) => WorkerAttendance
-  setAttendancePolicy: (projectId: EntityId, requireCheckout: boolean) => Project
-  listAttendance: (projectId: EntityId, date: ISODate) => WorkerAttendance[]
-  getOwnAttendance: (
-    projectId: EntityId,
-    phone: string,
-    date: ISODate,
-  ) => WorkerAttendance | undefined
-  addLibraryStage: (input: Inputs.AddLibraryStageInput) => ConstructionStage
-  addLibraryTrade: (input: Inputs.AddLibraryTradeInput) => Trade
-  addLibraryWorkType: (input: Inputs.AddLibraryWorkTypeInput) => {
-    workType: WorkType
-    template: TaskTemplate
-  }
-  transitionTask: (taskId: EntityId, nextStatus: TaskStatus) => void
-  acceptTaskAssignment: (taskId: EntityId) => void
-  startTask: (taskId: EntityId) => void
-  addEvidence: (input: Inputs.AddEvidenceInput) => Evidence
-  submitDailyProgress: (input: Inputs.SubmitDailyProgressInput) => DailyProgress
-  resubmitDailyProgress: (
-    previousId: EntityId,
-    input: Inputs.ResubmitDailyProgressInput,
-  ) => DailyProgress
-  reviewDailyProgress: (
-    progressId: EntityId,
-    decision: ReviewDecision,
-    note?: string,
-  ) => void
-  publishDailyProgress: (progressId: EntityId, evidenceIds: EntityId[]) => void
-  reportIssue: (input: Inputs.ReportIssueInput) => Issue
-  assignIssue: (issueId: EntityId, membershipId: EntityId | undefined) => void
-  transitionIssue: (
-    issueId: EntityId,
-    next: Issue["status"],
-    resolutionNote?: string,
-  ) => void
-  addIssueEvidence: (
-    issueId: EntityId,
-    items: Inputs.IssueEvidenceInput[],
-  ) => Evidence[]
-  publishIssue: (issueId: EntityId, visible: boolean) => Issue
-  uploadDocument: (input: Inputs.UploadDocumentInput) => Document
-  publishDocument: (documentId: EntityId, visible: boolean) => Document
-  generateEstimate: (input: GenerateEstimateInput) => Estimate
-  confirmEstimate: (estimateId: EntityId) => Estimate
-  postRequirement: (estimateId: EntityId) => MarketplaceRequirement
-  unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => MarketplaceUnlock
-  purchaseCredits: (organizationId: EntityId, credits: number) => CreditWallet
-  submitProposal: (requirementId: EntityId, partnerOrganizationId: EntityId, input: SubmitProposalInput) => Proposal
-  selectProposal: (proposalId: EntityId) => Project
-  viewRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => ReturnType<typeof selectViewRequirement>
-  postMessage: (input: PostMessageInput) => Message
-  logCall: (input: LogCallInput) => CallLog
-  openDirectThread: (projectId: EntityId, otherMembershipId: EntityId) => Thread
-  markThreadRead: (threadId: EntityId) => void
-  markThreadUnread: (threadId: EntityId) => void
 }
 
 export { getAllowedTaskTransitions, canTransitionTask }
@@ -197,12 +58,17 @@ const ConstructionDataContext =
 
 interface ConstructionDataProviderProps {
   children: ReactNode
-  /** Where data lives. Defaults to an in-memory store seeded with mock data. */
+  /** In-memory store for the memory data source. Ignored in supabase mode. */
   repository?: ConstructionRepository
   clock?: Clock
   ids?: IdGenerator
 }
 
+/**
+ * Serves the screens one command surface. With VITE_DATA_SOURCE=supabase the
+ * state is loaded from the stack on sign-in and reloaded after each write;
+ * otherwise the in-memory store runs the domain commands as before.
+ */
 export default function ConstructionDataProvider({
   children,
   repository,
@@ -215,13 +81,22 @@ export default function ConstructionDataProvider({
   const repo = useRef<ConstructionRepository>(
     repository ?? createInMemoryRepository(),
   ).current
-  const [state, setState] = useState<ConstructionDataState>(() => repo.load())
+  const client = useRef(SUPABASE_DATA_SOURCE ? getSupabaseClient() : null).current
+  const [state, setState] = useState<ConstructionDataState>(() =>
+    client ? emptyConstructionState() : repo.load(),
+  )
 
   // Commands read the latest state and session through refs so they never see
   // stale values, and back-to-back commands in one tick compose correctly.
   const stateRef = useRef(state)
   const sessionRef = useRef(session)
   sessionRef.current = session
+
+  /** Commits a new state for rendering and for the next command. */
+  const commit = useCallback((next: ConstructionDataState) => {
+    stateRef.current = next
+    setState(next)
+  }, [])
 
   /** Runs a pure command against current state, commits the result, returns it. */
   const run = useCallback(
@@ -232,13 +107,12 @@ export default function ConstructionDataProvider({
         ids,
       })
       if (next !== stateRef.current) {
-        stateRef.current = next
         repo.save(next)
-        setState(next)
+        commit(next)
       }
       return result
     },
-    [repo, clock, ids],
+    [repo, clock, ids, commit],
   )
 
   /** Runs a read-only command against the latest state and returns its result. Nothing is committed. */
@@ -252,92 +126,45 @@ export default function ConstructionDataProvider({
     [clock, ids],
   )
 
+  // Supabase mode: load the state the signed-in person can read; clear it on sign-out.
+  useEffect(() => {
+    if (!client) return
+    let active = true
+    if (!session) {
+      commit(emptyConstructionState())
+      return
+    }
+    loadState(client)
+      .then((next) => {
+        if (active) commit(next)
+      })
+      .catch((error: unknown) => console.warn("[data] load failed:", error))
+    return () => {
+      active = false
+    }
+  }, [client, session, commit])
+
+  /** Supabase mode: one adapter write, then a reload so the screens see the stored rows. */
+  const write = useCallback(
+    async <T,>(call: () => Promise<T>): Promise<T> => {
+      const result = await call()
+      if (client) commit(await loadState(client))
+      return result
+    },
+    [client, commit],
+  )
+
+  const surface = useMemo<CommandSurface>(
+    () =>
+      client
+        ? supabaseCommands({ client, write, read, getState: () => stateRef.current })
+        : memoryCommands({ run, read, getState: () => stateRef.current }),
+    [client, write, run, read],
+  )
+
   const value = useMemo<ConstructionDataContextValue>(
-    () => ({
-      state,
-      updateOrganizationProfile: (id, input) =>
-        run(commands.updateOrganizationProfile(id, input)),
-      createProject: (input) => run(commands.createProject(input)),
-      setStageBaselines: (id, baselines) =>
-        run(commands.setStageBaselines(id, baselines)),
-      addProjectUnit: (input) => run(commands.addProjectUnit(input)),
-      addProjectUnits: (inputs) => run(commands.addProjectUnits(inputs)),
-      inviteProjectMember: (input) => run(commands.inviteProjectMember(input)),
-      addWorkPlanItem: (input) => run(commands.addWorkPlanItem(input)),
-      createTask: (input) => run(commands.createTask(input)),
-      assignTask: (taskId, type, assigneeId) =>
-        run(commands.assignTask(taskId, type, assigneeId)),
-      assignWorkerToProject: (input) =>
-        run(commands.assignWorkerToProject(input)),
-      addWorker: (input) => run(commands.addWorker(input)),
-      createWorkerOnboarding: (input) =>
-        run(commands.createWorkerOnboarding(input)),
-      acceptWorkerOnboarding: (onboardingId, joinCode) =>
-        run(commands.acceptWorkerOnboarding(onboardingId, joinCode)),
-      acceptOwnWorkerOnboarding: (onboardingId, phone) =>
-        run(commands.acceptOwnWorkerOnboarding(onboardingId, phone)),
-      cancelWorkerOnboarding: (onboardingId) =>
-        run(commands.cancelWorkerOnboarding(onboardingId)),
-      endWorkerProjectAssignment: (assignmentId, reason) =>
-        run(commands.endWorkerProjectAssignment(assignmentId, reason)),
-      recordAttendance: (input) =>
-        run(attendanceCommands.recordAttendance(input)),
-      checkInWorker: (input) => run(attendanceCommands.checkInWorker(input)),
-      checkOutWorker: (input) => run(attendanceCommands.checkOutWorker(input)),
-      setAttendancePolicy: (projectId, requireCheckout) =>
-        run(attendanceCommands.setAttendancePolicy(projectId, requireCheckout)),
-      listAttendance: (projectId, date) =>
-        read(attendanceCommands.listAttendance(projectId, date)),
-      getOwnAttendance: (projectId, phone, date) =>
-        read(attendanceCommands.getOwnAttendance(projectId, phone, date)),
-      addLibraryStage: (input) => run(commands.addLibraryStage(input)),
-      addLibraryTrade: (input) => run(commands.addLibraryTrade(input)),
-      addLibraryWorkType: (input) => run(commands.addLibraryWorkType(input)),
-      transitionTask: (taskId, status) =>
-        run(commands.transitionTask(taskId, status)),
-      acceptTaskAssignment: (taskId) =>
-        run(commands.acceptTaskAssignment(taskId)),
-      startTask: (taskId) => run(commands.startTask(taskId)),
-      addEvidence: (input) => run(commands.addEvidence(input)),
-      submitDailyProgress: (input) => run(commands.submitDailyProgress(input)),
-      resubmitDailyProgress: (id, input) =>
-        run(commands.resubmitDailyProgress(id, input)),
-      reviewDailyProgress: (id, decision, note) =>
-        run(commands.reviewDailyProgress(id, decision, note)),
-      publishDailyProgress: (id, evidenceIds) =>
-        run(commands.publishDailyProgress(id, evidenceIds)),
-      reportIssue: (input) => run(commands.reportIssue(input)),
-      assignIssue: (id, membershipId) =>
-        run(commands.assignIssue(id, membershipId)),
-      transitionIssue: (id, next, note) =>
-        run(commands.transitionIssue(id, next, note)),
-      addIssueEvidence: (id, items) =>
-        run(commands.addIssueEvidence(id, items)),
-      publishIssue: (id, visible) => run(commands.publishIssue(id, visible)),
-      uploadDocument: (input) => run(commands.uploadDocument(input)),
-      publishDocument: (id, visible) => run(commands.publishDocument(id, visible)),
-      generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
-      confirmEstimate: (estimateId) => run(estimateCommands.confirmEstimate(estimateId)),
-      postRequirement: (estimateId) => run(marketplaceCommands.postRequirement(estimateId)),
-      unlockRequirement: (requirementId, partnerOrganizationId) =>
-        run(marketplaceCommands.unlockRequirement(requirementId, partnerOrganizationId)),
-      purchaseCredits: (organizationId, credits) =>
-        run(billingCommands.purchaseCredits(organizationId, credits)),
-      submitProposal: (requirementId, partnerOrganizationId, input) =>
-        run(marketplaceCommands.submitProposal(requirementId, partnerOrganizationId, input)),
-      selectProposal: (proposalId) => run(marketplaceCommands.selectProposal(proposalId)),
-      viewRequirement: (requirementId, partnerOrganizationId) =>
-        selectViewRequirement(state, requirementId, partnerOrganizationId),
-      postMessage: (input) => run(conversationCommands.postMessage(input)),
-      logCall: (input) => run(conversationCommands.logCall(input)),
-      openDirectThread: (projectId, otherId) =>
-        run(conversationCommands.openDirectThread(projectId, otherId)),
-      markThreadRead: (threadId) =>
-        run(conversationCommands.markThreadRead(threadId)),
-      markThreadUnread: (threadId) =>
-        run(conversationCommands.markThreadUnread(threadId)),
-    }),
-    [state, run, read],
+    () => ({ ...surface, state }),
+    [surface, state],
   )
 
   return (

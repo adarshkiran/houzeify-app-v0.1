@@ -47,14 +47,14 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
   const canUnlockPlan = hasEntitlement(state, organizationId ?? "", "marketplace.unlock")
   const canAfford = wallet.balance >= UNLOCK_COST_CREDITS
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     if (!view || !organizationId) return
-    run(() => unlockRequirement(view.id, organizationId), { success: "Requirement unlocked" })
+    await run(() => unlockRequirement(view.id, organizationId), { success: "Requirement unlocked" })
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!view || !organizationId) return
-    const outcome = run(
+    const outcome = await run(
       () =>
         submitProposal(view.id, organizationId, {
           assumptions: splitLines(assumptionsText),

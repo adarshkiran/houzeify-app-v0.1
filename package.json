@@ -9,11 +9,15 @@
     "preview": "vite preview",
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",
+    "db:start": "npx supabase start",
+    "db:reset": "npx supabase db reset && npx tsx --env-file=.env.local scripts/seed-supabase.ts",
+    "db:test": "npx supabase test db",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
+    "@supabase/supabase-js": "^2.117.2",
     "antd": "^6.6.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -26,6 +30,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "oxfmt": "^0.2.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.0",
     "vite": "^8.0.0",
     "vitest": "^3.2.7"

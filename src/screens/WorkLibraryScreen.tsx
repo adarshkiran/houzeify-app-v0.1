@@ -104,8 +104,8 @@ function WorkLibrary({ onNavigate }: { onNavigate: Navigate }) {
     setModalOpen(true)
   }
 
-  const handleAdd = (values: AddWorkTypeFormValues) => {
-    const outcome = run(
+  const handleAdd = async (values: AddWorkTypeFormValues) => {
+    const outcome = await run(
       () =>
         addLibraryWorkType({
           name: values.name.trim(),

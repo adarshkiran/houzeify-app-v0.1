@@ -49,9 +49,9 @@ function UploadDocumentModal({
     onClose()
   }
 
-  const handleFinish = (values: UploadFormValues) => {
+  const handleFinish = async (values: UploadFormValues) => {
     if (!file) return
-    const outcome = run(
+    const outcome = await run(
       () =>
         uploadDocument({
           projectId,
@@ -143,8 +143,8 @@ function ProjectDocuments({ onNavigate, projectId }: { onNavigate: Navigate; pro
         <Gated allowed={canPublish} reason="Publishing needs customer-publish access on this project.">
           <Switch
             checked={doc.customerVisibility === "customer-visible"}
-            onChange={(checked) =>
-              run(() => publishDocument(doc.id, checked), {
+            onChange={async (checked) =>
+              await run(() => publishDocument(doc.id, checked), {
                 success: checked ? "Shared with the homeowner" : "Hidden from the homeowner",
               })
             }

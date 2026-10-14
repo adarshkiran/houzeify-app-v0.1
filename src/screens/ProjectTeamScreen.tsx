@@ -161,8 +161,8 @@ function ProjectTeam({
     other.status === "active" &&
     other.principalType === "person" &&
     myMemberships.some((m) => m.id !== other.id && canMessageDirectly(m.role, other.role))
-  const message = (other: ProjectMembership) => {
-    const outcome = run(() => openDirectThread(projectId, other.id))
+  const message = async (other: ProjectMembership) => {
+    const outcome = await run(() => openDirectThread(projectId, other.id))
     if (outcome.ok) onNavigate("project-messages", { project_id: projectId, thread_id: outcome.value.id, from: "project-team" })
   }
 
@@ -268,7 +268,7 @@ function ProjectTeam({
     setCorrection(row)
   }
 
-  const handleCorrection = (values: AttendanceFormValues) => {
+  const handleCorrection = async (values: AttendanceFormValues) => {
     if (!correction) return
     const checkInAt = instantOn(day, values.checkInTime)
     const checkOutAt = instantOn(day, values.checkOutTime)
@@ -281,7 +281,7 @@ function ProjectTeam({
       return
     }
     setCorrectionError(null)
-    const outcome = run(
+    const outcome = await run(
       () =>
         recordAttendance({
           projectId,
@@ -298,13 +298,13 @@ function ProjectTeam({
     attendanceForm.resetFields()
   }
 
-  const handleRequireCheckout = (checked: boolean) => {
-    run(() => setAttendancePolicy(projectId, checked), {
+  const handleRequireCheckout = async (checked: boolean) => {
+    await run(() => setAttendancePolicy(projectId, checked), {
       success: checked ? "Check-out is now required" : "Check-out is no longer required",
     })
   }
 
-  const handleInvite = (values: InviteFormValues) => {
+  const handleInvite = async (values: InviteFormValues) => {
     const input: InviteProjectMemberInput = {
       projectId,
       name: values.name,
@@ -313,7 +313,7 @@ function ProjectTeam({
       role: values.role,
       projectUnitIds: values.projectUnitIds,
     }
-    const outcome = run(() => inviteProjectMember(input), {
+    const outcome = await run(() => inviteProjectMember(input), {
       success: `${values.name} invited`,
     })
     if (!outcome.ok) return

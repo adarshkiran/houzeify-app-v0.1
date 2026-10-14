@@ -46,13 +46,13 @@ function CompanyCreateProject({ onNavigate }: { onNavigate: Navigate }) {
   const run = useCommand()
   const organizationId = useOrganizationId()
 
-  const handleFinish = (values: ProjectFormValues) => {
+  const handleFinish = async (values: ProjectFormValues) => {
     const input: CreateProjectInput = {
       ...values,
       organizationId,
       trackingStartedMidProject: Boolean(values.trackingStartedMidProject),
     }
-    const outcome = run(() => createProject(input), { success: "Project created" })
+    const outcome = await run(() => createProject(input), { success: "Project created" })
     if (!outcome.ok) return
     onNavigate("project-structure", {
       project_id: outcome.value.id,

@@ -98,8 +98,8 @@ function Billing({ onNavigate }: { onNavigate: Navigate }) {
               {CREDIT_PACKS.map((credits) => (
                 <Button
                   key={credits}
-                  onClick={() =>
-                    run(() => purchaseCredits(organizationId, credits), {
+                  onClick={async () =>
+                    await run(() => purchaseCredits(organizationId, credits), {
                       success: `Added ${credits} credits`,
                     })
                   }

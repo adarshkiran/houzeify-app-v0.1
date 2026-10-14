@@ -26,8 +26,8 @@ export default function PublishPanel({ progress }: { progress: DailyProgress }) 
   const project = getProject(state, progress.projectId)
   const reviewer = progress.review ? getMembershipName(state, progress.review.reviewedByMembershipId) : undefined
 
-  const publish = () => {
-    const outcome = run(() => publishDailyProgress(progress.id, chosen), { success: "Shared with the homeowner" })
+  const publish = async () => {
+    const outcome = await run(() => publishDailyProgress(progress.id, chosen), { success: "Shared with the homeowner" })
     if (outcome.ok) setPreviewing(false)
   }
 

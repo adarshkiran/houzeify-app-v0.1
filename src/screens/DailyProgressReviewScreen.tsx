@@ -41,9 +41,9 @@ function ReviewTab({ items }: { items: DailyProgress[] }) {
   if (!items.length) return <Card><Empty description="No updates are waiting for review." /></Card>
 
   const canReview = can(Permissions.PROGRESS_REVIEW, selected.projectId, selected)
-  const confirm = (note?: string) => {
+  const confirm = async (note?: string) => {
     if (!decision) return
-    const outcome = run(() => reviewDailyProgress(selected.id, decision, note), { success: SUCCESS[decision] })
+    const outcome = await run(() => reviewDailyProgress(selected.id, decision, note), { success: SUCCESS[decision] })
     if (outcome.ok) {
       setDecision(null)
       setSelectedId(undefined)

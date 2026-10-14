@@ -140,11 +140,11 @@ function SubmitProgress({
     )
   }
 
-  const handleSubmit = (values: ProgressFormValues) => {
+  const handleSubmit = async (values: ProgressFormValues) => {
     const activeTask = tasks.find((item) => item.id === (values.taskId ?? taskId))
     if (!activeTask) return
 
-    const outcome = run(
+    const outcome = await run(
       () =>
         sentBack
           ? resubmitDailyProgress(sentBack.id, {

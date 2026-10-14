@@ -54,8 +54,8 @@ export default function MarketplaceResponsesScreen({
       : undefined
   const organizationName = (id: string) => state.organizations.find((o) => o.id === id)?.name ?? "Partner"
 
-  const handleSelect = (proposal: Proposal) => {
-    const outcome = run(() => selectProposal(proposal.id), { success: "Partner selected." })
+  const handleSelect = async (proposal: Proposal) => {
+    const outcome = await run(() => selectProposal(proposal.id), { success: "Partner selected." })
     if (outcome.ok) onNavigate("customer-daily-update", { project_id: outcome.value.id })
   }
 

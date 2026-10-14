@@ -264,7 +264,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     setAssignOpen(true)
   }
 
-  const handleAdd = (values: AddWorkerFormValues) => {
+  const handleAdd = async (values: AddWorkerFormValues) => {
     const input: AddWorkerInput = {
       organizationId,
       name: values.name,
@@ -276,7 +276,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       projectUnitIds: values.projectUnitIds,
       role: values.role,
     }
-    const outcome = run(() => addWorker(input), {
+    const outcome = await run(() => addWorker(input), {
       success: `${values.name} added`,
     })
     if (!outcome.ok) return
@@ -284,8 +284,8 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     addForm.resetFields()
   }
 
-  const handleSendQrJoin = (worker: Worker) => {
-    const outcome = run(
+  const handleSendQrJoin = async (worker: Worker) => {
+    const outcome = await run(
       () => createWorkerOnboarding({ workerId: worker.id, method: "qr" }),
       { success: `QR join created for ${worker.name}` },
     )
@@ -297,14 +297,14 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
   }
 
   /** Supervisor activates a non-qr invite (R10); qr joins are accepted by the worker with the code. */
-  const handleMarkJoined = (onboarding: WorkerOnboarding) => {
-    run(() => acceptWorkerOnboarding(onboarding.id), {
+  const handleMarkJoined = async (onboarding: WorkerOnboarding) => {
+    await run(() => acceptWorkerOnboarding(onboarding.id), {
       success: "Marked as joined",
     })
   }
 
-  const handleCancelInvite = (onboarding: WorkerOnboarding) => {
-    run(() => cancelWorkerOnboarding(onboarding.id), {
+  const handleCancelInvite = async (onboarding: WorkerOnboarding) => {
+    await run(() => cancelWorkerOnboarding(onboarding.id), {
       success: "Invite cancelled",
     })
   }
@@ -323,9 +323,9 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     })
   }
 
-  const handleEndAssignment = () => {
+  const handleEndAssignment = async () => {
     if (!endAssignment) return
-    const outcome = run(
+    const outcome = await run(
       () => endWorkerProjectAssignment(endAssignment.assignment.id, endReason),
       { success: "Assignment ended" },
     )
@@ -333,8 +333,8 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     setEndAssignment(null)
   }
 
-  const handleAssign = (values: AssignFormValues) => {
-    const outcome = run(
+  const handleAssign = async (values: AssignFormValues) => {
+    const outcome = await run(
       () =>
         assignWorkerToProject({
           workerId: values.workerId,
@@ -383,7 +383,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
     setAttendanceWorker(worker)
   }
 
-  const handleAttendance = (values: AttendanceFormValues) => {
+  const handleAttendance = async (values: AttendanceFormValues) => {
     if (!attendanceWorker) return
     const checkInAt = instantOn(values.date, values.checkInTime)
     const checkOutAt = instantOn(values.date, values.checkOutTime)
@@ -406,7 +406,7 @@ function Workforce({ onNavigate }: { onNavigate: Navigate }) {
       return
     }
     setAttendanceError(null)
-    const outcome = run(
+    const outcome = await run(
       () =>
         recordAttendance({
           projectId: values.projectId,

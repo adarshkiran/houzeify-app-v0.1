@@ -49,8 +49,8 @@ export default function MarketplacePostScreen({
     )
   }
 
-  const handlePost = () => {
-    const outcome = run(() => postRequirement(estimate.id), { success: "Requirement posted." })
+  const handlePost = async () => {
+    const outcome = await run(() => postRequirement(estimate.id), { success: "Requirement posted." })
     if (outcome.ok) onNavigate("marketplace-responses", { requirement_id: outcome.value.id })
   }
 

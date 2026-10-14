@@ -5,6 +5,7 @@ import {
   isAppScreen,
   nextParams,
   parseHash,
+  pendingRedirect,
   resolveRoute,
   routes,
   type AccessContext,
@@ -243,5 +244,41 @@ describe("session permissions", () => {
     const ids = projectIdsWithPermission(manager, memberships, "progress.review")
     expect([...ids]).toEqual(["p1"]) // p3 membership is inactive
     expect(projectIdsWithPermission(homeowner, memberships, "progress.review").size).toBe(0)
+  })
+})
+
+// B1 (session persistence on reload): `session` reads as null for the
+// instant before the Supabase session bootstrap resolves, which
+// `resolveRoute` cannot tell apart from an actual signed-out visitor. Acting
+// on that denial before the bootstrap finishes (`ready` false) would rewrite
+// the URL hash to `login` and strand a signed-in user there even after their
+// session resolves a moment later. `pendingRedirect` is what the app checks
+// before firing that rewrite.
+describe("pendingRedirect", () => {
+  const deniedDecision = resolveRoute(
+    { screen: "company-dashboard", params: {} },
+    { session: null, memberships: [], knownProjectIds: new Set() },
+  )
+
+  it("holds off a denial's redirect while the session bootstrap is still pending", () => {
+    expect(deniedDecision.ok).toBe(false)
+    expect(pendingRedirect(false, deniedDecision)).toBeNull()
+  })
+
+  it("acts on the redirect once the bootstrap has resolved", () => {
+    expect(pendingRedirect(true, deniedDecision)).toEqual({
+      screen: "login",
+      params: {},
+    })
+  })
+
+  it("never redirects an ok decision, ready or not", () => {
+    const okDecision = resolveRoute({ screen: "welcome", params: {} }, {
+      session: null,
+      memberships: [],
+      knownProjectIds: new Set(),
+    })
+    expect(pendingRedirect(false, okDecision)).toBeNull()
+    expect(pendingRedirect(true, okDecision)).toBeNull()
   })
 })

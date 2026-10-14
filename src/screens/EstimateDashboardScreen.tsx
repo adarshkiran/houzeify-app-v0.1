@@ -121,8 +121,8 @@ export default function EstimateDashboardScreen({
     { icon: <TeamOutlined />, title: 'Find Contractors', desc: 'Get project bids.' },
   ]
 
-  const handleConfirm = () => {
-    run(() => confirmEstimate(estimate.id), { success: 'Estimate confirmed.' })
+  const handleConfirm = async () => {
+    await run(() => confirmEstimate(estimate.id), { success: 'Estimate confirmed.' })
   }
 
   return (

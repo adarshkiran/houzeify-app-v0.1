@@ -24,7 +24,8 @@ import LogoHorizontal from "../components/LogoHorizontal"
 import type { OrganizationKind } from "../domain/models"
 import type { Navigate } from "../domain/navigation"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
-import { DEMO_IDENTITIES, useSession } from "../session/SessionProvider"
+import PhoneOtpCard from "../session/PhoneOtpCard"
+import { DEMO_IDENTITIES, SUPABASE_DATA_SOURCE, useSession } from "../session/SessionProvider"
 
 const { Paragraph, Text, Title } = Typography
 
@@ -195,7 +196,22 @@ export default function BusinessOnboardingScreen({
 }) {
   return (
     <CompanyThemeProvider>
-      <BusinessOnboarding onNavigate={onNavigate} />
+      {SUPABASE_DATA_SOURCE ? (
+        <Flex vertical className="business-onboarding min-h-full">
+          <Flex className="business-onboarding-content" justify="center">
+            <div className="w-full max-w-md">
+              <PhoneOtpCard
+                eyebrow="Business workspace"
+                title="Sign in to your workspace"
+                description="Use the contact number on your business workspace."
+                onVerified={() => onNavigate("company-dashboard")}
+              />
+            </div>
+          </Flex>
+        </Flex>
+      ) : (
+        <BusinessOnboarding onNavigate={onNavigate} />
+      )}
     </CompanyThemeProvider>
   )
 }

@@ -69,17 +69,17 @@ function IssueDetail({
     (member) => member.status === "active",
   )
 
-  const move = (next: Issue["status"]) => {
+  const move = async (next: Issue["status"]) => {
     if (next === "resolved") {
       setNote("")
       setResolveOpen(true)
       return
     }
-    run(() => transitionIssue(issue.id, next), { success: `Issue ${issueStatusLabel[next].toLowerCase()}` })
+    await run(() => transitionIssue(issue.id, next), { success: `Issue ${issueStatusLabel[next].toLowerCase()}` })
   }
 
-  const confirmResolve = () => {
-    const outcome = run(() => transitionIssue(issue.id, "resolved", note), { success: "Issue resolved" })
+  const confirmResolve = async () => {
+    const outcome = await run(() => transitionIssue(issue.id, "resolved", note), { success: "Issue resolved" })
     if (outcome.ok) setResolveOpen(false)
   }
 
@@ -146,8 +146,8 @@ function IssueDetail({
                       multiple
                       showUploadList={false}
                       accept="image/*,video/*"
-                      beforeUpload={(file) => {
-                        run(
+                      beforeUpload={async (file) => {
+                        await run(
                           () =>
                             addIssueEvidence(issue.id, [
                               {
@@ -234,7 +234,7 @@ function IssueDetail({
                     <Gated allowed={can(Permissions.CUSTOMER_PUBLISH, projectId, issue)} reason="Publishing needs customer-publish access on this project.">
                       <Switch
                         checked={issue.customerVisibility === "customer-visible"}
-                        onChange={(checked) => run(() => publishIssue(issue.id, checked), { success: checked ? "Shared with the homeowner" : "Hidden from the homeowner" })}
+                        onChange={async (checked) => await run(() => publishIssue(issue.id, checked), { success: checked ? "Shared with the homeowner" : "Hidden from the homeowner" })}
                       />
                     </Gated>
                   </Flex>
@@ -250,7 +250,7 @@ function IssueDetail({
                     placeholder="Unassigned"
                     style={{ width: "100%" }}
                     value={issue.assignedMembershipId}
-                    onChange={(membershipId) => run(() => assignIssue(issue.id, membershipId), { success: "Assignment updated" })}
+                    onChange={async (membershipId) => await run(() => assignIssue(issue.id, membershipId), { success: "Assignment updated" })}
                     options={assignees.map((member) => ({
                       value: member.id,
                       label: `${getMembershipName(state, member.id) ?? "Member"} · ${member.role}`,

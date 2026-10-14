@@ -8,7 +8,8 @@ import { findOpenOnboardingByPhone } from "../domain/workforceOnboarding"
 import { findWorkerByPhone } from "../domain/workerTasks"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { DEMO_WORKER_PHONE } from "../mock/seed"
-import { useSession } from "../session/SessionProvider"
+import PhoneOtpCard from "../session/PhoneOtpCard"
+import { DEMO_SIGN_IN_ENABLED, SUPABASE_DATA_SOURCE, useSession } from "../session/SessionProvider"
 import { useCommand } from "../session/useCommand"
 
 const { Text, Title, Paragraph } = Typography
@@ -40,7 +41,7 @@ function JoinSite({ onNavigate }: { onNavigate: Navigate }) {
     onNavigate("worker-today")
   }
 
-  const handleFinish = ({ phone }: { phone: string }) => {
+  const handleFinish = async ({ phone }: { phone: string }) => {
     const worker = findWorkerByPhone(state, phone)
     if (worker?.userId) {
       enterSite(worker, phone)
@@ -60,13 +61,13 @@ function JoinSite({ onNavigate }: { onNavigate: Navigate }) {
       setPending({ onboardingId: onboarding.id, phone: phone.trim() })
       return
     }
-    const outcome = runCommand(() => acceptOwnWorkerOnboarding(onboarding.id, phone))
+    const outcome = await runCommand(() => acceptOwnWorkerOnboarding(onboarding.id, phone))
     if (outcome.ok) enterSite(outcome.value, phone)
   }
 
-  const handleJoin = ({ joinCode }: { joinCode: string }) => {
+  const handleJoin = async ({ joinCode }: { joinCode: string }) => {
     if (!pending) return
-    const outcome = runCommand(() =>
+    const outcome = await runCommand(() =>
       acceptWorkerOnboarding(pending.onboardingId, joinCode.trim().toUpperCase()),
     )
     if (outcome.ok) enterSite(outcome.value, pending.phone)
@@ -120,14 +121,14 @@ function JoinSite({ onNavigate }: { onNavigate: Navigate }) {
         <Form
           layout="vertical"
           requiredMark={false}
-          initialValues={{ phone: DEMO_WORKER_PHONE }}
+          initialValues={DEMO_SIGN_IN_ENABLED ? { phone: DEMO_WORKER_PHONE } : undefined}
           onFinish={handleFinish}
           onValuesChange={() => setNotFound(false)}
         >
           <Form.Item
             label="Phone number"
             name="phone"
-            extra="Demo: Ravi Naik's number is filled in."
+            extra={DEMO_SIGN_IN_ENABLED ? "Demo: Ravi Naik's number is filled in." : undefined}
             rules={[
               {
                 required: true,
@@ -169,7 +170,16 @@ export default function WorkerOnboardingScreen({
         </Button>
       }
     >
-      <JoinSite onNavigate={onNavigate} />
+      {SUPABASE_DATA_SOURCE ? (
+        <PhoneOtpCard
+          eyebrow="Site worker"
+          title="Join your site team"
+          description="Use the phone number your supervisor added to the workforce list."
+          onVerified={() => onNavigate("worker-today")}
+        />
+      ) : (
+        <JoinSite onNavigate={onNavigate} />
+      )}
     </WorkerShell>
   )
 }
