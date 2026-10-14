@@ -82,6 +82,24 @@ describe.skipIf(!localStack || !serviceKey)(
       expect(ravi?.userId).toBe("person-ravi")
     })
 
+    // supabase/seed.sql seeds the same plan catalogue and demo billing state
+    // as src/mock/seed.ts: the Contractor Starter/Pro plans, org-buildright's
+    // active Starter subscription, a 30-credit wallet, and the grant
+    // transaction that produced it.
+    it("loadState returns the seeded plan catalogue and org-buildright's billing state", async () => {
+      const state = await loadState(createClient(url, serviceKey))
+      expect(state.plans.map((p) => p.name).sort()).toEqual(["Contractor Pro", "Contractor Starter"])
+      const starter = state.plans.find((p) => p.id === "plan-contractor-starter")
+      expect(starter?.entitlements).toEqual(["marketplace.unlock", "marketplace.propose"])
+      expect(starter?.monthlyCredits).toBe(30)
+      const subscription = state.subscriptions.find((s) => s.organizationId === "org-buildright")
+      expect(subscription?.planId).toBe("plan-contractor-starter")
+      expect(subscription?.status).toBe("active")
+      const wallet = state.wallets.find((w) => w.organizationId === "org-buildright")
+      expect(wallet?.balance).toBe(30)
+      expect(state.creditTransactions.some((t) => t.organizationId === "org-buildright" && t.kind === "grant" && t.amount === 30)).toBe(true)
+    })
+
     // The task 11 seed (supabase/seed.sql) has no rows at all for most of the
     // phase-11 collections (no stages/tasks/progress, per the ledger's task 12
     // report). loadState must still return [] for them, never undefined, so a
@@ -106,10 +124,6 @@ describe.skipIf(!localStack || !serviceKey)(
         "estimates",
         "unlocks",
         "proposals",
-        "plans",
-        "subscriptions",
-        "wallets",
-        "creditTransactions",
       ]
       for (const key of emptyForNow) {
         expect(Array.isArray(state[key]), `${key} should be an array`).toBe(

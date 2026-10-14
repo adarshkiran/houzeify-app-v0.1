@@ -151,3 +151,32 @@ from (values
 join workers w on w.legacy_id = v.worker_legacy_id
 join projects p on p.legacy_id = v.project_legacy_id
 on conflict (legacy_id) do nothing;
+
+-- Plan catalogue and the demo org's subscription/wallet (src/mock/seed.ts: plans,
+-- subscriptions, wallets, creditTransactions). Credit the 30 granted credits as a
+-- transaction so the wallet balance equals the sum of its transactions.
+insert into plans (legacy_id, name, price_label, entitlements, monthly_credits)
+values
+  ('plan-contractor-starter', 'Contractor Starter', '₹999 / month', array['marketplace.unlock', 'marketplace.propose'], 30),
+  ('plan-contractor-pro', 'Contractor Pro', '₹2,499 / month', array['marketplace.unlock', 'marketplace.propose', 'team.members.unlimited'], 100)
+on conflict (legacy_id) do nothing;
+
+insert into subscriptions (legacy_id, organization_id, plan_id, status, started_at)
+select 'subscription-buildright', o.id, p.id, 'active', '2026-01-10T09:00:00+05:30'::timestamptz
+from organizations o
+cross join plans p
+where o.legacy_id = 'org-buildright'
+  and p.legacy_id = 'plan-contractor-starter'
+on conflict (legacy_id) do nothing;
+
+insert into credit_wallets (organization_id, balance)
+select o.id, 30
+from organizations o
+where o.legacy_id = 'org-buildright'
+on conflict (organization_id) do nothing;
+
+insert into credit_transactions (legacy_id, organization_id, kind, amount, balance_after, created_at)
+select 'credit-grant-buildright', o.id, 'grant', 30, 30, '2026-01-10T09:00:00+05:30'::timestamptz
+from organizations o
+where o.legacy_id = 'org-buildright'
+on conflict (legacy_id) do nothing;
