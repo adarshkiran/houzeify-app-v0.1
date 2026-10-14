@@ -28,6 +28,25 @@ describe("previewRange", () => {
   })
 })
 
+describe("viewRequirement area band", () => {
+  it("uses the band the preview source supplied when the exact area is unknown", () => {
+    const previewOnly: MarketplaceRequirement = {
+      ...rangeRequirement,
+      builtUpAreaSqft: 0,
+      areaBand: "3,000–3,500 sq ft",
+    }
+    const state: ConstructionDataState = { ...seed, requirements: [previewOnly], unlocks: [] }
+    const view = viewRequirement(state, previewOnly.id, "org-other")
+    expect(view?.kind === "preview" && view.areaBand).toBe("3,000–3,500 sq ft")
+  })
+
+  it("derives the band from the exact area when no preview band is supplied", () => {
+    const state: ConstructionDataState = { ...seed, requirements: [rangeRequirement], unlocks: [] }
+    const view = viewRequirement(state, rangeRequirement.id, "org-other")
+    expect(view?.kind === "preview" && view.areaBand).toBe("2,000–2,500 sq ft")
+  })
+})
+
 describe("viewRequirement estimate range", () => {
   it("previews a range rounded outward to the lakh, never the exact estimate", () => {
     const state: ConstructionDataState = { ...seed, requirements: [rangeRequirement], unlocks: [] }

@@ -437,6 +437,8 @@ export interface MarketplaceRequirement {
   builtUpAreaSqft: number
   constructionLevel: ConstructionLevel
   propertyType: string
+  /** Rounded area band, set when only the partner preview is visible (exact area unknown). */
+  areaBand?: string
   estimateTotalLow: number
   estimateTotalHigh: number
   status: RequirementStatus

@@ -577,6 +577,8 @@ describe("marketplace requirement row mapping", () => {
     expect(preview.status).toBe("posted")
     // Exact fields are not knowable from the preview until unlock.
     expect(preview.builtUpAreaSqft).toBe(0)
+    // ...but the view's own area band is carried through, not recomputed from 0.
+    expect(preview.areaBand).toBe("1,000–1,500 sq ft")
     expect(preview.projectName).toBe("")
     expect(preview.homeownerPersonId).toBe("")
   })
