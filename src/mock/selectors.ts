@@ -31,6 +31,34 @@ export function getOrganizationProjects(
   )
 }
 
+/** Projects on which the person holds an active homeowner membership. */
+export function getHomeownerProjects(
+  state: ConstructionDataState,
+  personId: EntityId | undefined,
+): Project[] {
+  if (!personId) return []
+  const projectIds = new Set(
+    state.memberships
+      .filter(
+        (membership) =>
+          membership.principalType === "person" &&
+          membership.principalId === personId &&
+          membership.role === "homeowner" &&
+          membership.status === "active",
+      )
+      .map((membership) => membership.projectId),
+  )
+  return state.projects.filter((project) => projectIds.has(project.id))
+}
+
+export function getPersonFirstName(
+  state: ConstructionDataState,
+  personId: EntityId | undefined,
+): string | undefined {
+  const name = state.people.find((person) => person.id === personId)?.name
+  return name?.trim().split(/\s+/)[0] || undefined
+}
+
 export function getProject(state: ConstructionDataState, projectId: EntityId) {
   return state.projects.find((project) => project.id === projectId)
 }

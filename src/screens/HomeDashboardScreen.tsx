@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react'
 import HIcon from '../components/HIcon'
 import HomeownerLayout from '../components/homeowner/HomeownerLayout'
+import type { Project } from '../domain/models'
+import { useConstructionData } from '../mock/ConstructionDataProvider'
+import { getHomeownerProjects, getPersonFirstName } from '../mock/selectors'
+import { useSession } from '../session/SessionProvider'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AiState = 'idle' | 'thinking' | 'response'
@@ -306,45 +310,47 @@ function HozieAICard({
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
-function ProjectCard({ onNavigate }: { onNavigate: (screen: string, data?: Record<string, string>) => void }) {
+const PROJECT_STATUS_LABEL: Record<Project['status'], string> = {
+  planning: 'Planning',
+  active: 'In progress',
+  'on-hold': 'On hold',
+  completed: 'Completed',
+  archived: 'Archived',
+}
+
+function ProjectCard({
+  project,
+  onNavigate,
+}: {
+  project: Project
+  onNavigate: (screen: string, data?: Record<string, string>) => void
+}) {
+  const progress = Math.max(0, Math.min(100, Math.round(project.progress)))
   return (
     <div className="bg-white rounded-[16px] border border-[#E3DDD7] p-5 flex flex-col gap-4" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-[15px] font-semibold text-[#242326] m-0" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-            3 BHK G+1 House
+            {project.name}
           </h3>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[12px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>Hyderabad</span>
-            <span className="text-[#E3DDD7]">·</span>
-            <span className="text-[12px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>2,400 sq ft</span>
+            {project.location && (<span className="text-[12px] text-[#68636D]" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>{project.location}</span>)}
           </div>
         </div>
         <span className="shrink-0 text-[11px] font-medium text-[#722ED1] bg-[#F3EAFF] px-2.5 py-1 rounded-full" style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}>
-          Planning
+          {PROJECT_STATUS_LABEL[project.status]}
         </span>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[#9A949D] tracking-[0.04em]" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
-            ESTIMATED COST
-          </span>
-          <span className="text-[13px] font-semibold text-[#242326]" style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}>
-            ₹29.8L – ₹35.2L
-          </span>
-        </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-[#9A949D]" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>PROGRESS</span>
-          <span className="text-[11px] text-[#722ED1] font-medium" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>18%</span>
+          <span className="text-[11px] text-[#722ED1] font-medium" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>{progress}%</span>
         </div>
         <div className="h-1.5 bg-[#F4F0EC] rounded-full overflow-hidden">
           <div
             className="h-full bg-[#722ED1] rounded-full"
-            style={{ width: '18%', transition: 'width 0.8s ease-out' }}
+            style={{ width: `${progress}%`, transition: 'width 0.8s ease-out' }}
           />
         </div>
       </div>
@@ -352,7 +358,7 @@ function ProjectCard({ onNavigate }: { onNavigate: (screen: string, data?: Recor
       <button
         className="self-start text-[13px] text-[#722ED1] font-medium hover:underline cursor-pointer border-0 bg-transparent p-0 mt-1"
         style={{ fontFamily: '"Open Sans:Regular", sans-serif' }}
-        onClick={() => onNavigate('customer-daily-update', { project_id: 'project-sharma' })}
+        onClick={() => onNavigate('customer-daily-update', { project_id: project.id })}
       >
         See site update
       </button>
@@ -390,10 +396,10 @@ function EmptyProjectsState({ onNavigate }: { onNavigate: (s: string) => void })
 // ─── Project Section ──────────────────────────────────────────────────────────
 
 function ProjectSection({
-  hasProject,
+  projects,
   onNavigate,
 }: {
-  hasProject: boolean
+  projects: Project[]
   onNavigate: (screen: string, data?: Record<string, string>) => void
 }) {
   return (
@@ -401,20 +407,23 @@ function ProjectSection({
       <span className="text-[10px] tracking-[0.10em] text-[#722ED1] uppercase" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
         Your Projects
       </span>
-      {hasProject ? <ProjectCard onNavigate={onNavigate} /> : <EmptyProjectsState onNavigate={onNavigate} />}
+      {projects.length > 0
+        ? projects.map(project => <ProjectCard key={project.id} project={project} onNavigate={onNavigate} />)
+        : <EmptyProjectsState onNavigate={onNavigate} />}
     </div>
   )
 }
 
 // ─── Right Column Cards ───────────────────────────────────────────────────────
 
-function ProjectSnapshotCard() {
+function ProjectSnapshotCard({ project }: { project: Project }) {
   const rows = [
-    { label: 'Project', value: '3 BHK G+1 House' },
-    { label: 'Location', value: 'Hyderabad' },
-    { label: 'Area', value: '2,400 sq ft' },
-    { label: 'Status', value: 'Planning' },
-  ]
+    { label: 'Project', value: project.name },
+    { label: 'Location', value: project.location },
+    { label: 'Status', value: PROJECT_STATUS_LABEL[project.status] },
+    { label: 'Progress', value: `${Math.round(project.progress)}%` },
+    ...(project.targetDate ? [{ label: 'Target', value: project.targetDate }] : []),
+  ].filter(row => row.value.trim() !== '')
   return (
     <div className="bg-white rounded-[16px] border border-[#E3DDD7] p-5 flex flex-col gap-4" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <span className="text-[10px] tracking-[0.10em] text-[#9A949D] uppercase" style={{ fontFamily: '"Sometype Mono:SemiBold", monospace' }}>
@@ -504,7 +513,7 @@ function AmbientBackground() {
 
 // ─── Welcome Section ──────────────────────────────────────────────────────────
 
-function WelcomeSection() {
+function WelcomeSection({ firstName }: { firstName?: string }) {
   return (
     <div className="flex flex-col gap-2 mb-6">
       <span
@@ -518,7 +527,7 @@ function WelcomeSection() {
           className="text-[28px] sm:text-[36px] font-semibold text-[#242326] leading-[1.1] m-0"
           style={{ fontFamily: '"Google Sans Flex:SemiBold", sans-serif' }}
         >
-          Good morning, Adarsh.
+          {firstName ? `Good morning, ${firstName}.` : 'Good morning.'}
         </h1>
         <h1
           className="text-[28px] sm:text-[36px] font-semibold text-[#722ED1] leading-[1.1] m-0"
@@ -543,7 +552,10 @@ export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: st
   const [aiState, setAiState] = useState<AiState>('idle')
   const [aiResponse, setAiResponse] = useState('')
   const [composerValue, setComposerValue] = useState('')
-  const [hasProject] = useState(true)
+  const { state } = useConstructionData()
+  const { session } = useSession()
+  const projects = getHomeownerProjects(state, session?.personId)
+  const firstName = getPersonFirstName(state, session?.personId)
 
   const handleComposerSubmit = () => {
     if (!composerValue.trim() || aiState === 'thinking') return
@@ -588,7 +600,7 @@ export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: st
           style={{ padding: '28px 24px', scrollbarWidth: 'none' }}
         >
           <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-            <WelcomeSection />
+            <WelcomeSection firstName={firstName} />
 
             {/* Two-column layout */}
             <div
@@ -606,7 +618,7 @@ export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: st
                   onQuickAction={handleQuickAction}
                   onNavigate={onNavigate}
                 />
-                <ProjectSection hasProject={hasProject} onNavigate={onNavigate} />
+                <ProjectSection projects={projects} onNavigate={onNavigate} />
               </div>
 
               {/* Right column ~35% */}
@@ -614,7 +626,7 @@ export default function HomeDashboardScreen({ onNavigate }: { onNavigate: (s: st
                 className="flex flex-col gap-4 w-full lg:shrink-0"
                 style={{ flex: '35 35 0', minWidth: 0, maxWidth: '100%' }}
               >
-                <ProjectSnapshotCard />
+                {projects[0] && <ProjectSnapshotCard project={projects[0]} />}
                 <AIInsightCard />
                 <QuickToolsCard />
               </div>
