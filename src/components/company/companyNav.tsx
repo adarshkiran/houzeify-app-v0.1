@@ -57,6 +57,7 @@ export type ProjectNavKey =
   | "tasks"
   | "attendance"
   | "progress"
+  | "report"
   | "issues"
   | "messages"
   | "team"
@@ -101,6 +102,7 @@ export function projectNav(projectId: string): NavItem<ProjectNavKey>[] {
     { key: "tasks", label: "Tasks", icon: <CheckSquareOutlined />, to: { screen: "tasks", params: p } },
     { key: "attendance", label: "Attendance", icon: <CalendarOutlined />, to: { screen: "attendance-history", params: p } },
     { key: "progress", label: "Progress", icon: <LineChartOutlined />, to: { screen: "daily-progress-review", params: p } },
+    { key: "report", label: "AI Report", icon: <RobotOutlined />, to: { screen: "project-report", params: p } },
     { key: "issues", label: "Issues", icon: <ExclamationCircleOutlined />, to: { screen: "issues", params: p } },
     { key: "messages", label: "Messages", icon: <MessageOutlined />, to: { screen: "project-messages", params: p } },
     { key: "team", label: "Project Team", icon: <TeamOutlined />, to: { screen: "project-team", params: p } },

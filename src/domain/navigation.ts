@@ -119,6 +119,10 @@ export const routes = {
     access: project(Permissions.PROJECT_READ),
     requires: ["project_id"],
   },
+  "project-report": {
+    access: project(Permissions.PROJECT_MANAGE),
+    requires: ["project_id"],
+  },
   "attendance-history": {
     access: project(Permissions.PROJECT_READ),
     requires: ["project_id"],

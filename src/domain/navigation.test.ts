@@ -146,6 +146,18 @@ describe("resolveRoute", () => {
     ).toMatchObject({ ok: false, reason: "wrong-account-type" })
   })
 
+  it("keeps the AI project report project-scoped and business-side", () => {
+    expect(
+      resolveRoute({ screen: "project-report", params: { project_id: "p1" } }, ctx(manager)),
+    ).toEqual({ ok: true })
+    expect(
+      resolveRoute({ screen: "project-report", params: {} }, ctx(manager)),
+    ).toMatchObject({ ok: false, reason: "missing-param:project_id" })
+    expect(
+      resolveRoute({ screen: "project-report", params: { project_id: "p1" } }, ctx(homeowner)),
+    ).toMatchObject({ ok: false, reason: "wrong-account-type" })
+  })
+
   it("requires task_id for task detail", () => {
     expect(
       resolveRoute({ screen: "task-detail", params: { project_id: "p1" } }, ctx(manager)),
