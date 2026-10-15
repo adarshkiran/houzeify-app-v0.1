@@ -1,9 +1,10 @@
-import { useState } from "react"
-import { Button, Card, Empty, Flex, Input, Table, Tag, Typography } from "antd"
+import { useMemo, useState } from "react"
+import { Alert, Button, Card, Empty, Flex, Input, Table, Tag, Typography } from "antd"
 import CompanyLayout from "../components/company/CompanyLayout"
 import CompanyThemeProvider from "../components/company/CompanyThemeProvider"
 import { formatRupees } from "../components/homeowner/EstimateTotalSummary"
 import { UNLOCK_COST_CREDITS } from "../domain/billingCommands"
+import { activeShareFor } from "../domain/proposalShareCommands"
 import { getWallet, hasEntitlement } from "../domain/entitlements"
 import type { Navigate } from "../domain/navigation"
 import type { EstimateLine, ProposalStatus } from "../domain/models"
@@ -26,7 +27,14 @@ const splitLines = (value: string) =>
     .filter((line) => line.length > 0)
 
 function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requirementId?: string }) {
-  const { state, unlockRequirement, submitProposal, viewRequirement: viewForOrg } = useConstructionData()
+  const {
+    state,
+    unlockRequirement,
+    submitProposal,
+    createProposalShare,
+    revokeProposalShare,
+    viewRequirement: viewForOrg,
+  } = useConstructionData()
   const { session } = useSession()
   const run = useCommand()
   const organizationId = session?.organizationId
@@ -42,6 +50,39 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
             proposal.requirementId === view.id && proposal.partnerOrganizationId === organizationId,
         )
       : undefined
+
+  // The raw link is only known right after creating it; the database keeps a hash.
+  const [freshLink, setFreshLink] = useState<{ proposalId: string; url: string } | null>(null)
+  const activeShare = useMemo(
+    () => (submitted ? activeShareFor(state, submitted.id, new Date().toISOString()) : undefined),
+    [state, submitted],
+  )
+
+  const shareUrl = (token: string) =>
+    `${window.location.origin}${window.location.pathname}#shared-proposal?token=${token}`
+
+  const handleShare = async () => {
+    if (!submitted) return
+    const outcome = await run(() => createProposalShare(submitted.id), { success: "Share link created" })
+    if (outcome.ok) setFreshLink({ proposalId: submitted.id, url: shareUrl(outcome.value.token) })
+  }
+
+  const handleRevoke = async () => {
+    if (!submitted) return
+    const outcome = await run(() => revokeProposalShare(submitted.id), { success: "Link revoked" })
+    if (outcome.ok) setFreshLink(null)
+  }
+
+  const handleCopy = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      await run(() => undefined, { success: "Link copied" })
+    } catch {
+      await run(() => {
+        throw new Error("Copy failed. Select the link and copy it manually.")
+      })
+    }
+  }
 
   const wallet = getWallet(state, organizationId ?? "")
   const canUnlockPlan = hasEntitlement(state, organizationId ?? "", "marketplace.unlock")
@@ -241,6 +282,57 @@ function Requirement({ onNavigate, requirementId }: { onNavigate: Navigate; requ
                       {submitted.exclusions.map((item) => (
                         <Text key={item}>• {item}</Text>
                       ))}
+                    </Flex>
+                  )}
+
+                  {submitted.status !== "rejected" && (
+                    <Flex vertical gap="small" className="mt-2!">
+                      <Text type="secondary">Share with the customer</Text>
+                      {freshLink && freshLink.proposalId === submitted.id && activeShare ? (
+                        <Alert
+                          type="success"
+                          showIcon
+                          message="Anyone with this link can view the proposal until it expires."
+                          description={
+                            <Flex vertical gap="small">
+                              <Text copyable={false} style={{ wordBreak: "break-all" }}>
+                                {freshLink.url}
+                              </Text>
+                              <Text type="secondary">
+                                Valid until {activeShare.expiresAt.slice(0, 10)}. This link is shown only once;
+                                create a new one if you lose it.
+                              </Text>
+                              <Flex gap="small" wrap>
+                                <Button size="small" type="primary" onClick={() => void handleCopy(freshLink.url)}>
+                                  Copy link
+                                </Button>
+                                <Button size="small" danger onClick={() => void handleRevoke()}>
+                                  Revoke
+                                </Button>
+                              </Flex>
+                            </Flex>
+                          }
+                        />
+                      ) : activeShare ? (
+                        <Flex vertical gap="small">
+                          <Text>A link is active until {activeShare.expiresAt.slice(0, 10)}.</Text>
+                          <Flex gap="small" wrap>
+                            <Button size="small" onClick={() => void handleShare()}>
+                              Create new link
+                            </Button>
+                            <Button size="small" danger onClick={() => void handleRevoke()}>
+                              Revoke
+                            </Button>
+                          </Flex>
+                          <Text type="secondary">Creating a new link turns the old one off.</Text>
+                        </Flex>
+                      ) : (
+                        <Flex>
+                          <Button size="small" type="primary" onClick={() => void handleShare()}>
+                            Share proposal
+                          </Button>
+                        </Flex>
+                      )}
                     </Flex>
                   )}
                 </Flex>

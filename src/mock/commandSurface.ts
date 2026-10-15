@@ -16,6 +16,8 @@ import * as estimateCommands from "../domain/estimateCommands"
 import type { GenerateEstimateInput } from "../domain/estimateCommands"
 import * as marketplaceCommands from "../domain/marketplaceCommands"
 import * as projectReportCommands from "../domain/projectReportCommands"
+import * as proposalShareCommands from "../domain/proposalShareCommands"
+import type { ProposalShareLink } from "../domain/proposalShareCommands"
 import type { ProjectReport } from "../domain/projectAnalysis"
 import type { SubmitProposalInput } from "../domain/marketplaceCommands"
 import { viewRequirement as selectViewRequirement } from "../domain/marketplaceVisibility"
@@ -40,7 +42,9 @@ import type {
   ProjectUnit,
   Proposal,
   ReviewDecision,
+  ProposalShare,
   SavedProjectReport,
+  SharedProposal,
   Task,
   TaskAssignment,
   TaskStatus,
@@ -148,6 +152,10 @@ export interface CommandSurface {
   generateEstimate: (input: GenerateEstimateInput) => Estimate
   confirmEstimate: (estimateId: EntityId) => Estimate
   approveProjectReport: (report: ProjectReport) => SavedProjectReport
+  createProposalShare: (proposalId: EntityId) => ProposalShareLink
+  revokeProposalShare: (proposalId: EntityId) => ProposalShare
+  /** Public read: resolves a share-link token; null when unknown, revoked or expired. */
+  getSharedProposal: (token: string) => Promise<SharedProposal | null>
   postRequirement: (estimateId: EntityId) => MarketplaceRequirement
   unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) => MarketplaceUnlock
   purchaseCredits: (organizationId: EntityId, credits: number) => CreditWallet
@@ -238,6 +246,9 @@ export function memoryCommands(exec: MemoryExec): CommandSurface {
     generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
     confirmEstimate: (estimateId) => run(estimateCommands.confirmEstimate(estimateId)),
     approveProjectReport: (report) => run(projectReportCommands.approveProjectReport(report)),
+    createProposalShare: (proposalId) => run(proposalShareCommands.createProposalShare(proposalId)),
+    revokeProposalShare: (proposalId) => run(proposalShareCommands.revokeProposalShare(proposalId)),
+    getSharedProposal: async (token) => read(proposalShareCommands.getSharedProposal(token)),
     postRequirement: (estimateId) => run(marketplaceCommands.postRequirement(estimateId)),
     unlockRequirement: (requirementId, partnerOrganizationId) =>
       run(marketplaceCommands.unlockRequirement(requirementId, partnerOrganizationId)),
@@ -357,6 +368,9 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
     generateEstimate: (input: GenerateEstimateInput) => write(() => adapter.generateEstimate(client, input)),
     confirmEstimate: (estimateId: EntityId) => write(() => adapter.confirmEstimate(client, { estimateId })),
     approveProjectReport: (report: ProjectReport) => write(() => adapter.approveProjectReport(client, { report })),
+    createProposalShare: (proposalId: EntityId) => write(() => adapter.createProposalShare(client, { proposalId })),
+    revokeProposalShare: (proposalId: EntityId) => write(() => adapter.revokeProposalShare(client, { proposalId })),
+    getSharedProposal: (token: string) => adapter.getSharedProposal(client, token),
     postRequirement: (estimateId: EntityId) => write(() => adapter.postRequirement(client, { estimateId })),
     unlockRequirement: (requirementId: EntityId, partnerOrganizationId: EntityId) =>
       write(() => adapter.unlockRequirement(client, { requirementId, organizationId: partnerOrganizationId })),
