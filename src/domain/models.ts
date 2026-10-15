@@ -575,6 +575,42 @@ export interface SavedProjectReport {
   createdAt: ISODateTime
 }
 
+/** A contractor's shareable link to one of its proposals (FR-025). */
+export interface ProposalShare {
+  id: EntityId
+  proposalId: EntityId
+  createdByPersonId: EntityId
+  createdAt: ISODateTime
+  expiresAt: ISODateTime
+  revokedAt?: ISODateTime
+  /** The raw token. Held only by the in-memory prototype store; the database keeps a hash. */
+  token?: string
+}
+
+export interface SharedProposalLine {
+  category: EstimateLineCategory
+  item: string
+  quantity: number
+  unit: string
+  rate: number
+  amount: number
+}
+
+/** Exactly what a share-link recipient may see. */
+export interface SharedProposal {
+  partnerName: string
+  /** City segment only. */
+  location: string
+  propertyType: string
+  areaBand: string
+  lines: SharedProposalLine[]
+  total: number
+  assumptions: string[]
+  exclusions: string[]
+  submittedAt: ISODateTime
+  expiresAt: ISODateTime
+}
+
 export interface ConstructionDataState {
   organizations: Organization[]
   people: Person[]
@@ -609,4 +645,5 @@ export interface ConstructionDataState {
   wallets: CreditWallet[]
   creditTransactions: CreditTransaction[]
   projectReports: SavedProjectReport[]
+  proposalShares: ProposalShare[]
 }

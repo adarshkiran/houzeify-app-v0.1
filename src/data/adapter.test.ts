@@ -12,6 +12,8 @@ import {
   addProjectUnit,
   addProjectUnits,
   approveProjectReport,
+  createProposalShare,
+  getSharedProposal,
   addWorker,
   addWorkPlanItem,
   assignTask,
@@ -1228,6 +1230,35 @@ describe("supabase adapter: estimates and billing write results are mapped to th
     expect(result.breakdown.materials).toBe(1025400)
     expect(result).not.toHaveProperty("homeowner_person_id")
     expect(result).not.toHaveProperty("review_status")
+  })
+
+  it("createProposalShare maps the function result and returns the token separately", async () => {
+    const client = fakeRpcClient({
+      id: "share-row-id",
+      proposalId: "proposal-row-id",
+      token: "a".repeat(64),
+      createdBy: "person-row-id",
+      createdAt: "2026-10-15T09:00:00Z",
+      expiresAt: "2026-10-29T09:00:00Z",
+    })
+    const result = await createProposalShare(client, { proposalId: "proposal-1" })
+    expect(result.token).toBe("a".repeat(64))
+    expect(result.share).toEqual({
+      id: "share-row-id",
+      proposalId: "proposal-1",
+      createdByPersonId: "person-row-id",
+      createdAt: "2026-10-15T09:00:00Z",
+      expiresAt: "2026-10-29T09:00:00Z",
+      revokedAt: undefined,
+    })
+    expect(result.share).not.toHaveProperty("token")
+  })
+
+  it("getSharedProposal returns the allowlist, or null when the function says so", async () => {
+    const view = { partnerName: "BuildRight", location: "Hyderabad", propertyType: "independent", areaBand: "3,000–3,500 sq ft", lines: [], total: 0, assumptions: [], exclusions: [], submittedAt: "x", expiresAt: "y" }
+    expect(await getSharedProposal(fakeRpcClient(view), "t".repeat(64))).toEqual(view)
+    const empty = { rpc: async () => ({ data: null, error: null }) } as unknown as SupabaseClient
+    expect(await getSharedProposal(empty, "t".repeat(64))).toBeNull()
   })
 
   it("approveProjectReport sends the report with the project's uuid and maps the stored snapshot", async () => {

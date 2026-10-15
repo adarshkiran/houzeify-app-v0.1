@@ -57,6 +57,8 @@ import type {
   WorkerProjectAssignment,
   WorkType,
   SavedProjectReport,
+  ProposalShare,
+  SharedProposal,
 } from "../domain/models"
 import type { ProjectReport } from "../domain/projectAnalysis"
 import { PermissionError } from "../domain/session"
@@ -65,6 +67,7 @@ import {
   callLogFromRow,
   creditTransactionFromRow,
   projectReportFromRow,
+  proposalShareFromRow,
   creditWalletFromRow,
   dailyProgressFromRow,
   documentFromRow,
@@ -101,6 +104,7 @@ import {
   type CallLogRow,
   type CreditTransactionRow,
   type ProjectReportRow,
+  type ProposalShareRow,
   type CreditWalletRow,
   type DailyProgressRow,
   type DocumentRow,
@@ -206,6 +210,7 @@ export function emptyConstructionState(): ConstructionDataState {
     wallets: [],
     creditTransactions: [],
     projectReports: [],
+    proposalShares: [],
   }
 }
 
@@ -251,6 +256,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     creditWallets,
     creditTransactions,
     projectReports,
+    proposalShares,
   ] = await Promise.all([
     selectAll<OrganizationRow & Keyed>(client, "organizations"),
     selectAll<PersonRow & Keyed>(client, "people"),
@@ -288,6 +294,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     selectAll<CreditWalletRow>(client, "credit_wallets", "organization_id"),
     selectAll<CreditTransactionRow & Keyed>(client, "credit_transactions"),
     selectAll<ProjectReportRow>(client, "project_reports"),
+    selectAll<ProposalShareRow>(client, "proposal_shares"),
   ])
 
   const domainByUuid = new Map<string, EntityId>()
@@ -421,6 +428,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     wallets: creditWallets.map((r) => creditWalletFromRow(r, toDomain)),
     creditTransactions: creditTransactions.map((r) => creditTransactionFromRow(r, toDomain)),
     projectReports: projectReports.map((r) => projectReportFromRow(r, toDomain)),
+    proposalShares: proposalShares.map((r) => proposalShareFromRow(r, toDomain)),
   }
 }
 
@@ -527,6 +535,55 @@ export async function approveProjectReport(
     payload: { ...input.report, projectId: projectUuid },
   })
   return projectReportFromRow(row as ProjectReportRow, (id) => (id === projectUuid ? input.report.projectId : id))
+}
+
+interface ShareFunctionResult {
+  id: string
+  proposalId: string
+  createdBy: string
+  createdAt: string
+  expiresAt: string
+  revokedAt?: string
+  token?: string
+}
+
+function shareFromFunction(result: ShareFunctionResult, proposalId: EntityId): ProposalShare {
+  return {
+    id: result.id,
+    proposalId,
+    createdByPersonId: result.createdBy,
+    createdAt: result.createdAt,
+    expiresAt: result.expiresAt,
+    revokedAt: result.revokedAt ?? undefined,
+  }
+}
+
+/** Creates a share link, replacing any active one. The raw token is returned once and never stored. */
+export async function createProposalShare(
+  client: SupabaseClient,
+  input: { proposalId: EntityId },
+): Promise<{ share: ProposalShare; token: string }> {
+  const result = (await callFunction(client, "create_proposal_share", {
+    proposal_id: uuidOf(client, input.proposalId),
+  })) as ShareFunctionResult
+  return { share: shareFromFunction(result, input.proposalId), token: result.token ?? "" }
+}
+
+export async function revokeProposalShare(
+  client: SupabaseClient,
+  input: { proposalId: EntityId },
+): Promise<ProposalShare> {
+  const result = (await callFunction(client, "revoke_proposal_share", {
+    proposal_id: uuidOf(client, input.proposalId),
+  })) as ShareFunctionResult
+  return shareFromFunction(result, input.proposalId)
+}
+
+/** Public read: works without a session. Null for an unknown, revoked or expired token. */
+export async function getSharedProposal(client: SupabaseClient, token: string): Promise<SharedProposal | null> {
+  const { data, error } = await client.rpc("get_shared_proposal", { token })
+  if (error) throw refusalFrom(error.message, error.code)
+  return (data as SharedProposal | null) ?? null
 }
 
 export async function confirmEstimate(client: SupabaseClient, input: { estimateId: EntityId }): Promise<Estimate> {

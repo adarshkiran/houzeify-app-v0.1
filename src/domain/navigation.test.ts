@@ -158,6 +158,15 @@ describe("resolveRoute", () => {
     ).toMatchObject({ ok: false, reason: "wrong-account-type" })
   })
 
+  it("opens a shared proposal without a session, since the link is the credential", () => {
+    expect(
+      resolveRoute({ screen: "shared-proposal", params: { token: "t".repeat(64) } }, ctx(null)),
+    ).toEqual({ ok: true })
+    expect(
+      resolveRoute({ screen: "shared-proposal", params: { token: "t".repeat(64) } }, ctx(homeowner)),
+    ).toEqual({ ok: true })
+  })
+
   it("requires task_id for task detail", () => {
     expect(
       resolveRoute({ screen: "task-detail", params: { project_id: "p1" } }, ctx(manager)),

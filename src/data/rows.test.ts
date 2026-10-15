@@ -28,6 +28,7 @@ import {
   creditWalletFromRow,
   creditTransactionFromRow,
   projectReportFromRow,
+  proposalShareFromRow,
 } from "./rows"
 
 describe("worker row mapping", () => {
@@ -755,5 +756,38 @@ describe("project report row mapping", () => {
       approvedBy: "person-arjun",
       approvedAt: "2026-10-15T09:31:00Z",
     })
+  })
+})
+
+describe("proposal share row mapping", () => {
+  it("maps a share row, resolving uuids and never carrying a token", () => {
+    const toDomain = (id: string) => ({ "proposal-uuid": "proposal-1", "person-uuid": "person-arjun" })[id] ?? id
+    const share = proposalShareFromRow(
+      {
+        id: "share-uuid",
+        proposal_id: "proposal-uuid",
+        created_by: "person-uuid",
+        created_at: "2026-10-15T09:00:00Z",
+        expires_at: "2026-10-29T09:00:00Z",
+        revoked_at: null,
+      },
+      toDomain,
+    )
+    expect(share).toEqual({
+      id: "share-uuid",
+      proposalId: "proposal-1",
+      createdByPersonId: "person-arjun",
+      createdAt: "2026-10-15T09:00:00Z",
+      expiresAt: "2026-10-29T09:00:00Z",
+      revokedAt: undefined,
+    })
+    expect(share).not.toHaveProperty("token")
+  })
+
+  it("carries revokedAt when set", () => {
+    const share = proposalShareFromRow({
+      id: "s", proposal_id: "p", created_by: "c", created_at: "a", expires_at: "b", revoked_at: "2026-10-16T00:00:00Z",
+    })
+    expect(share.revokedAt).toBe("2026-10-16T00:00:00Z")
   })
 })

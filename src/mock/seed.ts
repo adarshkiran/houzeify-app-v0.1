@@ -1496,4 +1496,5 @@ export const seedConstructionData: ConstructionDataState = {
     },
   ],
   projectReports: [],
+  proposalShares: [],
 }

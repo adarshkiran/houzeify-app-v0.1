@@ -46,6 +46,7 @@ const TasksScreen = lazy(() => import('./screens/TasksScreen'))
 const TaskDetailScreen = lazy(() => import('./screens/TaskDetailScreen'))
 const AttendanceHistoryScreen = lazy(() => import('./screens/AttendanceHistoryScreen'))
 const ProjectReportScreen = lazy(() => import('./screens/ProjectReportScreen'))
+const SharedProposalScreen = lazy(() => import('./screens/SharedProposalScreen'))
 const DailyProgressSubmitScreen = lazy(() => import('./screens/DailyProgressSubmitScreen'))
 const DailyProgressReviewScreen = lazy(() => import('./screens/DailyProgressReviewScreen'))
 const CustomerDailyUpdateScreen = lazy(() => import('./screens/CustomerDailyUpdateScreen'))
@@ -181,6 +182,13 @@ export default function App() {
         <SplashRoute
           onComplete={() => goTo({ screen: homeScreenFor(session), params: {} }, true)}
         />
+      )}
+      {screen === 'shared-proposal' && (
+        <div style={{ ...slide, overflowY: 'auto' }}>
+          <Suspense fallback={null}>
+            <SharedProposalScreen token={params.token} />
+          </Suspense>
+        </div>
       )}
       {screen === 'welcome' && (
         <div style={slide}>

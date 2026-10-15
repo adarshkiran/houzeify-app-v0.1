@@ -61,6 +61,7 @@ import type {
   WorkPlanItem,
   WorkType,
   SavedProjectReport,
+  ProposalShare,
 } from "../domain/models"
 import type { ProjectReport } from "../domain/projectAnalysis"
 
@@ -1288,5 +1289,31 @@ export function projectReportFromRow(
     approvedBy,
     approvedAt: row.approved_at,
     createdAt: row.created_at,
+  }
+}
+
+// Proposal share links. The database keeps only a hash of the token, so a row
+// never carries one.
+
+export interface ProposalShareRow {
+  id: string
+  proposal_id: string
+  created_by: string
+  created_at: string
+  expires_at: string
+  revoked_at: string | null
+}
+
+export function proposalShareFromRow(
+  row: ProposalShareRow,
+  toDomain: ToDomainId = identity,
+): ProposalShare {
+  return {
+    id: row.id,
+    proposalId: toDomain(row.proposal_id),
+    createdByPersonId: toDomain(row.created_by),
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at ?? undefined,
   }
 }

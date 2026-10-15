@@ -60,6 +60,8 @@ const customerProject = (permission: Permission): Access => ({
 export const routes = {
   splash: { access: PUBLIC },
   welcome: { access: PUBLIC },
+  // A share link is its own credential: anyone holding the token may open it.
+  "shared-proposal": { access: PUBLIC, requires: ["token"] },
   login: { access: PUBLIC },
   otp: { access: PUBLIC },
   "create-account": { access: PUBLIC },
