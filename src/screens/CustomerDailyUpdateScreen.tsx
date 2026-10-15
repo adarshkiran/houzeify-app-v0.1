@@ -6,6 +6,7 @@ import DocumentViewerModal, { categoryLabel } from "../components/documents/Docu
 import LogoHorizontal from "../components/LogoHorizontal"
 import ThreadPanel from "../components/conversations/ThreadPanel"
 import DayTimeline from "../components/progress/DayTimeline"
+import WeeklySummaryCard from "../components/progress/WeeklySummaryCard"
 import EvidenceGrid from "../components/progress/EvidenceGrid"
 import { findThread, readerMembership } from "../domain/conversations"
 import type { Document, EntityId, Issue, Thread } from "../domain/models"
@@ -108,6 +109,10 @@ function CustomerUpdate({
                 ) : null
               }}
             />
+
+            {project ? (
+              <WeeklySummaryCard state={state} projectId={project.id} audience="homeowner" title="This week" />
+            ) : null}
 
             <Card
               title={
