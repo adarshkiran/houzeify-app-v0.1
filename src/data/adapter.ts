@@ -56,12 +56,15 @@ import type {
   WorkerOnboarding,
   WorkerProjectAssignment,
   WorkType,
+  SavedProjectReport,
 } from "../domain/models"
+import type { ProjectReport } from "../domain/projectAnalysis"
 import { PermissionError } from "../domain/session"
 import type { Permission } from "../domain/permissions"
 import {
   callLogFromRow,
   creditTransactionFromRow,
+  projectReportFromRow,
   creditWalletFromRow,
   dailyProgressFromRow,
   documentFromRow,
@@ -97,6 +100,7 @@ import {
   workTypeFromRow,
   type CallLogRow,
   type CreditTransactionRow,
+  type ProjectReportRow,
   type CreditWalletRow,
   type DailyProgressRow,
   type DocumentRow,
@@ -201,6 +205,7 @@ export function emptyConstructionState(): ConstructionDataState {
     subscriptions: [],
     wallets: [],
     creditTransactions: [],
+    projectReports: [],
   }
 }
 
@@ -245,6 +250,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     subscriptions,
     creditWallets,
     creditTransactions,
+    projectReports,
   ] = await Promise.all([
     selectAll<OrganizationRow & Keyed>(client, "organizations"),
     selectAll<PersonRow & Keyed>(client, "people"),
@@ -281,6 +287,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     selectAll<SubscriptionRow & Keyed>(client, "subscriptions"),
     selectAll<CreditWalletRow>(client, "credit_wallets", "organization_id"),
     selectAll<CreditTransactionRow & Keyed>(client, "credit_transactions"),
+    selectAll<ProjectReportRow>(client, "project_reports"),
   ])
 
   const domainByUuid = new Map<string, EntityId>()
@@ -413,6 +420,7 @@ export async function loadState(client: SupabaseClient): Promise<ConstructionDat
     subscriptions: subscriptions.map((r) => subscriptionFromRow(r, toDomain)),
     wallets: creditWallets.map((r) => creditWalletFromRow(r, toDomain)),
     creditTransactions: creditTransactions.map((r) => creditTransactionFromRow(r, toDomain)),
+    projectReports: projectReports.map((r) => projectReportFromRow(r, toDomain)),
   }
 }
 
@@ -502,6 +510,23 @@ export async function generateEstimate(
     construction_level: input.constructionLevel,
   })
   return estimateFromRow(row as EstimateRow)
+}
+
+/**
+ * Saves a report the person reviewed as an approved snapshot. The report holds
+ * domain ids; only its projectId is swapped for the project's uuid, which the
+ * function checks against the project it is approving for.
+ */
+export async function approveProjectReport(
+  client: SupabaseClient,
+  input: { report: ProjectReport },
+): Promise<SavedProjectReport> {
+  const projectUuid = uuidOf(client, input.report.projectId)
+  const row = await callFunction(client, "approve_project_report", {
+    project_id: projectUuid,
+    payload: { ...input.report, projectId: projectUuid },
+  })
+  return projectReportFromRow(row as ProjectReportRow, (id) => (id === projectUuid ? input.report.projectId : id))
 }
 
 export async function confirmEstimate(client: SupabaseClient, input: { estimateId: EntityId }): Promise<Estimate> {

@@ -1,3 +1,4 @@
+import type { ProjectReport } from "./projectAnalysis"
 export type EntityId = string
 export type ISODate = string
 export type ISODateTime = string
@@ -559,6 +560,21 @@ export interface CallLog {
   createdAt: ISODateTime
 }
 
+/**
+ * An approved Project AI report: the analysis exactly as the approver reviewed
+ * it, stored immutably (see supabase/migrations/0029_project_reports.sql).
+ */
+export interface SavedProjectReport {
+  id: EntityId
+  projectId: EntityId
+  asOf: ISODate
+  status: ProjectReport["status"]
+  report: ProjectReport
+  approvedBy: EntityId
+  approvedAt: ISODateTime
+  createdAt: ISODateTime
+}
+
 export interface ConstructionDataState {
   organizations: Organization[]
   people: Person[]
@@ -592,4 +608,5 @@ export interface ConstructionDataState {
   subscriptions: Subscription[]
   wallets: CreditWallet[]
   creditTransactions: CreditTransaction[]
+  projectReports: SavedProjectReport[]
 }

@@ -27,6 +27,7 @@ import {
   subscriptionFromRow,
   creditWalletFromRow,
   creditTransactionFromRow,
+  projectReportFromRow,
 } from "./rows"
 
 describe("worker row mapping", () => {
@@ -698,6 +699,61 @@ describe("plan, subscription and credit row mapping", () => {
       balanceAfter: 20,
       requirementId: "req-uuid",
       createdAt: "2026-10-01T00:00:00Z",
+    })
+  })
+})
+
+describe("project report row mapping", () => {
+  const payload = {
+    projectId: "project-uuid",
+    asOf: "2026-10-15",
+    status: "at-risk",
+    summary: ["At risk: overall progress is 20%."],
+    progress: { overall: 20, stages: [] },
+    plannedVsActual: { dueByToday: 0, doneOfDue: 0, actualPercent: 20 },
+    issues: { open: 0, bySeverity: { low: 0, medium: 0, high: 0, critical: 0 }, byStatus: { open: 0, "in-progress": 0, resolved: 0, closed: 0 } },
+    signals: [],
+    source: "ai",
+    createdBy: "ai",
+    engine: "rules-v1",
+    confidence: "medium",
+    assumptions: [],
+    reviewStatus: "approved",
+    approvedBy: "person-uuid",
+    approvedAt: "2026-10-15T09:31:00Z",
+    generatedAt: "2026-10-15T09:30:00Z",
+  } as unknown as Parameters<typeof projectReportFromRow>[0]["payload"]
+
+  it("maps a snapshot row, resolving uuids to domain ids and keeping the stamped columns", () => {
+    const toDomain = (id: string) => ({ "project-uuid": "project-sharma", "person-uuid": "person-arjun" })[id] ?? id
+    const saved = projectReportFromRow(
+      {
+        id: "report-uuid",
+        project_id: "project-uuid",
+        as_of: "2026-10-15",
+        status: "at-risk",
+        engine: "rules-v1",
+        payload,
+        generated_at: "2026-10-15T09:30:00Z",
+        approved_by: "person-uuid",
+        approved_at: "2026-10-15T09:31:00Z",
+        created_at: "2026-10-15T09:31:00Z",
+      },
+      toDomain,
+    )
+    expect(saved).toMatchObject({
+      id: "report-uuid",
+      projectId: "project-sharma",
+      asOf: "2026-10-15",
+      status: "at-risk",
+      approvedBy: "person-arjun",
+      approvedAt: "2026-10-15T09:31:00Z",
+    })
+    expect(saved.report).toMatchObject({
+      projectId: "project-sharma",
+      reviewStatus: "approved",
+      approvedBy: "person-arjun",
+      approvedAt: "2026-10-15T09:31:00Z",
     })
   })
 })

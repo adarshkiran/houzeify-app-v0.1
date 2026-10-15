@@ -59,6 +59,7 @@ describe("migrations' unprefixed raise sentences", () => {
     const internal = new Set([
       "a correction must be version + 1 of the version it supersedes",
       "daily progress content is immutable; correct it with a new version",
+      "project reports are immutable; approve a new report instead",
     ])
     const unclassified = [...literals].filter((t) => !USER_FACING_RAISES.includes(t) && !internal.has(t))
     expect(unclassified).toEqual([])

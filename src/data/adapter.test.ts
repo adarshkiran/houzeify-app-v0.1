@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { afterAll, describe, expect, it } from "vitest"
 import { ConflictError } from "../domain/errors"
+import { analyzeProject } from "../domain/projectAnalysis"
+import { seedConstructionData } from "../mock/seed"
 import {
   acceptTaskAssignment,
   acceptWorkerOnboarding,
@@ -9,6 +11,7 @@ import {
   addLibraryWorkType,
   addProjectUnit,
   addProjectUnits,
+  approveProjectReport,
   addWorker,
   addWorkPlanItem,
   assignTask,
@@ -1225,6 +1228,42 @@ describe("supabase adapter: estimates and billing write results are mapped to th
     expect(result.breakdown.materials).toBe(1025400)
     expect(result).not.toHaveProperty("homeowner_person_id")
     expect(result).not.toHaveProperty("review_status")
+  })
+
+  it("approveProjectReport sends the report with the project's uuid and maps the stored snapshot", async () => {
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = []
+    const report = analyzeProject(seedConstructionData, "project-sharma", "2026-10-15", "2026-10-15T09:30:00.000Z")!
+    const client = fakeRpcRowsClient([], (name, args) => calls.push({ name, args }))
+    ;(client as unknown as { rpc: unknown }).rpc = async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args })
+      return {
+        data: {
+          id: "report-row-id",
+          project_id: args.project_id,
+          as_of: "2026-10-15",
+          status: report.status,
+          engine: "rules-v1",
+          payload: { ...(args.payload as object), reviewStatus: "approved", approvedBy: "person-row-id", approvedAt: "2026-10-15T09:31:00Z" },
+          generated_at: "2026-10-15T09:30:00Z",
+          approved_by: "person-row-id",
+          approved_at: "2026-10-15T09:31:00Z",
+          created_at: "2026-10-15T09:31:00Z",
+        },
+        error: null,
+      }
+    }
+
+    const result = await approveProjectReport(client, { report })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].name).toBe("approve_project_report")
+    const sent = calls[0].args
+    expect((sent.payload as { projectId: string }).projectId).toBe(sent.project_id)
+    expect((sent.payload as { reviewStatus: string }).reviewStatus).toBe("draft")
+    expect(result.id).toBe("report-row-id")
+    expect(result.report.projectId).toBe("project-sharma")
+    expect(result.report.reviewStatus).toBe("approved")
+    expect(result).not.toHaveProperty("approved_by")
   })
 
   it("confirmEstimate returns an Estimate, not the raw row", async () => {
