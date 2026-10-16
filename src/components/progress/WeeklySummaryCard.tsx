@@ -4,6 +4,8 @@ import { Button, Card, Flex, Tag, Typography } from "antd"
 import type { ConstructionDataState, EntityId } from "../../domain/models"
 import NarrativePanel from "../narrative/NarrativePanel"
 import { useNarrativeDraft } from "../narrative/useNarrativeDraft"
+import { Permissions } from "../../domain/permissions"
+import { useCan } from "../../session/useCan"
 import { hasEntitlement } from "../../domain/entitlements"
 import { buildNarrativeFacts } from "../../mock/narrativeFacts"
 import { addDays, formatDay, localToday } from "../../mock/dayStory"
@@ -35,7 +37,10 @@ export default function WeeklySummaryCard({
     () => summarizeWeek(state, projectId, weekEnd, { audience, today, generatedAt: new Date().toISOString() }),
     [state, projectId, weekEnd, audience, today],
   )
-  const facts = useMemo(() => (summary ? buildNarrativeFacts(summary) : undefined), [summary])
+  // Narration needs whole-project project.manage; the card itself only needs project.read.
+  const canNarrate = useCan(Permissions.PROJECT_MANAGE, projectId)
+  const showAi = audience === "company" && canNarrate
+  const facts = useMemo(() => (summary && showAi ? buildNarrativeFacts(summary) : undefined), [summary, showAi])
   const draft = useNarrativeDraft(facts)
   if (!summary) return null
 
@@ -103,7 +108,7 @@ export default function WeeklySummaryCard({
           ))}
         </Flex>
 
-        {audience === "company" ? (
+        {showAi ? (
           <NarrativePanel
             projectId={projectId}
             kind="weekly-company"

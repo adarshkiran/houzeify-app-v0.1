@@ -544,16 +544,23 @@ function isNarrativeErrorCode(value: unknown): value is NarrativeErrorCode {
   return typeof value === "string" && NARRATIVE_ERROR_CODES.includes(value)
 }
 
-function isNarrative(value: unknown): value is Narrative {
-  if (!value || typeof value !== "object") return false
+/** The four validated fields only, matching migration 0031's checks; anything else is rejected. */
+function toNarrative(value: unknown): Narrative | undefined {
+  if (!value || typeof value !== "object") return undefined
   const n = value as Record<string, unknown>
-  return (
+  if (
     typeof n.text === "string" &&
+    n.text.length >= 1 &&
+    n.text.length <= 4000 &&
     typeof n.engine === "string" &&
+    n.engine.startsWith("claude:") &&
     typeof n.generatedAt === "string" &&
     typeof n.factsHash === "string" &&
-    /^[0-9a-f]{64}$/i.test(n.factsHash)
-  )
+    /^[0-9a-f]{64}$/.test(n.factsHash)
+  ) {
+    return { text: n.text, engine: n.engine, generatedAt: n.generatedAt, factsHash: n.factsHash }
+  }
+  return undefined
 }
 
 /** Reads a typed `{error: code}` from a non-2xx function response, if it has one. */
@@ -581,7 +588,8 @@ export async function narrateReport(client: SupabaseClient, request: NarrativeRe
     if (error) return { error: await errorCodeFromHttpError(error) }
     if (!data || typeof data !== "object") return { error: "unavailable" }
     const body = data as { narrative?: unknown; error?: unknown }
-    if (isNarrative(body.narrative)) return { narrative: body.narrative }
+    const narrative = toNarrative(body.narrative)
+    if (narrative) return { narrative }
     if (isNarrativeErrorCode(body.error)) return { error: body.error }
     return { error: "unavailable" }
   } catch {

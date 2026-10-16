@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { sampleReportFacts } from "../../supabase/functions/_shared/narrative/testFacts"
-import { narrateReport } from "./adapter"
+import { loadState, narrateReport } from "./adapter"
+import { supabaseCommands } from "../mock/commandSurface"
+import { seedConstructionData } from "../mock/seed"
 
 const request = { projectId: "00000000-0000-0000-0000-0000000031f1", kind: "report" as const, facts: sampleReportFacts() }
 const clientWith = (invoke: () => Promise<{ data: unknown; error: unknown }>) =>
@@ -55,5 +57,56 @@ describe("narrateReport adapter", () => {
     expect(await narrateReport(http("junk"), request)).toEqual({ error: "unavailable" })
     const notJson = Object.assign(new Error("x"), { context: new Response("<html>", { status: 502 }) })
     expect(await narrateReport(clientWith(async () => ({ data: null, error: notJson })), request)).toEqual({ error: "unavailable" })
+  })
+
+  it("drops extra server fields", async () => {
+    const client = clientWith(async () => ({ data: { narrative: { ...narrative, secret: "x", model: "y" } }, error: null }))
+    expect(await narrateReport(client, request)).toEqual({ narrative })
+  })
+
+  it("enforces migration 0031's shape", async () => {
+    const bad = [
+      { ...narrative, factsHash: "A".repeat(64) },
+      { ...narrative, engine: "gpt:x" },
+      { ...narrative, text: "" },
+      { ...narrative, text: "x".repeat(4001) },
+    ]
+    for (const n of bad) {
+      expect(await narrateReport(clientWith(async () => ({ data: { narrative: n }, error: null })), request)).toEqual({ error: "unavailable" })
+    }
+    const edge = { ...narrative, text: "x".repeat(4000) }
+    expect(await narrateReport(clientWith(async () => ({ data: { narrative: edge }, error: null })), request)).toEqual({ narrative: edge })
+  })
+
+  it("maps a non-Response error context to unavailable", async () => {
+    const error = Object.assign(new Error("x"), { context: { error: "forbidden" } })
+    expect(await narrateReport(clientWith(async () => ({ data: null, error })), request)).toEqual({ error: "unavailable" })
+  })
+
+  it("sends the database uuid for a domain project id in supabase mode", async () => {
+    const uuid = "11111111-1111-1111-1111-111111111111"
+    const invoke = vi.fn(async () => ({ data: { narrative }, error: null }))
+    const client = {
+      functions: { invoke },
+      from: (table: string) => ({
+        select: () => ({
+          range: async () => ({
+            data: table === "projects" ? [{ id: uuid, legacy_id: "project-sharma" }] : [],
+            error: null,
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient
+    await loadState(client).catch(() => undefined) // registers id mappings before row mapping may fail
+    const surface = supabaseCommands({
+      client,
+      write: async (call) => call(),
+      read: () => {
+        throw new Error("unused")
+      },
+      getState: () => seedConstructionData,
+    })
+    await surface.narrateReport({ ...request, projectId: "project-sharma" })
+    expect(invoke).toHaveBeenCalledWith("narrate-report", { body: { ...request, projectId: uuid } })
   })
 })

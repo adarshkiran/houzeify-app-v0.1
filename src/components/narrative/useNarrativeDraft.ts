@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { hashFacts } from "../../../supabase/functions/_shared/narrative/hash"
+import { canonicalJson, hashFacts } from "../../../supabase/functions/_shared/narrative/hash"
 import type { Narrative, NarrativeFacts } from "../../../supabase/functions/_shared/narrative/types"
 
 /** A narrative is stale once the facts it was written from have changed. */
 export function isStale(narrative: Narrative | undefined, currentHash: string | undefined): boolean {
   return !!narrative && narrative.factsHash !== currentHash
+}
+
+/** Content key for the facts: equal facts give an equal key whatever the object identity. */
+export function factsKeyOf(facts: NarrativeFacts | undefined): string | undefined {
+  return facts ? canonicalJson(facts) : undefined
 }
 
 /** The draft is usable only while chosen and written from exactly the current facts. */
@@ -31,17 +36,21 @@ export function useNarrativeDraft(facts: NarrativeFacts | undefined): NarrativeD
   const [useAi, setUseAi] = useState(true)
   const [currentHash, setCurrentHash] = useState<string>()
   const hashRef = useRef<string | undefined>(undefined)
+  const factsKey = useMemo(() => factsKeyOf(facts), [facts])
+  const factsRef = useRef(facts)
+  factsRef.current = facts
 
   // Hash the facts once per change; the hash is unknown until it resolves.
   useEffect(() => {
     hashRef.current = undefined
     setCurrentHash(undefined)
-    if (!facts) {
+    const latest = factsRef.current
+    if (factsKey === undefined || !latest) {
       setNarrative(undefined)
       return
     }
     let cancelled = false
-    void hashFacts(facts).then((hash) => {
+    void hashFacts(latest).then((hash) => {
       if (cancelled) return
       hashRef.current = hash
       setCurrentHash(hash)
@@ -49,7 +58,7 @@ export function useNarrativeDraft(facts: NarrativeFacts | undefined): NarrativeD
     return () => {
       cancelled = true
     }
-  }, [facts])
+  }, [factsKey])
 
   useEffect(() => {
     if (currentHash !== undefined && isStale(narrative, currentHash)) setNarrative(undefined)

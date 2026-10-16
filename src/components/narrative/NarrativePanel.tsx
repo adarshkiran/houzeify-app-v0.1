@@ -42,6 +42,8 @@ export default function NarrativePanel({
       const result = await narrateReport({ projectId, kind, facts })
       if ("narrative" in result) draft.set(result.narrative)
       else message.warning(narrativeErrorMessage(result.error))
+    } catch {
+      message.warning(narrativeErrorMessage("unavailable"))
     } finally {
       setWorking(false)
     }
@@ -50,8 +52,8 @@ export default function NarrativePanel({
   return (
     <Flex vertical gap={8}>
       <div aria-live="polite">
-      {draft.narrative && draft.useAi ? (
-        <AiText narrative={draft.narrative} />
+      {draft.chosen ? (
+        <AiText narrative={draft.chosen} />
       ) : (
         <Flex vertical gap={4}>
           {fallbackLines.map((line, index) => (
