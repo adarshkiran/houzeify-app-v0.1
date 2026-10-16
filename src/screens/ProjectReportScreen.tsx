@@ -15,6 +15,10 @@ import {
   type SignalKind,
   type StageAnalysis,
 } from "../domain/projectAnalysis"
+import NarrativePanel, { AiText } from "../components/narrative/NarrativePanel"
+import { useNarrativeDraft } from "../components/narrative/useNarrativeDraft"
+import { hasEntitlement } from "../domain/entitlements"
+import { buildNarrativeFacts } from "../mock/narrativeFacts"
 import { useConstructionData } from "../mock/ConstructionDataProvider"
 import { useCommand } from "../session/useCommand"
 
@@ -50,6 +54,11 @@ function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projec
     return analyzeProject(state, projectId, attendanceDate(now), now.toISOString())
   }, [state, projectId])
 
+  const facts = useMemo(() => (live ? buildNarrativeFacts(live) : undefined), [live])
+  const draft = useNarrativeDraft(facts)
+  const organizationId = state.projects.find((project) => project.id === projectId)?.organizationId
+  const aiAllowed = !!organizationId && hasEntitlement(state, organizationId, "ai.narrative")
+
   const saved = useMemo(
     () =>
       state.projectReports
@@ -65,9 +74,15 @@ function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projec
   const approve = async () => {
     if (!live || approving) return
     setApproving(true)
-    const outcome = await run(() => approveProjectReport(live), { success: "Report approved and saved." })
+    const outcome = await run(
+      () => approveProjectReport(draft.chosen ? { ...live, narrative: draft.chosen } : live),
+      { success: "Report approved and saved." },
+    )
     setApproving(false)
-    if (outcome.ok) setViewingId(outcome.value.id)
+    if (outcome.ok) {
+      draft.clear()
+      setViewingId(outcome.value.id)
+    }
   }
 
   const openSignal = (signal: DelaySignal) => {
@@ -268,11 +283,26 @@ function ProjectReport({ onNavigate, projectId }: { onNavigate: Navigate; projec
                   </Avatar>
                   <Text className="company-eyebrow">Hozie Summary</Text>
                 </Flex>
-                {report.summary.map((line) => (
-                  <Paragraph key={line} className="m-0!">
-                    {line}
-                  </Paragraph>
-                ))}
+                {snapshot ? (
+                  snapshot.report.narrative ? (
+                    <AiText narrative={snapshot.report.narrative} approved />
+                  ) : (
+                    report.summary.map((line) => (
+                      <Paragraph key={line} className="m-0!">
+                        {line}
+                      </Paragraph>
+                    ))
+                  )
+                ) : (
+                  <NarrativePanel
+                    projectId={projectId}
+                    kind="report"
+                    facts={facts}
+                    fallbackLines={report.summary}
+                    allowed={aiAllowed}
+                    draft={draft}
+                  />
+                )}
                 {report.assumptions.length ? (
                   <Flex vertical gap={4}>
                     <Text type="secondary">Assumptions</Text>

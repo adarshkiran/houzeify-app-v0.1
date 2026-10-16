@@ -2,6 +2,10 @@ import { useMemo, useState } from "react"
 import { LeftOutlined, RightOutlined } from "@ant-design/icons"
 import { Button, Card, Flex, Tag, Typography } from "antd"
 import type { ConstructionDataState, EntityId } from "../../domain/models"
+import NarrativePanel from "../narrative/NarrativePanel"
+import { useNarrativeDraft } from "../narrative/useNarrativeDraft"
+import { hasEntitlement } from "../../domain/entitlements"
+import { buildNarrativeFacts } from "../../mock/narrativeFacts"
 import { addDays, formatDay, localToday } from "../../mock/dayStory"
 import { SUMMARY_WINDOW_DAYS, summarizeWeek, type SummaryAudience } from "../../mock/weeklySummary"
 
@@ -31,7 +35,12 @@ export default function WeeklySummaryCard({
     () => summarizeWeek(state, projectId, weekEnd, { audience, today, generatedAt: new Date().toISOString() }),
     [state, projectId, weekEnd, audience, today],
   )
+  const facts = useMemo(() => (summary ? buildNarrativeFacts(summary) : undefined), [summary])
+  const draft = useNarrativeDraft(facts)
   if (!summary) return null
+
+  const organizationId = state.projects.find((project) => project.id === projectId)?.organizationId
+  const aiAllowed = !!organizationId && hasEntitlement(state, organizationId, "ai.narrative")
 
   const atCurrentWeek = weekEnd >= today
   const shift = (days: number) => {
@@ -94,13 +103,24 @@ export default function WeeklySummaryCard({
           ))}
         </Flex>
 
-        <Flex vertical gap={4}>
-          {summary.lines.map((line) => (
-            <Text key={line} className={line.startsWith("•") ? "pl-2" : undefined}>
-              {line}
-            </Text>
-          ))}
-        </Flex>
+        {audience === "company" ? (
+          <NarrativePanel
+            projectId={projectId}
+            kind="weekly-company"
+            facts={facts}
+            fallbackLines={summary.lines}
+            allowed={aiAllowed}
+            draft={draft}
+          />
+        ) : (
+          <Flex vertical gap={4}>
+            {summary.lines.map((line) => (
+              <Text key={line} className={line.startsWith("•") ? "pl-2" : undefined}>
+                {line}
+              </Text>
+            ))}
+          </Flex>
+        )}
 
         <Flex gap="small" wrap align="center">
           <Tag>Automatic summary</Tag>
