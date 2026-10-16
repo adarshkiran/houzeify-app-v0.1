@@ -4,6 +4,7 @@ import { hashFacts } from "../_shared/narrative/hash.ts"
 import { handleRequest, type HandlerDeps, type ModelOutcome } from "./handler.ts"
 
 const PROJECT = "00000000-0000-0000-0000-0000000031f1"
+const TICKET = "00000000-0000-0000-0000-0000000000a1"
 const facts = sampleReportFacts()
 const goodParagraphs = ["The project is at risk. Overall progress is 42 percent against an expected 55 percent."]
 
@@ -16,7 +17,7 @@ function request(body: unknown, headers: Record<string, string> = { authorizatio
 }
 
 function deps(outcome: ModelOutcome | Error, rpcImpl?: HandlerDeps["rpc"]) {
-  const rpc = vi.fn(rpcImpl ?? (async (fn: string) => ({ data: fn === "consume_ai_narrative" ? "ticket-1" : true, error: null })))
+  const rpc = vi.fn(rpcImpl ?? (async (fn: string) => ({ data: fn === "consume_ai_narrative" ? TICKET : true, error: null })))
   const narrate = vi.fn(async (_input: { system: string; user: string; schema: object }) => {
     if (outcome instanceof Error) throw outcome
     return outcome
@@ -98,19 +99,19 @@ describe("handleRequest", () => {
     const d = deps(outcome)
     const res = await handleRequest(request(body), d.deps)
     expect(await json(res)).toEqual({ error: "unavailable" })
-    expect(d.rpc).toHaveBeenLastCalledWith("refund_ai_narrative", { ticket: "ticket-1" })
+    expect(d.rpc).toHaveBeenLastCalledWith("refund_ai_narrative", { ticket: TICKET })
   })
 
   it("refunds and reports rejected when the guard fails", async () => {
     const d = deps({ status: "ok", paragraphs: ["Overall progress is 99 percent."], model: "m" })
     const res = await handleRequest(request(body), d.deps)
     expect(await json(res)).toEqual({ error: "rejected" })
-    expect(d.rpc).toHaveBeenLastCalledWith("refund_ai_narrative", { ticket: "ticket-1" })
+    expect(d.rpc).toHaveBeenLastCalledWith("refund_ai_narrative", { ticket: TICKET })
   })
 
   it("still answers when the refund itself fails", async () => {
     const d = deps({ status: "failed" }, async (fn) =>
-      fn === "consume_ai_narrative" ? { data: "ticket-1", error: null } : Promise.reject(new Error("down")),
+      fn === "consume_ai_narrative" ? { data: TICKET, error: null } : Promise.reject(new Error("down")),
     )
     expect(await json(await handleRequest(request(body), d.deps))).toEqual({ error: "unavailable" })
   })
@@ -120,6 +121,72 @@ describe("handleRequest", () => {
     const text = JSON.stringify(await json(await handleRequest(request(body), d.deps)))
     expect(text).not.toContain("percent")
     expect(text).not.toContain("Foundation")
+  })
+})
+
+const refunds = (d: { rpc: { mock: { calls: unknown[][] } } }) => d.rpc.mock.calls.filter((c) => c[0] === "refund_ai_narrative")
+
+describe("handleRequest post-consume safety", () => {
+  it("refunds once and reports unavailable when the model resolves undefined", async () => {
+    const d = deps(undefined as unknown as ModelOutcome)
+    expect(await json(await handleRequest(request(body), d.deps))).toEqual({ error: "unavailable" })
+    expect(refunds(d)).toEqual([["refund_ai_narrative", { ticket: TICKET }]])
+  })
+
+  it("refunds once and reports unavailable when now() throws", async () => {
+    const d = deps({ status: "ok", paragraphs: goodParagraphs, model: "m" })
+    d.deps.now = () => {
+      throw new Error("clock")
+    }
+    const res = await handleRequest(request(body), d.deps)
+    expect(res.status).toBe(200)
+    expect(await json(res)).toEqual({ error: "unavailable" })
+    expect(refunds(d)).toHaveLength(1)
+  })
+
+  it("refunds exactly once on a guard rejection and a model failure", async () => {
+    for (const outcome of [{ status: "ok", paragraphs: ["Overall progress is 99 percent."], model: "m" }, { status: "failed" }] as ModelOutcome[]) {
+      const d = deps(outcome)
+      await handleRequest(request(body), d.deps)
+      expect(refunds(d)).toHaveLength(1)
+    }
+  })
+
+  it("answers unavailable without a refund when consume throws or rejects", async () => {
+    const d = deps({ status: "failed" }, async () => Promise.reject(new Error("down")))
+    expect(await json(await handleRequest(request(body), d.deps))).toEqual({ error: "unavailable" })
+    expect(refunds(d)).toHaveLength(0)
+    expect(d.narrate).not.toHaveBeenCalled()
+  })
+
+  it("rejects a ticket that is not a uuid, without calling the model or refunding", async () => {
+    for (const data of ["ticket-1", 5, null, undefined]) {
+      const d = deps({ status: "failed" }, async () => ({ data, error: null }))
+      expect(await json(await handleRequest(request(body), d.deps))).toEqual({ error: "unavailable" })
+      expect(d.narrate).not.toHaveBeenCalled()
+      expect(d.rpc).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it("warns with a fixed string when the refund returns an error", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const d = deps({ status: "failed" }, async (fn) =>
+      fn === "consume_ai_narrative" ? { data: TICKET, error: null } : { data: null, error: { message: "secret detail" } },
+    )
+    await handleRequest(request(body), d.deps)
+    expect(warn).toHaveBeenCalledWith("narrate-report: refund failed")
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("secret detail")
+  })
+
+  it("refuses an oversize body before any RPC", async () => {
+    const d = deps({ status: "failed" })
+    const big = { ...body, pad: "x".repeat(70_000) }
+    const res = await handleRequest(request(big), d.deps)
+    expect(res.status).toBe(400)
+    expect(await json(res)).toEqual({ error: "unavailable" })
+    const declared = await handleRequest(request(body, { authorization: "Bearer jwt", "content-length": "70000" }), d.deps)
+    expect(declared.status).toBe(400)
+    expect(d.rpc).not.toHaveBeenCalled()
   })
 })
 

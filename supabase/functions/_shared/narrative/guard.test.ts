@@ -242,12 +242,13 @@ describe("checkNarrative with a negative variance", () => {
   const negative = sampleReportFacts()
   negative.plannedVsActual.variancePoints = -6.5
 
+  // The guard checks numbers, not direction: it cannot tell ahead from behind.
   it("accepts the signed and the absolute figure", () => {
     expect(checkNarrative(["Variance is -6.5 points."], negative).ok).toBe(true)
-    expect(checkNarrative(["The project is ahead of plan by 6.5 points."], negative).ok).toBe(true)
+    expect(checkNarrative(["The project is behind plan by 6.5 points."], negative).ok).toBe(true)
   })
 
   it("rejects a figure that is not in the facts", () => {
-    expect(checkNarrative(["The project is ahead of plan by 7 points."], negative)).toEqual({ ok: false, reason: "number" })
+    expect(checkNarrative(["The project is behind plan by 7 points."], negative)).toEqual({ ok: false, reason: "number" })
   })
 })

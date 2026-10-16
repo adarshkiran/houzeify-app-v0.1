@@ -34,6 +34,7 @@ const CORS = {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const MAX_BODY = 65536
 const KINDS: readonly NarrativeKind[] = ["report", "weekly-company"]
 
 function reply(body: NarrativeResponse | { error: NarrativeErrorCode }, status = 200): Response {
@@ -62,7 +63,9 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
 
   let parsed: ReturnType<typeof parseBody>
   try {
-    parsed = parseBody(await req.json())
+    const declared = Number(req.headers.get("content-length") ?? 0)
+    const text = declared > MAX_BODY ? undefined : await req.text()
+    parsed = text !== undefined && text.length <= MAX_BODY ? parseBody(JSON.parse(text)) : undefined
   } catch {
     parsed = undefined
   }
@@ -76,42 +79,59 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
     return reply({ error: "unavailable" }, 400)
   }
 
-  const consumed = await deps.rpc("consume_ai_narrative", { project_id: projectId, kind })
+  let consumed: RpcResult
+  try {
+    consumed = await deps.rpc("consume_ai_narrative", { project_id: projectId, kind })
+  } catch {
+    return reply({ error: "unavailable" }) // Nothing was charged.
+  }
   if (consumed.error) return reply({ error: metering(consumed.error.message) })
-  const ticket = String(consumed.data)
+  const ticket = consumed.data
+  if (typeof ticket !== "string" || !UUID.test(ticket)) return reply({ error: "unavailable" })
 
+  let refunded = false
   const refund = async () => {
+    if (refunded) return
+    refunded = true
     try {
-      await deps.rpc("refund_ai_narrative", { ticket })
+      const result = await deps.rpc("refund_ai_narrative", { ticket })
+      if (result?.error) console.warn("narrate-report: refund failed")
     } catch {
       // A failed refund must not turn a handled failure into a crash.
+      console.warn("narrate-report: refund failed")
     }
   }
 
-  let outcome: Awaited<ReturnType<ModelClient["narrate"]>>
+  // Anything that goes wrong after the unit is spent must refund it.
   try {
-    outcome = await deps.model.narrate({ system: SYSTEM_PROMPT, user: buildUserMessage(facts), schema: NARRATIVE_SCHEMA })
+    let outcome: ModelOutcome
+    try {
+      outcome = await deps.model.narrate({ system: SYSTEM_PROMPT, user: buildUserMessage(facts), schema: NARRATIVE_SCHEMA })
+    } catch {
+      outcome = { status: "failed" }
+    }
+    if (!outcome || outcome.status !== "ok") {
+      await refund()
+      return reply({ error: "unavailable" })
+    }
+
+    const checked = checkNarrative(outcome.paragraphs, facts)
+    if (!checked.ok) {
+      console.warn("narrate-report: guard rejected", checked.reason)
+      await refund()
+      return reply({ error: "rejected" })
+    }
+
+    return reply({
+      narrative: {
+        text: checked.text,
+        engine: `claude:${outcome.model}`,
+        generatedAt: deps.now(),
+        factsHash: await hashFacts(facts),
+      },
+    })
   } catch {
-    outcome = { status: "failed" }
-  }
-  if (outcome.status !== "ok") {
     await refund()
     return reply({ error: "unavailable" })
   }
-
-  const checked = checkNarrative(outcome.paragraphs, facts)
-  if (!checked.ok) {
-    console.warn("narrate-report: guard rejected", checked.reason)
-    await refund()
-    return reply({ error: "rejected" })
-  }
-
-  return reply({
-    narrative: {
-      text: checked.text,
-      engine: `claude:${outcome.model}`,
-      generatedAt: deps.now(),
-      factsHash: await hashFacts(facts),
-    },
-  })
 }
