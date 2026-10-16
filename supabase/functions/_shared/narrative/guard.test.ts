@@ -57,8 +57,7 @@ describe("checkNarrative rejects", () => {
 
   it("links, emails and phone-like numbers", () => {
     for (const text of ["See https://example.com for more.", "Write to a@b.co soon.", "Call 98765 43210 now."]) {
-      const result = checkNarrative([text], facts)
-      expect(result.ok).toBe(false)
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "link" })
     }
   })
 
@@ -73,5 +72,66 @@ describe("checkNarrative rejects", () => {
       ok: false,
       reason: "too-long",
     })
+  })
+
+  it("an invented name at the start of a sentence", () => {
+    expect(checkNarrative(["Ramesh says the delay is minor."], facts)).toEqual({ ok: false, reason: "name" })
+  })
+
+  it("a name after an abbreviation", () => {
+    for (const text of ["Mr. Ramesh reported the delay.", "Dr. Rao reviewed it.", "Some delay, e.g. Ramesh again."]) {
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "name" })
+    }
+  })
+
+  it("larger spelled-out numbers, including hyphenated compounds", () => {
+    for (const text of ["Twelve issues are open.", "There are thirty-three issues.", "About a hundred tasks remain."]) {
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "number" })
+    }
+  })
+
+  it("fullwidth digits", () => {
+    expect(checkNarrative(["Overall progress is \uFF14\uFF13 percent."], facts)).toEqual({ ok: false, reason: "number" })
+  })
+
+  it("accented names", () => {
+    expect(checkNarrative(["The delay was raised by José."], facts)).toEqual({ ok: false, reason: "name" })
+  })
+
+  it("bare domains", () => {
+    for (const text of ["Visit houzeify.com for details.", "See example.com/page now.", "Try foo.in today."]) {
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "link" })
+    }
+  })
+
+  it("an invented number in weekly prose", () => {
+    expect(checkNarrative(["Over the past 7 days, 99 updates were filed."], sampleWeeklyFacts())).toEqual({
+      ok: false,
+      reason: "number",
+    })
+  })
+})
+
+describe("checkNarrative still accepts", () => {
+  it("a stage word at the start of a sentence", () => {
+    expect(checkNarrative(["Foundation is 80 percent complete."], facts).ok).toBe(true)
+  })
+
+  it("possessive and hyphenated stage words", () => {
+    const hyphen = sampleReportFacts({
+      stages: [{ name: "Plumbing-Rough", percent: 80, baselinePercent: 20, dueByToday: 5, doneOfDue: 4 }],
+    })
+    expect(checkNarrative(["The project is at risk. Foundation's progress is 80 percent."], facts).ok).toBe(true)
+    expect(checkNarrative(["The project is at risk, and Plumbing and Rough work is 80 percent."], hyphen).ok).toBe(true)
+  })
+
+  it("typographic punctuation", () => {
+    expect(
+      checkNarrative(["The project\u2019s status is at risk \u2014 overall progress is 42 percent \u2026"], facts).ok,
+    ).toBe(true)
+  })
+
+  it("one and zero as ordinary words", () => {
+    expect(checkNarrative(["One issue is critical, but zero are closed."], facts).ok).toBe(true)
   })
 })

@@ -13,7 +13,20 @@ export type GuardResult =
 
 const WORD_NUMBERS: Record<string, number> = {
   two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+  eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+  seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000,
 }
+// Common English sentence starters. A capitalised first word outside this set
+// (and outside the allowed words) is treated as a possible invented name.
+const SENTENCE_OPENERS = new Set(
+  (
+    "the a an this that these those it its there overall progress work no not all some most several with while as over in on at by for from of to " +
+    "one two three four five six seven eight nine ten issues tasks updates workers delay signals stages currently however also additionally meanwhile today since after before " +
+    "because although if when where which what both each every more less any only still about around nearly almost roughly recent latest last next key main further finally " +
+    "first second third schedule quality safety site team project report week month day days risk risks status"
+  ).split(" "),
+)
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const FIXED_WORDS = ["AI", "Hozie", "Houzeify", ...MONTHS, ...WEEKDAYS].map((word) => word.toLowerCase())
@@ -57,9 +70,15 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
   const text = (paragraphs as string[]).map((p) => p.trim()).join("\n\n")
   if (text.length > MAX_CHARS) return { ok: false, reason: "too-long" }
 
+  // Non-ASCII letters or digits can disguise names and figures (accents, fullwidth digits).
+  if (/(?![A-Za-z])\p{L}/u.test(text)) return { ok: false, reason: "name" }
+  if (/(?![0-9])\p{N}/u.test(text)) return { ok: false, reason: "number" }
+
   // ISO dates (2026-10-15) are legitimate; remove them before looking for phone-like digit runs.
   const withoutDates = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
-  if (/(https?:\/\/|www\.|\S+@\S+\.\S+)/i.test(text) || /\+?\d(?:[\s().-]?\d){7,}/.test(withoutDates)) {
+  if (
+    /(https?:\/\/|www\.|\S+@\S+\.\S+)/i.test(text) ||
+    /\b[a-z0-9-]+\.(com|in|org|net|io|co|app|dev|ai)\b/i.test(text) || /\+?\d(?:[\s().-]?\d){7,}/.test(withoutDates)) {
     return { ok: false, reason: "link" }
   }
 
@@ -75,11 +94,13 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
 
   const words = allowedWords(facts)
   for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
-    const tokens = [...sentence.matchAll(/[A-Za-z][A-Za-z'-]*/g)].map((m) => m[0])
-    for (const token of tokens.slice(1)) {
-      if (token.length > 1 && /^[A-Z]/.test(token) && !words.has(token.toLowerCase())) {
-        return { ok: false, reason: "name" }
-      }
+    const tokens = [...sentence.matchAll(/[A-Za-z]+/g)].map((m) => m[0])
+    for (const [index, token] of tokens.entries()) {
+      if (!/^[A-Z]/.test(token)) continue
+      const lower = token.toLowerCase()
+      if (words.has(lower)) continue
+      if (index === 0 ? SENTENCE_OPENERS.has(lower) : token.length === 1) continue
+      return { ok: false, reason: "name" }
     }
   }
 
