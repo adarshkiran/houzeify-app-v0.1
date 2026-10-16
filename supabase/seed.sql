@@ -155,10 +155,10 @@ on conflict (legacy_id) do nothing;
 -- Plan catalogue and the demo org's subscription/wallet (src/mock/seed.ts: plans,
 -- subscriptions, wallets, creditTransactions). Credit the 30 granted credits as a
 -- transaction so the wallet balance equals the sum of its transactions.
-insert into plans (legacy_id, name, price_label, entitlements, monthly_credits)
+insert into plans (legacy_id, name, price_label, entitlements, monthly_credits, limits)
 values
-  ('plan-contractor-starter', 'Contractor Starter', '₹999 / month', array['marketplace.unlock', 'marketplace.propose'], 30),
-  ('plan-contractor-pro', 'Contractor Pro', '₹2,499 / month', array['marketplace.unlock', 'marketplace.propose', 'team.members.unlimited'], 100)
+  ('plan-contractor-starter', 'Contractor Starter', '₹999 / month', array['marketplace.unlock', 'marketplace.propose', 'ai.narrative'], 30, '{"ai_narratives_per_month": 10}'::jsonb),
+  ('plan-contractor-pro', 'Contractor Pro', '₹2,499 / month', array['marketplace.unlock', 'marketplace.propose', 'team.members.unlimited', 'ai.narrative'], 100, '{"ai_narratives_per_month": 50}'::jsonb)
 on conflict (legacy_id) do nothing;
 
 insert into subscriptions (legacy_id, organization_id, plan_id, status, started_at)

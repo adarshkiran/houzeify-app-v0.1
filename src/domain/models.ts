@@ -470,7 +470,7 @@ export interface Proposal {
 }
 
 export type PlanId = EntityId
-export type EntitlementKey = "marketplace.unlock" | "marketplace.propose" | "team.members.unlimited"
+export type EntitlementKey = "marketplace.unlock" | "marketplace.propose" | "team.members.unlimited" | "ai.narrative"
 export type SubscriptionStatus = "active" | "cancelled"
 export type CreditTransactionKind = "grant" | "purchase" | "unlock"
 
@@ -480,6 +480,8 @@ export interface Plan {
   priceLabel: string
   entitlements: EntitlementKey[]
   monthlyCredits: number
+  /** Numeric caps; entitlements stay boolean keys. */
+  limits?: { aiNarrativesPerMonth?: number }
 }
 
 export interface Subscription {

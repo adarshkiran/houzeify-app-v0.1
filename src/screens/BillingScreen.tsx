@@ -18,6 +18,7 @@ const ENTITLEMENT_LABELS: Record<EntitlementKey, string> = {
   "marketplace.unlock": "Unlock marketplace requirements",
   "marketplace.propose": "Submit proposals",
   "team.members.unlimited": "Unlimited team members",
+  "ai.narrative": "AI-written report narratives",
 }
 
 const KIND_LABELS: Record<CreditTransaction["kind"], string> = {

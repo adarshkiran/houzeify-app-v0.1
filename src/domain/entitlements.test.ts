@@ -7,7 +7,7 @@ const ORG = "org-buildright"
 
 describe("getEntitlements", () => {
   it("returns the active plan's entitlements", () => {
-    expect(getEntitlements(seed, ORG)).toEqual(["marketplace.unlock", "marketplace.propose"])
+    expect(getEntitlements(seed, ORG)).toEqual(["marketplace.unlock", "marketplace.propose", "ai.narrative"])
   })
 
   it("returns none when the subscription is cancelled", () => {

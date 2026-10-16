@@ -1191,15 +1191,17 @@ const plans: Plan[] = [
     id: "plan-contractor-starter",
     name: "Contractor Starter",
     priceLabel: "₹999 / month",
-    entitlements: ["marketplace.unlock", "marketplace.propose"],
+    entitlements: ["marketplace.unlock", "marketplace.propose", "ai.narrative"],
     monthlyCredits: 30,
+    limits: { aiNarrativesPerMonth: 10 },
   },
   {
     id: "plan-contractor-pro",
     name: "Contractor Pro",
     priceLabel: "₹2,499 / month",
-    entitlements: ["marketplace.unlock", "marketplace.propose", "team.members.unlimited"],
+    entitlements: ["marketplace.unlock", "marketplace.propose", "team.members.unlimited", "ai.narrative"],
     monthlyCredits: 100,
+    limits: { aiNarrativesPerMonth: 50 },
   },
 ]
 

@@ -1184,15 +1184,18 @@ export interface PlanRow {
   price_label: string
   entitlements: string[]
   monthly_credits: number
+  limits: Record<string, unknown>
 }
 
 export function planFromRow(row: PlanRow): Plan {
+  const cap = row.limits?.ai_narratives_per_month
   return {
     id: ownId(row),
     name: row.name,
     priceLabel: row.price_label,
     entitlements: row.entitlements as EntitlementKey[],
     monthlyCredits: row.monthly_credits,
+    limits: typeof cap === "number" ? { aiNarrativesPerMonth: cap } : {},
   }
 }
 
