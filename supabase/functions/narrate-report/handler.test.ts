@@ -47,6 +47,14 @@ describe("handleRequest", () => {
     expect(d.rpc).toHaveBeenCalledWith("consume_ai_narrative", { project_id: PROJECT, kind: "report" })
   })
 
+  it("treats an undefined consume result as unavailable, nothing charged", async () => {
+    const d = deps({ status: "failed" }, (async () => undefined) as unknown as HandlerDeps["rpc"])
+    const res = await handleRequest(request({ projectId: PROJECT, kind: "report", facts }), d.deps)
+    expect(await res.json()).toEqual({ error: "unavailable" })
+    expect(d.narrate).not.toHaveBeenCalled()
+    expect(d.rpc).toHaveBeenCalledTimes(1)
+  })
+
   it("rejects without an Authorization header, before any work", async () => {
     const d = deps({ status: "ok", paragraphs: goodParagraphs, model: "m" })
     const res = await handleRequest(request(body, {}), d.deps)

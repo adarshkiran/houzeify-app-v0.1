@@ -19,6 +19,6 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts", "supabase/functions/_shared", "supabase/functions/narrate-report/handler.ts"],
+  "include": ["src", "vite.config.ts", "supabase/functions/_shared", "supabase/functions/narrate-report/handler.ts", "supabase/functions/narrate-report/interpret.ts"],
   "exclude": ["src/imports/pasted_text"]
 }

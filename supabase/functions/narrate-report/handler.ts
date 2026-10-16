@@ -85,6 +85,7 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   } catch {
     return reply({ error: "unavailable" }) // Nothing was charged.
   }
+  if (!consumed) return reply({ error: "unavailable" }) // Nothing was charged.
   if (consumed.error) return reply({ error: metering(consumed.error.message) })
   const ticket = consumed.data
   if (typeof ticket !== "string" || !UUID.test(ticket)) return reply({ error: "unavailable" })

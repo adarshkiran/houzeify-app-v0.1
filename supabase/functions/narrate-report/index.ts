@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2"
 import { createAnthropicModel } from "./anthropicModel.ts"
 import { handleRequest } from "./handler.ts"
 
-const model = createAnthropicModel(Deno.env.get("ANTHROPIC_API_KEY"), Deno.env.get("NARRATIVE_MODEL") ?? "claude-opus-5-5")
+const model = createAnthropicModel(Deno.env.get("ANTHROPIC_API_KEY"), Deno.env.get("NARRATIVE_MODEL") || "claude-opus-5-5")
 
 Deno.serve((req) => {
   // A user-scoped client: the caller's JWT travels to Postgres, so RLS and the
