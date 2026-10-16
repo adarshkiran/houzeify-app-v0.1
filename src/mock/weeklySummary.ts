@@ -5,6 +5,7 @@ import type {
   ISODate,
   ISODateTime,
   Issue,
+  Narrative,
 } from "../domain/models"
 import { addDays, formatDay } from "./dayStory"
 import { getPublishedEvidence, getPublishedForCustomer } from "./selectors"
@@ -55,6 +56,8 @@ export interface WeeklySummary {
   confidence: "low" | "medium" | "high"
   assumptions: string[]
   generatedAt: ISODateTime
+  /** Present only when a company user rewrote the summary with AI; never set by summarizeWeek. */
+  narrative?: Narrative
 }
 
 const DONE_TASK = new Set(["approved", "completed"])
