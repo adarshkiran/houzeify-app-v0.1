@@ -19,6 +19,8 @@ import * as projectReportCommands from "../domain/projectReportCommands"
 import * as proposalShareCommands from "../domain/proposalShareCommands"
 import type { ProposalShareLink } from "../domain/proposalShareCommands"
 import type { ProjectReport } from "../domain/projectAnalysis"
+import { createFakeNarrativeService } from "../domain/narrative/fake"
+import type { NarrativeRequest, NarrativeResponse } from "../../supabase/functions/_shared/narrative/types"
 import type { SubmitProposalInput } from "../domain/marketplaceCommands"
 import { viewRequirement as selectViewRequirement } from "../domain/marketplaceVisibility"
 import * as commands from "../domain/constructionCommands"
@@ -152,6 +154,8 @@ export interface CommandSurface {
   generateEstimate: (input: GenerateEstimateInput) => Estimate
   confirmEstimate: (estimateId: EntityId) => Estimate
   approveProjectReport: (report: ProjectReport) => SavedProjectReport
+  /** Rewrites a report or weekly summary as prose from anonymised facts. Never throws. */
+  narrateReport: (request: NarrativeRequest) => Promise<NarrativeResponse>
   createProposalShare: (proposalId: EntityId) => ProposalShareLink
   revokeProposalShare: (proposalId: EntityId) => ProposalShare
   /** Public read: resolves a share-link token; null when unknown, revoked or expired. */
@@ -178,6 +182,7 @@ export interface MemoryExec {
 
 export function memoryCommands(exec: MemoryExec): CommandSurface {
   const { run, read, getState } = exec
+  const memoryNarrator = createFakeNarrativeService()
   return {
     updateOrganizationProfile: (id, input) =>
       run(commands.updateOrganizationProfile(id, input)),
@@ -246,6 +251,7 @@ export function memoryCommands(exec: MemoryExec): CommandSurface {
     generateEstimate: (input) => run(estimateCommands.generateEstimate(input)),
     confirmEstimate: (estimateId) => run(estimateCommands.confirmEstimate(estimateId)),
     approveProjectReport: (report) => run(projectReportCommands.approveProjectReport(report)),
+    narrateReport: (request) => memoryNarrator.narrate(request),
     createProposalShare: (proposalId) => run(proposalShareCommands.createProposalShare(proposalId)),
     revokeProposalShare: (proposalId) => run(proposalShareCommands.revokeProposalShare(proposalId)),
     getSharedProposal: async (token) => read(proposalShareCommands.getSharedProposal(token)),
@@ -368,6 +374,8 @@ export function supabaseCommands(exec: SupabaseExec): CommandSurface {
     generateEstimate: (input: GenerateEstimateInput) => write(() => adapter.generateEstimate(client, input)),
     confirmEstimate: (estimateId: EntityId) => write(() => adapter.confirmEstimate(client, { estimateId })),
     approveProjectReport: (report: ProjectReport) => write(() => adapter.approveProjectReport(client, { report })),
+    narrateReport: (request: NarrativeRequest) =>
+      adapter.narrateReport(client, { ...request, projectId: adapter.uuidFor(client, request.projectId) }),
     createProposalShare: (proposalId: EntityId) => write(() => adapter.createProposalShare(client, { proposalId })),
     revokeProposalShare: (proposalId: EntityId) => write(() => adapter.revokeProposalShare(client, { proposalId })),
     getSharedProposal: (token: string) => adapter.getSharedProposal(client, token),
