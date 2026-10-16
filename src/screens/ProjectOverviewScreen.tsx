@@ -9,6 +9,7 @@ import {
 } from "@ant-design/icons"
 import KpiCard from "../components/company/KpiCard"
 import DayTimeline from "../components/progress/DayTimeline"
+import WeeklySummaryCard from "../components/progress/WeeklySummaryCard"
 import {
   Avatar,
   Button,
@@ -233,6 +234,8 @@ function ProjectOverview({
             }}
           />
         </Card>
+
+        <WeeklySummaryCard state={scoped} projectId={projectId} audience="company" />
 
         <Row gutter={[24, 24]} align="top">
           <Col xs={24} xl={14}>
