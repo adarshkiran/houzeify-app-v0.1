@@ -3,6 +3,15 @@
 
 export type NarrativeKind = "report" | "weekly-company"
 
+/** Mirrors SignalKind in src/domain/projectAnalysis.ts (a test keeps them in sync). */
+export type SignalKindName =
+  | "overdue-task"
+  | "blocked-task"
+  | "late-start"
+  | "stale-updates"
+  | "behind-schedule"
+  | "aging-issue"
+
 type Confidence = "low" | "medium" | "high"
 
 /** Anonymised, computed facts about one project report. Nothing typed by a person. */
@@ -32,7 +41,7 @@ export interface ReportFacts {
     byStatus: Record<"open" | "in-progress" | "resolved" | "closed", number>
     oldestSeriousAgeDays?: number
   }
-  signals: { kind: string; severity: "medium" | "high" }[]
+  signals: { kind: SignalKindName; severity: "medium" | "high" }[]
   daysSinceLastUpdate?: number
   assumptionCount: number
 }

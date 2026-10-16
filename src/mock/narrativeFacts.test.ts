@@ -3,6 +3,9 @@ import { analyzeProject } from "../domain/projectAnalysis"
 import { seedConstructionData as seed } from "./seed"
 import { buildNarrativeFacts } from "./narrativeFacts"
 import { summarizeWeek } from "./weeklySummary"
+import { parseNarrativeFacts } from "../../supabase/functions/_shared/narrative/parseFacts"
+import type { SignalKindName } from "../../supabase/functions/_shared/narrative/types"
+import type { SignalKind } from "../domain/projectAnalysis"
 
 const TODAY = "2026-10-15"
 
@@ -78,5 +81,80 @@ describe("buildNarrativeFacts", () => {
 
     const homeowner = summarizeWeek(seed, "project-sharma", TODAY, { audience: "homeowner", today: TODAY })!
     expect(buildNarrativeFacts(homeowner)).toBeUndefined()
+  })
+
+  it("keeps the signal kind union in sync with the analyzer", () => {
+    // Fails to compile if either union gains or loses a member.
+    const both: Record<SignalKind, SignalKindName> & Record<SignalKindName, SignalKind> = {
+      "overdue-task": "overdue-task",
+      "blocked-task": "blocked-task",
+      "late-start": "late-start",
+      "stale-updates": "stale-updates",
+      "behind-schedule": "behind-schedule",
+      "aging-issue": "aging-issue",
+    }
+    expect(Object.keys(both)).toHaveLength(6)
+  })
+
+  it("round-trips through the server-side parser unchanged", () => {
+    const facts = buildNarrativeFacts(report)!
+    expect(parseNarrativeFacts(JSON.parse(JSON.stringify(facts)))).toEqual(JSON.parse(JSON.stringify(facts)))
+  })
+
+  it("pins the exact set of keys sent, so a new field is a deliberate change", () => {
+    const facts = buildNarrativeFacts(report)!
+    const weekly = summarizeWeek(seed, "project-sharma", TODAY, { audience: "company", today: TODAY })!
+    const weeklyFacts = buildNarrativeFacts(weekly)!
+    const keys = (value: unknown): string[] =>
+      Object.keys(value as object)
+        .sort()
+    expect(keys(facts)).toMatchInlineSnapshot(`
+      [
+        "asOf",
+        "assumptionCount",
+        "confidence",
+        "daysSinceLastUpdate",
+        "issues",
+        "kind",
+        "overallPercent",
+        "plannedVsActual",
+        "signals",
+        "stages",
+        "status",
+      ]
+    `)
+    expect(keys(weeklyFacts)).toMatchInlineSnapshot(`
+      [
+        "awaitingReview",
+        "blockerCount",
+        "confidence",
+        "daysReported",
+        "evidence",
+        "from",
+        "issuesOpen",
+        "issuesRaised",
+        "issuesResolved",
+        "kind",
+        "peakWorkers",
+        "tasksCompleted",
+        "to",
+        "updates",
+        "windowDays",
+        "workerDays",
+      ]
+    `)
+    expect(parseNarrativeFacts(JSON.parse(JSON.stringify(weeklyFacts)))).toEqual(JSON.parse(JSON.stringify(weeklyFacts)))
+  })
+
+  it("sends stage names verbatim (ruling: they are staff-managed library vocabulary, not typed by customers)", () => {
+    // Ledger ruling: stage names come from the staff-managed work library, so they are
+    // part of the packet by design. The server parser still restricts them to plain words.
+    const poisoned = structuredClone(report)
+    poisoned.progress.stages[0] = { ...poisoned.progress.stages[0], name: "Plinth Beam" }
+    const facts = buildNarrativeFacts(poisoned)
+    expect(facts?.kind === "report" && facts.stages[0].name).toBe("Plinth Beam")
+    const phoneName = structuredClone(poisoned)
+    phoneName.progress.stages[0] = { ...phoneName.progress.stages[0], name: "Call 9876543210" }
+    expect(parseNarrativeFacts(JSON.parse(JSON.stringify(buildNarrativeFacts(phoneName))))).toBeUndefined()
   })
 })

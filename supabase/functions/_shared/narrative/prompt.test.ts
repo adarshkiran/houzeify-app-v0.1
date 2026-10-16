@@ -3,9 +3,21 @@ import { NARRATIVE_SCHEMA, SYSTEM_PROMPT, buildUserMessage } from "./prompt.ts"
 import { sampleReportFacts } from "./testFacts.ts"
 
 describe("narrative prompt", () => {
-  it("states the hard rules", () => {
-    for (const rule of ["only the facts", "No names", "exactly as given", "not enough data"]) {
-      expect(SYSTEM_PROMPT.toLowerCase()).toContain(rule.toLowerCase())
+  it("states every required rule", () => {
+    const prompt = SYSTEM_PROMPT.toLowerCase()
+    for (const rule of [
+      "only the facts",
+      "exactly as given",
+      "no names",
+      "do not speculate about causes",
+      "legal or financial advice",
+      "not enough data",
+      "no links",
+      "yyyy-mm-dd",
+      "dd-mm-yyyy",
+      "dozen",
+    ]) {
+      expect(prompt, rule).toContain(rule)
     }
   })
 

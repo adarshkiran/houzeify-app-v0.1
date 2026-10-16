@@ -14,16 +14,20 @@ const STATUS_WORDS = {
   "not-enough-data": "short of data",
 } as const
 
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
+
 function paragraphsFor(facts: NarrativeFacts): string[] {
   if (facts.kind === "report") {
+    const open = facts.issues.open
+    const signals = facts.signals.length
     return [
       `The project is ${STATUS_WORDS[facts.status]}, with overall progress at ${facts.overallPercent} percent as of ${facts.asOf}.`,
-      `${facts.issues.open} issues are open and ${facts.signals.length} delay signals were raised.`,
+      `${plural(open, "issue is", "issues are")} open and ${plural(signals, "delay signal was", "delay signals were")} raised.`,
     ]
   }
   return [
-    `Over the past ${facts.windowDays} days there were ${facts.updates} updates across ${facts.daysReported} days, with up to ${facts.peakWorkers} workers on site.`,
-    `${facts.tasksCompleted} tasks were completed and ${facts.issuesOpen} issues remain open.`,
+    `Over the past ${plural(facts.windowDays, "day", "days")} there ${facts.updates === 1 ? "was" : "were"} ${plural(facts.updates, "update", "updates")} across ${plural(facts.daysReported, "day", "days")}, with up to ${plural(facts.peakWorkers, "worker", "workers")} on site.`,
+    `${plural(facts.tasksCompleted, "task was", "tasks were")} completed and ${plural(facts.issuesOpen, "issue remains", "issues remain")} open.`,
   ]
 }
 

@@ -10,6 +10,8 @@ Rules:
 - Do not speculate about causes and do not give legal or financial advice.
 - Where a fact is missing, say there is not enough data for it rather than guessing.
 - Describe each delay signal generically from its kind and severity.
+- Write dates exactly as given (YYYY-MM-DD) or as a day and a month name. Never use DD-MM-YYYY or slash dates.
+- Avoid quantity words such as dozen, half, double or lakh; use only the numbers given.
 - No links, email addresses or phone numbers.
 - Write two or three short paragraphs: first the overall position, then what is behind or at risk, then what needs attention. Keep the whole summary under 150 words.`
 

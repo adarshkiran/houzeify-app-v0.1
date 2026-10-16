@@ -135,3 +135,79 @@ describe("checkNarrative still accepts", () => {
     expect(checkNarrative(["One issue is critical, but zero are closed."], facts).ok).toBe(true)
   })
 })
+
+describe("checkNarrative closes the review bypasses", () => {
+  it("rejects comma-grouped numbers that are not in the facts", () => {
+    for (const text of ["About 4,000 rupees are at stake.", "Another 10,000 bricks are needed.", "Cost is 1,00,000 rupees."]) {
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "number" })
+    }
+  })
+
+  it("accepts a grouped number that is in the facts", () => {
+    const weekly = sampleWeeklyFacts({ workerDays: 1200 })
+    expect(checkNarrative(["There were 1,200 worker days over the past 7 days."], weekly).ok).toBe(true)
+  })
+
+  it("always rejects vague or large quantity words", () => {
+    for (const text of [
+      "Two lakh rupees are pending.",
+      "A dozen tasks are late.",
+      "About half the stages are behind.",
+      "The project used a million bricks.",
+      "Costs doubled and then trebled twice.",
+      "Several crores are involved.",
+    ]) {
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "number" })
+    }
+  })
+
+  it("checks tens-and-units compounds as one value", () => {
+    expect(checkNarrative(["Twenty-one tasks are late."], facts)).toEqual({ ok: false, reason: "number" })
+    expect(checkNarrative(["Thirty two tasks are late."], facts)).toEqual({ ok: false, reason: "number" })
+    const withTwentyOne = sampleWeeklyFacts({ tasksCompleted: 21 })
+    expect(checkNarrative(["Twenty-one tasks were completed."], withTwentyOne).ok).toBe(true)
+  })
+
+  it("rejects zero-width and control characters", () => {
+    for (const text of ["Overall progress is 4\u200B3 percent.", "Overall progress is 42\u0007 percent.", "Soft\u00ADhyphen here."]) {
+      expect(checkNarrative([text], facts)).toEqual({ ok: false, reason: "name" })
+    }
+  })
+
+  it("accepts realistic report and weekly sentences built from the fact vocabulary", () => {
+    const weekly = sampleWeeklyFacts()
+    for (const text of [
+      "Expected progress was 55 percent.",
+      "Open issues number 3.",
+      "High-severity issues need attention.",
+      "Planned work is behind.",
+      "Stage progress is uneven.",
+      "Variance stands at 13 points.",
+      "as of Oct 15 the project is at risk",
+    ]) {
+      expect(checkNarrative([text], facts), text).toMatchObject({ ok: true })
+    }
+    for (const text of [
+      "During the past 7 days, 9 updates were filed.",
+      "Across 6 days there were 9 updates.",
+      "Peak attendance was 14 workers.",
+    ]) {
+      expect(checkNarrative([text], weekly), text).toMatchObject({ ok: true })
+    }
+  })
+
+  it("still rejects invented names beside the widened vocabulary", () => {
+    expect(checkNarrative(["Expected progress was 55 percent. Suresh disagrees."], facts)).toEqual({
+      ok: false,
+      reason: "name",
+    })
+  })
+
+  it("treats prototype property names as ordinary words", () => {
+    expect(checkNarrative(["The project is at risk. Constructor delays are likely."], facts)).toEqual({
+      ok: false,
+      reason: "name",
+    })
+    expect(checkNarrative(["The constructor is late."], facts).ok).toBe(true)
+  })
+})
