@@ -801,6 +801,18 @@ describe("planFromRow limits", () => {
     expect(planFromRow({ ...row, limits: { ai_narratives_per_month: 10 } }).limits).toEqual({ aiNarrativesPerMonth: 10 })
   })
 
+  it.each([[-1], [1.5], ["10"], [null], [Number.NaN], [Infinity]])("ignores invalid cap %s", (cap) => {
+    expect(planFromRow({ ...row, limits: { ai_narratives_per_month: cap } }).limits).toEqual({})
+  })
+
+  it("keeps a cap of zero", () => {
+    expect(planFromRow({ ...row, limits: { ai_narratives_per_month: 0 } }).limits).toEqual({ aiNarrativesPerMonth: 0 })
+  })
+
+  it("treats a row without the limits field as none", () => {
+    expect(planFromRow(row as unknown as Parameters<typeof planFromRow>[0]).limits).toEqual({})
+  })
+
   it("treats missing limits as none", () => {
     expect(planFromRow({ ...row, limits: {} }).limits).toEqual({})
   })

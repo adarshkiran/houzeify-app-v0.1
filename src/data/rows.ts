@@ -1195,7 +1195,7 @@ export function planFromRow(row: PlanRow): Plan {
     priceLabel: row.price_label,
     entitlements: row.entitlements as EntitlementKey[],
     monthlyCredits: row.monthly_credits,
-    limits: typeof cap === "number" ? { aiNarrativesPerMonth: cap } : {},
+    limits: typeof cap === "number" && Number.isInteger(cap) && cap >= 0 ? { aiNarrativesPerMonth: cap } : {},
   }
 }
 
