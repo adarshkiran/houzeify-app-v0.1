@@ -49,17 +49,19 @@ export default function NarrativePanel({
 
   return (
     <Flex vertical gap={8}>
+      <div aria-live="polite">
       {draft.narrative && draft.useAi ? (
         <AiText narrative={draft.narrative} />
       ) : (
         <Flex vertical gap={4}>
-          {fallbackLines.map((line) => (
-            <Text key={line} className={line.startsWith("•") ? "pl-2" : undefined}>
+          {fallbackLines.map((line, index) => (
+            <Text key={`${index}-${line}`} className={line.startsWith("•") ? "pl-2" : undefined}>
               {line}
             </Text>
           ))}
         </Flex>
       )}
+      </div>
 
       <Flex gap="small" align="center" wrap>
         {draft.narrative ? (
@@ -74,15 +76,17 @@ export default function NarrativePanel({
             ]}
           />
         ) : null}
-        {allowed && facts ? (
-          <Button size="small" icon={<RobotOutlined />} loading={working} onClick={() => void rewrite()}>
-            {draft.narrative ? "Rewrite again" : "Rewrite with AI"}
-          </Button>
-        ) : !allowed ? (
+        {allowed ? (
+          facts ? (
+            <Button size="small" icon={<RobotOutlined />} loading={working} onClick={() => void rewrite()}>
+              {draft.narrative ? "Rewrite again" : "Rewrite with AI"}
+            </Button>
+          ) : null
+        ) : (
           <Text type="secondary" className="text-[12px]!">
             AI summaries aren't included in your plan.
           </Text>
-        ) : null}
+        )}
       </Flex>
     </Flex>
   )
@@ -96,8 +100,8 @@ export function AiText({ narrative, approved = false }: { narrative: Narrative; 
         <Tag color={approved ? "green" : "purple"}>{approved ? "AI-written · approved" : "AI-written · not yet reviewed"}</Tag>
         <Tag>{narrative.engine}</Tag>
       </Flex>
-      {narrative.text.split("\n\n").map((paragraph) => (
-        <Paragraph key={paragraph} className="m-0!">
+      {narrative.text.split("\n\n").map((paragraph, index) => (
+        <Paragraph key={`${index}-${paragraph}`} className="m-0!">
           {paragraph}
         </Paragraph>
       ))}
