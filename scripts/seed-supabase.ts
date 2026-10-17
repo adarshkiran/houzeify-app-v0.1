@@ -3,7 +3,8 @@
  *
  *   npx tsx scripts/seed-supabase.ts --check   report demo rows and auth users
  *   npx tsx scripts/seed-supabase.ts           create demo auth users, link people rows
- *   add --staging to run against a non-local project (never for production)
+ *   add --staging to run against the hosted staging project; needs STAGING_PROJECT_REF
+ *   and asks you to retype it (never for production)
  *
  * Rows come from supabase/seed.sql (applied by `supabase db reset`). This script
  * creates the demo auth users through the admin API, using the Supabase test
@@ -11,6 +12,7 @@
  * SUPABASE_SERVICE_ROLE_KEY.
  */
 import { createClient } from "@supabase/supabase-js"
+import { requireStagingTarget } from "./lib/stagingGuard.ts"
 
 const DEMO_ORGANIZATION_LEGACY_ID = "org-buildright"
 const DEMO_WORKER_LEGACY_ID = "worker-2"
@@ -37,7 +39,13 @@ if (!url) fail("VITE_SUPABASE_URL is not set")
 if (!serviceKey) fail("SUPABASE_SERVICE_ROLE_KEY is not set")
 
 const host = new URL(url).hostname
-if (host !== "127.0.0.1" && !staging) {
+if (staging) {
+  try {
+    await requireStagingTarget()
+  } catch (error) {
+    fail(error instanceof Error ? error.message : "staging guard failed")
+  }
+} else if (host !== "127.0.0.1") {
   fail(`refusing to seed ${host} without --staging (demo test numbers are local/staging only)`)
 }
 
