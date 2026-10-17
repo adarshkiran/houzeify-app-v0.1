@@ -61,6 +61,7 @@ import type {
   SharedProposal,
 } from "../domain/models"
 import type { ProjectReport } from "../domain/projectAnalysis"
+import type { Narrative, NarrativeErrorCode, NarrativeRequest, NarrativeResponse } from "../../supabase/functions/_shared/narrative/types"
 import { PermissionError } from "../domain/session"
 import type { Permission } from "../domain/permissions"
 import {
@@ -535,6 +536,70 @@ export async function approveProjectReport(
     payload: { ...input.report, projectId: projectUuid },
   })
   return projectReportFromRow(row as ProjectReportRow, (id) => (id === projectUuid ? input.report.projectId : id))
+}
+
+const NARRATIVE_ERROR_CODES: readonly string[] = ["unauthorized", "forbidden", "not-included", "limit-reached", "unavailable", "rejected"]
+
+function isNarrativeErrorCode(value: unknown): value is NarrativeErrorCode {
+  return typeof value === "string" && NARRATIVE_ERROR_CODES.includes(value)
+}
+
+/** The four validated fields only, matching migration 0031's checks; anything else is rejected. */
+function toNarrative(value: unknown): Narrative | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const n = value as Record<string, unknown>
+  if (
+    typeof n.text === "string" &&
+    n.text.length >= 1 &&
+    n.text.length <= 4000 &&
+    typeof n.engine === "string" &&
+    n.engine.startsWith("claude:") &&
+    typeof n.generatedAt === "string" &&
+    typeof n.factsHash === "string" &&
+    /^[0-9a-f]{64}$/.test(n.factsHash)
+  ) {
+    return { text: n.text, engine: n.engine, generatedAt: n.generatedAt, factsHash: n.factsHash }
+  }
+  return undefined
+}
+
+/** Reads a typed `{error: code}` from a non-2xx function response, if it has one. */
+async function errorCodeFromHttpError(error: unknown): Promise<NarrativeErrorCode> {
+  try {
+    const context = (error as { context?: unknown } | null)?.context
+    if (context instanceof Response) {
+      const body = (await context.json()) as { error?: unknown } | null
+      if (body && isNarrativeErrorCode(body.error)) return body.error
+    }
+  } catch {
+    // Unreadable body: fall through to unavailable.
+  }
+  return "unavailable"
+}
+
+/**
+ * Asks the narrate-report edge function to write prose from anonymised facts.
+ * Never throws: any transport or shape problem is "unavailable", so the rules
+ * summary stays on screen.
+ */
+export async function narrateReport(client: SupabaseClient, request: NarrativeRequest): Promise<NarrativeResponse> {
+  try {
+    const { data, error } = await client.functions.invoke("narrate-report", { body: request })
+    if (error) return { error: await errorCodeFromHttpError(error) }
+    if (!data || typeof data !== "object") return { error: "unavailable" }
+    const body = data as { narrative?: unknown; error?: unknown }
+    const narrative = toNarrative(body.narrative)
+    if (narrative) return { narrative }
+    if (isNarrativeErrorCode(body.error)) return { error: body.error }
+    return { error: "unavailable" }
+  } catch {
+    return { error: "unavailable" }
+  }
+}
+
+/** The database uuid for a domain id, or the id itself when it is already a uuid. */
+export function uuidFor(client: SupabaseClient, id: EntityId): string {
+  return uuidOf(client, id)
 }
 
 interface ShareFunctionResult {

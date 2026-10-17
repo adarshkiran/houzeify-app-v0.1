@@ -759,6 +759,26 @@ describe("project report row mapping", () => {
       approvedAt: "2026-10-15T09:31:00Z",
     })
   })
+
+  it("keeps a narrative stored in the payload", () => {
+    const narrative = { text: "x", engine: "claude:m", generatedAt: "2026-10-17T09:00:00Z", factsHash: "b".repeat(64) }
+    const saved = projectReportFromRow(
+      {
+        id: "r1",
+        project_id: "p1",
+        as_of: "2026-10-15",
+        status: "at-risk",
+        engine: "rules-v1",
+        payload: { ...payload, narrative },
+        generated_at: "2026-10-15T09:00:00Z",
+        approved_by: "u1",
+        approved_at: "2026-10-15T10:00:00Z",
+        created_at: "2026-10-15T10:00:00Z",
+      } as never,
+      (id) => id,
+    )
+    expect(saved.report.narrative).toEqual(narrative)
+  })
 })
 
 describe("proposal share row mapping", () => {

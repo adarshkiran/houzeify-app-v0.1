@@ -42,6 +42,13 @@ describe("approveProjectReport", () => {
     expect(state.projectReports).toEqual([result])
   })
 
+  it("keeps an AI narrative with the approved snapshot", () => {
+    const narrative = { text: "The project is at risk.", engine: "claude:claude-opus-5-5", generatedAt: "2026-10-17T09:00:00Z", factsHash: "a".repeat(64) }
+    const { result } = approveProjectReport({ ...draft(), narrative })(seed, ctx(manager))
+    expect(result.report.narrative).toEqual(narrative)
+    expect(result.report.reviewStatus).toBe("approved")
+  })
+
   it("keeps earlier snapshots and does not touch the live data", () => {
     const first = approveProjectReport(draft())(seed, ctx(manager)).state
     const second = approveProjectReport(draft())(first, { ...ctx(manager), ids: { next: () => "project-report-2", short: () => "s" } })
