@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { checkNarrative, looksLikeOrdinaryOpener, NAME_COLLISIONS } from "./guard.ts"
+import { checkNarrative, hasOpenerShape, looksLikeOrdinaryOpener, NAME_COLLISIONS } from "./guard.ts"
 import { sampleReportFacts, sampleWeeklyFacts } from "./testFacts.ts"
 
 // Real model output (claude-opus-5-5), captured from live checks.
@@ -127,7 +127,8 @@ describe("sentence-initial structure check", () => {
   ]
 
   it.each(suffixNames)("%s would pass the bare heuristic, and is rejected only because it is a listed name", (name) => {
-    expect(looksLikeOrdinaryOpener(name.toLowerCase(), new Set())).toBe(true)
+    expect(hasOpenerShape(name.toLowerCase())).toBe(true)
+    if (!name.toLowerCase().endsWith("eed")) expect(looksLikeOrdinaryOpener(name.toLowerCase(), new Set())).toBe(true)
     expect(looksLikeOrdinaryOpener(name.toLowerCase())).toBe(false)
     expect(checkNarrative([`${name} reported a delay.`], zeroReport)).toEqual({ ok: false, reason: "name" })
     expect(checkNarrative([`${name} remained on site.`], zeroReport)).toEqual({ ok: false, reason: "name" })
@@ -136,7 +137,7 @@ describe("sentence-initial structure check", () => {
 
   it("keeps NAME_COLLISIONS honest: every entry is 6+ letters and matches a kept suffix", () => {
     for (const name of NAME_COLLISIONS) {
-      expect(looksLikeOrdinaryOpener(name, new Set()), name).toBe(true)
+      expect(hasOpenerShape(name), name).toBe(true)
     }
   })
 
@@ -149,19 +150,23 @@ describe("sentence-initial structure check", () => {
   )
 
   it("documents the accepted residual risk: an unlisted suffix-shaped single-token name can pass at sentence start", () => {
-    // "Sameed" is six letters and ends in "ed" but is not in NAME_COLLISIONS.
-    expect(looksLikeOrdinaryOpener("sameed")).toBe(true)
-    expect(checkNarrative(["Sameed remained on site."], zeroReport).ok).toBe(true)
-    // ...but never in the middle of a sentence, and never doing something.
-    expect(checkNarrative(["The delay was reported by Sameed."], zeroReport)).toEqual({ ok: false, reason: "name" })
+    // "Torrence" is eight letters and ends in "ence" but is not in NAME_COLLISIONS. Only a name followed
+    // directly by a listed reporting verb, an apostrophe-s or -led/-run/-based is rejected; other shapes
+    // such as "Torrence recorded 3 issues." and "Torrence then confirmed it." pass.
+    expect(looksLikeOrdinaryOpener("torrence")).toBe(true)
+    expect(checkNarrative(["Torrence remained on site."], zeroReport).ok).toBe(true)
+    expect(checkNarrative(["Torrence recorded 3 issues."], zeroReport).ok).toBe(true)
+    expect(checkNarrative(["Torrence then confirmed it."], zeroReport).ok).toBe(true)
+    // ...but never in the middle of a sentence.
+    expect(checkNarrative(["The delay was reported by Torrence."], zeroReport)).toEqual({ ok: false, reason: "name" })
   })
 
   it.each([
-    "Sameed reported a delay.",
-    "Sameed said work is late.",
-    "Sameed's crew was late.",
-    "Sameed\u2019s crew was late.",
-    "Sameed-led work stalled.",
+    "Torrence reported a delay.",
+    "Torrence said work is late.",
+    "Torrence's crew was late.",
+    "Torrence\u2019s crew was late.",
+    "Torrence-led work stalled.",
     "Khaled's crew was late.",
     "Agarwal-led work stalled.",
     "Rajpal reported a delay.",
@@ -175,9 +180,9 @@ describe("sentence-initial structure check", () => {
     "Overall i.e. Agarwal flagged it.",
     "Work etc. Mittal flagged it.",
     "Progress vs. Bansal is low.",
-    "Overall, approx. Sameed was on site.",
-    "Work incl. Sameed is late.",
-    "Phase A. Sameed remained on site.",
+    "Overall, approx. Torrence was on site.",
+    "Work incl. Torrence is late.",
+    "Phase A. Torrence remained on site.",
   ])("rejects a name after an abbreviation: %s", (text) => {
     expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "name" })
   })
@@ -212,5 +217,100 @@ describe("sentence-initial structure check", () => {
     "A quadruple increase is likely.",
   ])("rejects quantity words: %s", (text) => {
     expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "number" })
+  })
+})
+
+describe("curated openers survive abbreviations", () => {
+  it.each([
+    "Updates, evidence, etc. The site team should act.",
+    "Work is in phase A. The site team should act.",
+    "The answer is no. The site team should act.",
+    "Issues remain open, e.g. Reviewing them helps.",
+    "Progress is low, see fig. Overall progress is low.",
+    "Progress is low\u2026 The site team should act.",
+  ])("accepts %s", (text) => {
+    expect(checkNarrative([text], zeroReport).ok, text).toBe(true)
+  })
+
+  it.each([
+    "Activity e.g. Agarwal reported it.",
+    "Work etc. Mittal flagged it.",
+    "Progress is low, ref. Bansal knows.",
+    "Work, max. Torrence reported it.",
+    "Progress is low\u2026 Ramesh says so.",
+    "Work is in phase A. Torrence remained on site.",
+  ])("still rejects %s", (text) => {
+    expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "name" })
+  })
+})
+
+describe("safe openers and zero", () => {
+  const words = "due zero new moreover furthermore but and review worker workers fresh significant insufficient consistent persistent incremental elsewhere together rather earlier prior average plan items done teams team urgent important sufficient capital marginal fundamental regular focus resolve labour concrete handover inspections recommendations company contractor supervisor percentage persistently encouragingly unfortunately fortunately notably importantly critically specifically generally typically currently increasingly consequently accordingly alternatively digital global nominal informal neutral interval disposal environmental operational essential substantial official material highest oldest fewer enough their they we none nobody nothing".split(" ")
+
+  it.each(words)("accepts %s as the first word of a sentence", (word) => {
+    const text = `${word[0].toUpperCase()}${word.slice(1)} figures show 0 updates.`
+    expect(checkNarrative([text], zeroWeek), text).toMatchObject({ ok: true })
+  })
+
+  it("accepts a zero-activity sentence", () => {
+    expect(checkNarrative(["Zero tasks were completed and zero issues were raised."], zeroWeek).ok).toBe(true)
+  })
+
+  it("rejects -eed names but not ordinary -eed words", () => {
+    expect(checkNarrative(["Sameed remained on site."], zeroReport)).toEqual({ ok: false, reason: "name" })
+    expect(checkNarrative(["Mujeed remained on site."], zeroReport)).toEqual({ ok: false, reason: "name" })
+    expect(checkNarrative(["Indeed, 0 updates were filed."], zeroWeek).ok).toBe(true)
+    expect(checkNarrative(["Agreed actions are needed."], zeroWeek).ok).toBe(true)
+  })
+})
+
+describe("more real-style outputs", () => {
+  const weekly = [
+    [
+      "Regular updates were not received during the week from 2026-10-11 to 2026-10-17, a window of 7 days. There were 0 updates, 0 days reported and 0 evidence items.",
+      "Significant work may remain unrecorded, since 0 tasks were completed and 0 worker-days were logged. There is not enough data to say whether any work is behind or at risk.",
+      "Consistent daily updates from the site team would allow the position to be confirmed. Confidence in this summary is low.",
+    ],
+    [
+      "Zero tasks were completed in the 7 days to 2026-10-17, and 0 issues were raised or resolved.",
+      "Moreover, 0 updates and 0 evidence items were filed. Furthermore, the blocker count is 0 and 0 items are awaiting review.",
+      "Insufficient data is available to judge progress. Fresh evidence and updates are needed before the position can be confirmed.",
+    ],
+    [
+      "Unfortunately, no activity was recorded for 2026-10-11 to 2026-10-17. Currently there are 0 updates and 0 workers on record.",
+      "Notably, 0 issues are open and the blocker count is 0, though this cannot be confirmed. Importantly, there is not enough data.",
+      "Generally, daily updates are expected. Their absence over 7 days is the main concern. Consequently, confirmation is needed from the site team.",
+    ],
+    [
+      "Furthermore, 0 days were reported in the 7-day window ending 2026-10-17. Sufficient information is not available.",
+      "Earlier weeks are not covered here. Prior reporting cannot be assumed. Nobody reported any worker-days, and 0 tasks were completed.",
+      "Important points for the next period are regular updates and evidence from the site team. Their absence leaves risks unassessed.",
+    ],
+  ]
+  const reports = [
+    [
+      "Due to the stale updates signal, the project is rated at-risk with medium confidence. Overall progress stands at 0 percent as of 2026-10-17.",
+      "Foundation shows 0 percent complete with 0 of 0 items due by today done. Insufficient data prevents a view of the schedule. Fresh updates are needed.",
+      "Focus should be on bringing updates up to date. The 3 assumptions should be reviewed. Regular updates from the site team would raise confidence.",
+    ],
+    [
+      "Insufficient updates mean confidence is medium. The project is at-risk as of 2026-10-17 with 0 percent progress.",
+      "Plan against actual stands at 0 percent for both. Done items number 0 of 0 due. Items awaiting review cannot be confirmed.",
+      "Teams should focus on updates. Average progress cannot be judged. Together, the 3 assumptions limit confidence.",
+    ],
+  ]
+
+  it.each(weekly.map((paragraphs, i) => [i + 1, paragraphs] as const))("accepts weekly fixture %i", (_i, paragraphs) => {
+    expect(checkNarrative([...paragraphs], zeroWeek)).toMatchObject({ ok: true })
+  })
+
+  it.each(reports.map((paragraphs, i) => [i + 1, paragraphs] as const))("accepts report fixture %i", (_i, paragraphs) => {
+    expect(checkNarrative([...paragraphs], zeroReport)).toMatchObject({ ok: true })
+  })
+
+  it("still rejects a changed number, a link and a non-ASCII name in a fixture", () => {
+    expect(checkNarrative([weekly[0][0].replace("0 updates", "5 updates")], zeroWeek)).toEqual({ ok: false, reason: "number" })
+    expect(checkNarrative([`${weekly[0][0]} See example.com.`], zeroWeek)).toEqual({ ok: false, reason: "link" })
+    expect(checkNarrative([`${weekly[0][0]} Raised by Jos\u00E9.`], zeroWeek)).toEqual({ ok: false, reason: "name" })
   })
 })
