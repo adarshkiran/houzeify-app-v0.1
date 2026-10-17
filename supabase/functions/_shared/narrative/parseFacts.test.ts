@@ -27,7 +27,7 @@ describe("parseNarrativeFacts", () => {
   })
 
   it("rejects stage names carrying phone numbers, emails or punctuation", () => {
-    for (const name of ["Call 9876543210", "a@b.co", "", "x".repeat(41), "Stage.", "1st"]) {
+    for (const name of ["Call 9876543210", "Call 98765 43210", "98 76 54 32 10", "987-654-321-0", "Call 987 654 321 0", "a@b.co", "", "x".repeat(41), "Stage.", "A, B", " Phase", "-Phase"]) {
       const bad = roundTrip(sampleReportFacts()) as any
       bad.stages[0].name = name
       expect(parseNarrativeFacts(bad), name).toBeUndefined()
@@ -35,6 +35,14 @@ describe("parseNarrativeFacts", () => {
     const ok = roundTrip(sampleReportFacts()) as any
     ok.stages[0].name = "Plumbing & Rough-in/Fit"
     expect(parseNarrativeFacts(ok)).toBeDefined()
+  })
+
+  it("accepts stage names with short numbers", () => {
+    for (const name of ["Phase 2", "1st Floor Slab", "G+1 Structure", "Block (A)"]) {
+      const ok = roundTrip(sampleReportFacts()) as any
+      ok.stages[0].name = name
+      expect(parseNarrativeFacts(ok), name).toBeDefined()
+    }
   })
 
   it("rejects wrong enums and kinds", () => {

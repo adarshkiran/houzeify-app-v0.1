@@ -54,8 +54,9 @@ function list(value: unknown): unknown[] {
   return Array.isArray(value) && value.length <= MAX_ENTRIES ? value : fail()
 }
 
+// Staff-typed names may carry a short number ("Phase 2") but never a run of 4+ digits or more than 3 digits in total (phone-like).
 function stageName(value: unknown): string {
-  return typeof value === "string" && value.length >= 1 && value.length <= 40 && /^[A-Za-z][A-Za-z &/-]*$/.test(value)
+  return typeof value === "string" && value.length >= 1 && value.length <= 40 && /^[A-Za-z0-9][A-Za-z0-9 &/()+-]*$/.test(value) && !/\d{4}/.test(value) && (value.match(/\d/g) ?? []).length <= 3
     ? value
     : fail()
 }

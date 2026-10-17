@@ -47,7 +47,8 @@ const SENTENCE_OPENERS = new Set(
     "because although if when where which what both each every more less any only still about around nearly almost roughly recent latest last next key main further finally " +
     "first second third schedule quality safety site team project report week month day days risk risks status " +
     "expected planned actual open high medium low critical peak during across attention stage issue task update variance evidence confidence blocker blockers signal delays " +
-    "despite under against none nothing workforce attendance completion completed delivery overdue severity please compared activity without"
+    "despite under against none nothing workforce attendance completion completed delivery overdue severity please compared activity without " +
+    "blocked late stale aging behind ahead resolved closed baseline assumptions data daily reporting between given"
   ).split(" "),
 )
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -117,6 +118,9 @@ function collectNumbers(value: unknown, into: Set<number>): void {
   if (typeof value === "number" && Number.isFinite(value)) {
     into.add(norm(value))
     into.add(norm(Math.round(value)))
+    // The number pattern ignores the minus sign, so a negative fact may be quoted without it.
+    into.add(norm(Math.abs(value)))
+    into.add(norm(Math.abs(Math.round(value))))
   } else if (typeof value === "string") {
     const date = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
     if (date) for (const part of date.slice(1)) into.add(Number(part))

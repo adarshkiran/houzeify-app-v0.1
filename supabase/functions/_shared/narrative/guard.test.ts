@@ -211,3 +211,44 @@ describe("checkNarrative closes the review bypasses", () => {
     expect(checkNarrative(["The constructor is late."], facts).ok).toBe(true)
   })
 })
+
+describe("checkNarrative accepts generic delay-signal wording and common openers", () => {
+  it.each([
+    "Overdue tasks of high severity were flagged.",
+    "Blocked tasks are holding up progress.",
+    "Late starts are a concern.",
+    "Stale updates of medium severity were flagged.",
+    "Behind schedule work is a concern.",
+    "Aging issues need attention.",
+    "Resolved issues total 4.",
+    "Closed issues total 0.",
+    "Baseline progress for Foundation was 20 percent.",
+    "Data is limited, so confidence is medium.",
+  ])("%s", (sentence) => {
+    expect(checkNarrative([sentence], sampleReportFacts()).ok, sentence).toBe(true)
+  })
+
+  it("accepts a weekly range sentence", () => {
+    expect(checkNarrative(["Between 10 and 16 October, 9 updates were filed."], sampleWeeklyFacts()).ok).toBe(true)
+  })
+
+  it("still rejects invented names after the new openers", () => {
+    expect(checkNarrative(["Blocked by Ramesh."], facts)).toEqual({ ok: false, reason: "name" })
+    expect(checkNarrative(["Given Suresh is away."], facts)).toEqual({ ok: false, reason: "name" })
+  })
+})
+
+describe("checkNarrative with a negative variance", () => {
+  const negative = sampleReportFacts()
+  negative.plannedVsActual.variancePoints = -6.5
+
+  // The guard checks numbers, not direction: it cannot tell ahead from behind.
+  it("accepts the signed and the absolute figure", () => {
+    expect(checkNarrative(["Variance is -6.5 points."], negative).ok).toBe(true)
+    expect(checkNarrative(["The project is behind plan by 6.5 points."], negative).ok).toBe(true)
+  })
+
+  it("rejects a figure that is not in the facts", () => {
+    expect(checkNarrative(["The project is behind plan by 7 points."], negative)).toEqual({ ok: false, reason: "number" })
+  })
+})

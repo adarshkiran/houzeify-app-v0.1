@@ -19,6 +19,7 @@ export function buildUserMessage(facts: NarrativeFacts): string {
   return `Write the summary from these facts only.\n\n${canonicalJson(facts)}`
 }
 
+// Structured outputs cannot express the 1-4 paragraph or length bounds; the guard enforces them.
 export const NARRATIVE_SCHEMA = {
   type: "object",
   properties: {
