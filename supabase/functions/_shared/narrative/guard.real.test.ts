@@ -314,3 +314,44 @@ describe("more real-style outputs", () => {
     expect(checkNarrative([`${weekly[0][0]} Raised by Jos\u00E9.`], zeroWeek)).toEqual({ ok: false, reason: "name" })
   })
 })
+
+describe("zero and nil are checked against the facts", () => {
+  const busy = sampleWeeklyFacts({
+    daysReported: 6, updates: 9, peakWorkers: 14, evidence: 12, issuesRaised: 2, issuesResolved: 1,
+    issuesOpen: 3, tasksCompleted: 6, workerDays: 61, awaitingReview: 2, blockerCount: 1,
+  })
+
+  it.each(["Zero tasks were completed this week.", "There were zero tasks completed.", "Nil updates were filed."])(
+    "rejects %s when no fact is 0",
+    (text) => {
+      expect(checkNarrative([text], busy)).toEqual({ ok: false, reason: "number" })
+    },
+  )
+
+  it.each(["Zero tasks were completed this week.", "There were zero tasks completed.", "Nil updates were filed."])(
+    "accepts %s when the facts contain 0",
+    (text) => {
+      expect(checkNarrative([text], zeroWeek)).toMatchObject({ ok: true })
+    },
+  )
+})
+
+describe("safe imperative and connector openers", () => {
+  const words = "ask confirm verify check ensure submit upload record log review update schedule assign escalate investigate address prioritise prioritize request arrange provide share send start begin continue keep bring add remove fix finish complete close open raise report track monitor follow contact notify inform discuss agree decide document collect gather identify determine establish then going clear photos feedback immediate prompt speed also next first finally lastly".split(" ")
+
+  it.each(words)("accepts %s as the first word of a sentence", (word) => {
+    const text = `${word[0].toUpperCase()}${word.slice(1)} figures show 0 updates.`
+    expect(checkNarrative([text], zeroWeek), text).toMatchObject({ ok: true })
+  })
+
+  it("accepts a hyphenated follow-up opener", () => {
+    expect(checkNarrative(["Follow-up on 0 updates is needed."], zeroWeek).ok).toBe(true)
+  })
+
+  it.each(["Mark", "Will", "Grace", "Rose", "Hope", "Faith", "Bill", "Ray", "Sue", "Pat", "Rob", "Don", "Hunt"])(
+    "still rejects the first-name opener %s",
+    (name) => {
+      expect(checkNarrative([`${name} figures show 0 updates.`], zeroWeek)).toEqual({ ok: false, reason: "name" })
+    },
+  )
+})
