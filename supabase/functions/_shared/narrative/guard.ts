@@ -12,6 +12,7 @@ export type GuardResult =
   | { ok: false; reason: "shape" | "too-long" | "link" | "number" | "name" }
 
 const WORD_NUMBERS: Record<string, number> = {
+  zero: 0, nil: 0,
   two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
   eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
@@ -60,6 +61,7 @@ const MORE_OPENERS = new Set(
     "figures numbers totals counts reports picture position assumptions absence lack gap summary overview outlook priority priorities action actions remaining current previous stale minor major small large limited little few many either neither other another such same whole " +
     "approval removal arrival proposal renewal general overall total final formal typical normal local central additional potential structural initial electrical specific mechanical critical physical partial annual manual natural optional minimal optimal original personal seasonal several usual visual " +
     "due zero zeroed new moreover furthermore but and review worker workers fresh significant insufficient consistent persistent incremental elsewhere together rather earlier prior average plan items done teams team urgent important sufficient capital marginal fundamental regular focus resolve labour concrete handover inspections recommendations company contractor supervisor percentage persistently encouragingly unfortunately fortunately notably importantly critically specifically generally typically currently increasingly consequently accordingly alternatively digital global nominal informal neutral interval disposal environmental operational essential substantial official material highest oldest fewer enough their they we none nobody nothing " +
+    "ask confirm verify check ensure submit upload record log review update schedule assign escalate investigate address prioritise prioritize request arrange provide share send start begin continue keep bring add remove fix finish complete close open raise report track monitor follow contact notify inform discuss agree decide document collect gather identify determine establish then going clear photos feedback immediate prompt speed up lastly " +
     "therefore thus hence otherwise instead yet even just presently recently so whereas though unless until once whether within among above below beyond per via throughout approximately"
   ).split(" "),
 )
