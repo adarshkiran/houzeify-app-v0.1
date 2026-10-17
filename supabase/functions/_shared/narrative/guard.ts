@@ -59,6 +59,7 @@ const MORE_OPENERS = new Set(
     "recorded reported logged noted submitted raised flagged pending outstanding confirmed taken based looking considering assuming noting treating counting excluding including allowing ensuring keeping bringing asking requiring recommending suggesting indicating showing covering spanning stating tracking reviewing checking updating filing submitting " +
     "figures numbers totals counts reports picture position assumptions absence lack gap summary overview outlook priority priorities action actions remaining current previous stale minor major small large limited little few many either neither other another such same whole " +
     "approval removal arrival proposal renewal general overall total final formal typical normal local central additional potential structural initial electrical specific mechanical critical physical partial annual manual natural optional minimal optimal original personal seasonal several usual visual " +
+    "due zero zeroed new moreover furthermore but and review worker workers fresh significant insufficient consistent persistent incremental elsewhere together rather earlier prior average plan items done teams team urgent important sufficient capital marginal fundamental regular focus resolve labour concrete handover inspections recommendations company contractor supervisor percentage persistently encouragingly unfortunately fortunately notably importantly critically specifically generally typically currently increasingly consequently accordingly alternatively digital global nominal informal neutral interval disposal environmental operational essential substantial official material highest oldest fewer enough their they we none nobody nothing " +
     "therefore thus hence otherwise instead yet even just presently recently so whereas though unless until once whether within among above below beyond per via throughout approximately"
   ).split(" "),
 )
@@ -86,14 +87,22 @@ export const NAME_COLLISIONS = new Set(
     "lawrence clarence florence laurence terrance terence constance prudence patience clemence providence " +
     "denise louise cerise clement " +
     "alfred mildred winifred manfred wilfred " +
-    "frederic dominic cedric alaric roderic"
+    "frederic dominic cedric alaric roderic " +
+    "muhamed mahomed sameed mujeed wajeed sajeed rafeed mufeed raheed abdulsameed shelly everly eloise siegfried gottfried winfried valence " +
+    "ludovic petrovic jovanovic jinping xiaoming meiling bareilly darjeeling"
   ).split(" "),
 )
+// "-eed" words are overwhelmingly names (Naveed, Rasheed...); only these ordinary words pass.
+const EED_WORDS = new Set(["indeed", "agreed", "guaranteed", "exceed", "proceed", "succeed", "speed"])
+export function hasOpenerShape(lower: string): boolean {
+  return lower.length >= 6 && OPENER_SUFFIXES.some((suffix) => lower.endsWith(suffix))
+}
 export function looksLikeOrdinaryOpener(lower: string, collisions: ReadonlySet<string> = NAME_COLLISIONS): boolean {
-  return lower.length >= 6 && !collisions.has(lower) && OPENER_SUFFIXES.some((suffix) => lower.endsWith(suffix))
+  if (!hasOpenerShape(lower) || collisions.has(lower)) return false
+  return !lower.endsWith("eed") || EED_WORDS.has(lower)
 }
 // Abbreviations after which the next word is NOT a new sentence ("e.g. Agarwal", "Mr. Rao", "A. Rao").
-const ABBREVIATION_END = /(?:^|[^A-Za-z])(?:e\.g|i\.e|etc|vs|approx|incl|no|cf|viz|ca|mr|mrs|ms|dr|prof|sr|jr|[a-z])\.$/i
+const ABBREVIATION_END = /(?:^|[^A-Za-z])(?:e\.g|i\.e|etc|vs|approx|incl|no|cf|viz|ca|fig|ref|st|est|dept|max|min|avg|ltd|pvt|mr|mrs|ms|dr|prof|sr|jr|[a-z])\.$/i
 const REPORTING_VERBS = new Set(
   "reported said says noted stated confirmed flagged raised mentioned informed told asked wrote added claimed complained replied explained observed warned".split(" "),
 )
@@ -181,7 +190,7 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
 
   const words = allowedWords(facts)
   let previous = ""
-  for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
+  for (const sentence of text.split(/(?<=[.!?\u2026])\s+|\n+/)) {
     const afterAbbreviation = ABBREVIATION_END.test(previous)
     previous = sentence
     const tokens = [...sentence.matchAll(/[A-Za-z]+/g)]
@@ -190,8 +199,9 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
       if (!/^[A-Z]/.test(token)) continue
       const lower = token.toLowerCase()
       if (words.has(lower) || has(WORD_NUMBERS, lower) || has(TENS, lower) || has(UNITS, lower)) continue
+      if (index === 0 && (SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower))) continue
       if (index === 0 && !afterAbbreviation) {
-        if (SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower)) continue
+        // After an abbreviation only the curated sets apply: the morphology heuristic is skipped.
         if (looksLikeOrdinaryOpener(lower)) {
           // Accepted by shape alone: reject the shapes of a person doing something.
           const rest = sentence.slice(match.index! + token.length)
