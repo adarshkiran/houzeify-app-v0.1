@@ -47,6 +47,15 @@ const SENTENCE_OPENERS = new Set(
 )
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+// Wider vocabulary of ordinary reporting prose, learned from real model output.
+// Kept separate from the list above. Names stay rejected: none of these are names.
+const MORE_OPENERS = new Set(
+  (
+    "recorded reported logged noted submitted raised flagged pending outstanding confirmed taken based looking considering assuming noting treating counting excluding including allowing ensuring keeping bringing asking requiring recommending suggesting indicating showing covering spanning stating tracking reviewing checking updating filing submitting " +
+    "figures numbers totals counts reports picture position assumptions absence lack gap summary overview outlook priority priorities action actions remaining current previous stale minor major small large limited little few many either neither other another such same whole " +
+    "therefore thus hence otherwise instead yet even just presently recently so whereas though unless until once whether within among above below beyond per via throughout approximately"
+  ).split(" "),
+)
 const MONTH_ABBREVIATIONS = ["Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec"]
 const FIXED_WORDS = ["AI", "Hozie", "Houzeify", ...MONTHS, ...MONTH_ABBREVIATIONS, ...WEEKDAYS].map((word) => word.toLowerCase())
 
@@ -136,7 +145,7 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
       if (!/^[A-Z]/.test(token)) continue
       const lower = token.toLowerCase()
       if (words.has(lower) || has(WORD_NUMBERS, lower) || has(TENS, lower) || has(UNITS, lower)) continue
-      if (index === 0 ? SENTENCE_OPENERS.has(lower) : token.length === 1) continue
+      if (index === 0 ? SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower) : token.length === 1) continue
       return { ok: false, reason: "name" }
     }
   }
