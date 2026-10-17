@@ -21,7 +21,12 @@ const WORD_NUMBERS: Record<string, number> = {
 const QUANTITY_WORDS = new Set([
   "dozen", "score", "half", "quarter", "million", "billion", "lakh", "lakhs", "crore", "crores",
   "twice", "double", "triple", "thrice", "hundred", "hundreds", "thousand", "thousands",
+  "doubled", "doubling", "tripled", "tripling", "trebled", "trebling", "treble", "quadruple", "quadrupled",
+  "quadrupling", "halved", "halving", "halves", "dozens", "millions", "billions",
+  "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth", "thirteenth",
+  "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth", "twentieth",
 ])
+const FOLD_WORD = /^(?:two|three|four|five|six|seven|eight|nine|ten|hundred|thousand)fold$/
 const TENS: Record<string, number> = {
   twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
 }
@@ -52,6 +57,7 @@ const MORE_OPENERS = new Set(
   (
     "recorded reported logged noted submitted raised flagged pending outstanding confirmed taken based looking considering assuming noting treating counting excluding including allowing ensuring keeping bringing asking requiring recommending suggesting indicating showing covering spanning stating tracking reviewing checking updating filing submitting " +
     "figures numbers totals counts reports picture position assumptions absence lack gap summary overview outlook priority priorities action actions remaining current previous stale minor major small large limited little few many either neither other another such same whole " +
+    "approval removal arrival proposal renewal general overall total final formal typical normal local central additional potential structural initial electrical specific mechanical critical physical partial annual manual natural optional minimal optimal original personal seasonal several usual visual " +
     "therefore thus hence otherwise instead yet even just presently recently so whereas though unless until once whether within among above below beyond per via throughout approximately"
   ).split(" "),
 )
@@ -65,23 +71,31 @@ const MORE_OPENERS = new Set(
 // Residual risk (accepted): an unlisted suffix-shaped name could pass at sentence start.
 const OPENER_SUFFIXES = [
   "ing", "ed", "tion", "sion", "ment", "ness", "ity", "ly", "ous", "ive", "able", "ible", "ance", "ence",
-  "ful", "less", "ial", "ical", "al", "ic", "ize", "ise", "ure", "ship", "hood",
+  "ful", "less", "ial", "ical", "ional", "ural", "ernal", "ual", "ic", "ize", "ise", "ure", "ship", "hood",
 ]
-const NAME_COLLISIONS = new Set(
+// Person names (six or more letters) that end in one of the suffixes above and would
+// otherwise pass as ordinary words. Every entry must match a suffix; a test enforces it.
+export const NAME_COLLISIONS = new Set(
   (
-    "ahmed mohammed muhammed mohammad mohamed mehmed hamed naveed rasheed waheed majeed hameed shaheed fareed zaheed sayeed javed saeed " +
-    "sterling fleming harding manning browning kipling spalding " +
-    "kelly molly holly sally billy willy tommy johnny sunny bobby harry jerry terry lary gary rowley ashley bradley stanley wesley shirley beverly beverley kimberly emily " +
-    "hartley bentley huntley kingsley whitley barkley berkeley hadley marley hurley bailey " +
-    "brittany patricia alicia felicia julia maria sofia olivia victoria valerie " +
-    "vishal nirmal faisal kaushal crystal krystal chantal marshal dayal " +
-    "lawrence clarence florence laurence terrance constance clement " +
-    "denise louise elise alfred mildred winifred frederic"
+    "mohammed muhammed mohamed mehmed ahamed ahammed naveed rasheed waheed majeed hameed shaheed fareed zaheed sayeed javeed tauheed " +
+    "jamshed khurshed waleed khaled abdulhameed abdulmajeed abdulrasheed abdulwaheed " +
+    "sterling fleming harding browning kipling spalding irving channing golding stirling darling redding pickering " +
+    "beverly kimberly " +
+    "charity trinity felicity chastity serenity verity " +
+    "lawrence clarence florence laurence terrance terence constance prudence patience clemence providence " +
+    "denise louise cerise clement " +
+    "alfred mildred winifred manfred wilfred " +
+    "frederic dominic cedric alaric roderic"
   ).split(" "),
 )
-function looksLikeOrdinaryOpener(lower: string): boolean {
-  return lower.length >= 6 && !NAME_COLLISIONS.has(lower) && OPENER_SUFFIXES.some((suffix) => lower.endsWith(suffix))
+export function looksLikeOrdinaryOpener(lower: string, collisions: ReadonlySet<string> = NAME_COLLISIONS): boolean {
+  return lower.length >= 6 && !collisions.has(lower) && OPENER_SUFFIXES.some((suffix) => lower.endsWith(suffix))
 }
+// Abbreviations after which the next word is NOT a new sentence ("e.g. Agarwal", "Mr. Rao", "A. Rao").
+const ABBREVIATION_END = /(?:^|[^A-Za-z])(?:e\.g|i\.e|etc|vs|approx|incl|no|cf|viz|ca|mr|mrs|ms|dr|prof|sr|jr|[a-z])\.$/i
+const REPORTING_VERBS = new Set(
+  "reported said says noted stated confirmed flagged raised mentioned informed told asked wrote added claimed complained replied explained observed warned".split(" "),
+)
 const MONTH_ABBREVIATIONS = ["Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec"]
 const FIXED_WORDS = ["AI", "Hozie", "Houzeify", ...MONTHS, ...MONTH_ABBREVIATIONS, ...WEEKDAYS].map((word) => word.toLowerCase())
 
@@ -156,21 +170,33 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
   if (compoundRejected) return { ok: false, reason: "number" }
   for (const match of withoutCompounds.matchAll(/\b[A-Za-z]+\b/g)) {
     const word = match[0].toLowerCase()
-    if (QUANTITY_WORDS.has(word)) return { ok: false, reason: "number" }
+    if (QUANTITY_WORDS.has(word) || FOLD_WORD.test(word)) return { ok: false, reason: "number" }
     const value = has(WORD_NUMBERS, word) ? WORD_NUMBERS[word] : undefined
     if (value !== undefined && !allowedNumbers.has(value)) return { ok: false, reason: "number" }
   }
 
   const words = allowedWords(facts)
+  let previous = ""
   for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
-    const tokens = [...sentence.matchAll(/[A-Za-z]+/g)].map((m) => m[0])
-    for (const [index, token] of tokens.entries()) {
+    const afterAbbreviation = ABBREVIATION_END.test(previous)
+    previous = sentence
+    const tokens = [...sentence.matchAll(/[A-Za-z]+/g)]
+    for (const [index, match] of tokens.entries()) {
+      const token = match[0]
       if (!/^[A-Z]/.test(token)) continue
       const lower = token.toLowerCase()
       if (words.has(lower) || has(WORD_NUMBERS, lower) || has(TENS, lower) || has(UNITS, lower)) continue
-      if (index === 0
-          ? SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower) || looksLikeOrdinaryOpener(lower)
-          : token.length === 1) continue
+      if (index === 0 && !afterAbbreviation) {
+        if (SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower)) continue
+        if (looksLikeOrdinaryOpener(lower)) {
+          // Accepted by shape alone: reject the shapes of a person doing something.
+          const rest = sentence.slice(match.index! + token.length)
+          const next = tokens[1]?.[0].toLowerCase() ?? ""
+          if (!REPORTING_VERBS.has(next) && !/^['\u2019]s\b/.test(rest) && !/^-(?:led|run|based)\b/i.test(rest)) continue
+        }
+        return { ok: false, reason: "name" }
+      }
+      if (token.length === 1) continue
       return { ok: false, reason: "name" }
     }
   }

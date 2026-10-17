@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { checkNarrative } from "./guard.ts"
+import { checkNarrative, looksLikeOrdinaryOpener, NAME_COLLISIONS } from "./guard.ts"
 import { sampleReportFacts, sampleWeeklyFacts } from "./testFacts.ts"
 
 // Real model output (claude-opus-5-5), captured from live checks.
@@ -121,24 +121,96 @@ describe("sentence-initial structure check", () => {
     expect(checkNarrative([sentence], sampleReportFacts({ daysSinceLastUpdate: 4 })), sentence).toMatchObject({ ok: true })
   })
 
-  const suffixNames = ["Ahmed", "Mohammed", "Naveed", "Sterling", "Kelly", "Ashley", "Bradley", "Sunny"]
+  // Every name is six or more letters and ends in a kept suffix, so only NAME_COLLISIONS stops it.
+  const suffixNames = [
+    "Mohammed", "Naveed", "Sterling", "Rasheed", "Lawrence", "Waleed", "Khaled", "Jamshed", "Dominic", "Cedric", "Manfred", "Wilfred",
+  ]
 
-  it.each(suffixNames)("rejects %s at the start and in the middle of a sentence", (name) => {
+  it.each(suffixNames)("%s would pass the bare heuristic, and is rejected only because it is a listed name", (name) => {
+    expect(looksLikeOrdinaryOpener(name.toLowerCase(), new Set())).toBe(true)
+    expect(looksLikeOrdinaryOpener(name.toLowerCase())).toBe(false)
     expect(checkNarrative([`${name} reported a delay.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+    expect(checkNarrative([`${name} remained on site.`], zeroReport)).toEqual({ ok: false, reason: "name" })
     expect(checkNarrative([`The delay was reported by ${name}.`], zeroReport)).toEqual({ ok: false, reason: "name" })
   })
 
-  it("rejects unlisted names without a suffix", () => {
-    for (const name of ["Pradeepkumar", "Venkatesan"]) {
-      expect(checkNarrative([`${name} reported a delay.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+  it("keeps NAME_COLLISIONS honest: every entry is 6+ letters and matches a kept suffix", () => {
+    for (const name of NAME_COLLISIONS) {
+      expect(looksLikeOrdinaryOpener(name, new Set()), name).toBe(true)
     }
   })
 
-  it("documents the accepted residual risk: an unlisted suffix-shaped name passes only at sentence start", () => {
-    for (const name of ["Rajpal", "Dhanapal"]) {
-      expect(checkNarrative([`${name} reported a delay.`], zeroReport).ok).toBe(true)
-      // ...but in the middle of a sentence it is still caught.
-      expect(checkNarrative([`The delay was reported by ${name}.`], zeroReport)).toEqual({ ok: false, reason: "name" })
-    }
+  it.each(["Ahmed", "Kelly", "Ashley", "Bradley", "Sunny", "Pradeepkumar", "Venkatesan", "Rajpal", "Dhanapal"])(
+    "rejects %s without needing a collision entry",
+    (name) => {
+      expect(checkNarrative([`${name} reported a delay.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+      expect(checkNarrative([`${name} remained on site.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+    },
+  )
+
+  it("documents the accepted residual risk: an unlisted suffix-shaped single-token name can pass at sentence start", () => {
+    // "Sameed" is six letters and ends in "ed" but is not in NAME_COLLISIONS.
+    expect(looksLikeOrdinaryOpener("sameed")).toBe(true)
+    expect(checkNarrative(["Sameed remained on site."], zeroReport).ok).toBe(true)
+    // ...but never in the middle of a sentence, and never doing something.
+    expect(checkNarrative(["The delay was reported by Sameed."], zeroReport)).toEqual({ ok: false, reason: "name" })
+  })
+
+  it.each([
+    "Sameed reported a delay.",
+    "Sameed said work is late.",
+    "Sameed's crew was late.",
+    "Sameed\u2019s crew was late.",
+    "Sameed-led work stalled.",
+    "Khaled's crew was late.",
+    "Agarwal-led work stalled.",
+    "Rajpal reported a delay.",
+    "Dhanapal said work is late.",
+  ])("rejects a name-and-action shape: %s", (text) => {
+    expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "name" })
+  })
+
+  it.each([
+    "Activity e.g. Agarwal reported it.",
+    "Overall i.e. Agarwal flagged it.",
+    "Work etc. Mittal flagged it.",
+    "Progress vs. Bansal is low.",
+    "Overall, approx. Sameed was on site.",
+    "Work incl. Sameed is late.",
+    "Phase A. Sameed remained on site.",
+  ])("rejects a name after an abbreviation: %s", (text) => {
+    expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "name" })
+  })
+
+  it("still accepts ordinary multi-sentence prose and heuristic openers", () => {
+    expect(
+      checkNarrative(["Establishing a routine helps. Confirmation of updates is needed. Documentation is thin."], zeroReport).ok,
+    ).toBe(true)
+  })
+
+  it.each([
+    "Approval of the plan is pending.",
+    "Overall progress is low.",
+    "Initial figures are low.",
+    "Structural work is behind.",
+  ])("accepts -al openers: %s", (text) => {
+    expect(checkNarrative([text], zeroReport).ok, text).toBe(true)
+  })
+
+  it.each([
+    "Doubling the crew would help.",
+    "Halved output is a concern.",
+    "Tripled costs are a concern.",
+    "Dozens of tasks are late.",
+    "Millions of bricks are needed.",
+    "Costs trebled.",
+    "A threefold rise in delays.",
+    "Delays grew tenfold.",
+    "Progress is behind in the fourth stage.",
+    "The twentieth task is late.",
+    "Output halves each week.",
+    "A quadruple increase is likely.",
+  ])("rejects quantity words: %s", (text) => {
+    expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "number" })
   })
 })
