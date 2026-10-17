@@ -82,7 +82,7 @@ await step("narrate-report returns a narrative (one real model call)", async () 
 })
 
 await step("no token is refused by the gateway (401)", async () => {
-  const response = await fetch(`${url}/functions/v1/narrate-report`, {
+  const response = await fetch(new URL("/functions/v1/narrate-report", url), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: "{}",
