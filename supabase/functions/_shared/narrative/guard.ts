@@ -56,6 +56,33 @@ const MORE_OPENERS = new Set(
     "therefore thus hence otherwise instead yet even just presently recently so whereas though unless until once whether within among above below beyond per via throughout approximately"
   ).split(" "),
 )
+// Structural check for the first word of a sentence. Model prose has no fixed
+// set of opening words ("Establishing", "Absence", "Reliable"...), and listing
+// them one by one never ends. The name rule exists to stop invented NAMES; names
+// in the middle of a sentence are still caught, and a model fed only anonymised
+// facts and told not to use names essentially never opens a sentence with one.
+// So a sentence-initial word of six or more letters with an ordinary English
+// suffix passes, unless it is a common person name that happens to share a suffix.
+// Residual risk (accepted): an unlisted suffix-shaped name could pass at sentence start.
+const OPENER_SUFFIXES = [
+  "ing", "ed", "tion", "sion", "ment", "ness", "ity", "ly", "ous", "ive", "able", "ible", "ance", "ence",
+  "ful", "less", "ial", "ical", "al", "ic", "ize", "ise", "ure", "ship", "hood",
+]
+const NAME_COLLISIONS = new Set(
+  (
+    "ahmed mohammed muhammed mohammad mohamed mehmed hamed naveed rasheed waheed majeed hameed shaheed fareed zaheed sayeed javed saeed " +
+    "sterling fleming harding manning browning kipling spalding " +
+    "kelly molly holly sally billy willy tommy johnny sunny bobby harry jerry terry lary gary rowley ashley bradley stanley wesley shirley beverly beverley kimberly emily " +
+    "hartley bentley huntley kingsley whitley barkley berkeley hadley marley hurley bailey " +
+    "brittany patricia alicia felicia julia maria sofia olivia victoria valerie " +
+    "vishal nirmal faisal kaushal crystal krystal chantal marshal dayal " +
+    "lawrence clarence florence laurence terrance constance clement " +
+    "denise louise elise alfred mildred winifred frederic"
+  ).split(" "),
+)
+function looksLikeOrdinaryOpener(lower: string): boolean {
+  return lower.length >= 6 && !NAME_COLLISIONS.has(lower) && OPENER_SUFFIXES.some((suffix) => lower.endsWith(suffix))
+}
 const MONTH_ABBREVIATIONS = ["Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec"]
 const FIXED_WORDS = ["AI", "Hozie", "Houzeify", ...MONTHS, ...MONTH_ABBREVIATIONS, ...WEEKDAYS].map((word) => word.toLowerCase())
 
@@ -145,7 +172,9 @@ export function checkNarrative(paragraphs: unknown, facts: NarrativeFacts): Guar
       if (!/^[A-Z]/.test(token)) continue
       const lower = token.toLowerCase()
       if (words.has(lower) || has(WORD_NUMBERS, lower) || has(TENS, lower) || has(UNITS, lower)) continue
-      if (index === 0 ? SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower) : token.length === 1) continue
+      if (index === 0
+          ? SENTENCE_OPENERS.has(lower) || MORE_OPENERS.has(lower) || looksLikeOrdinaryOpener(lower)
+          : token.length === 1) continue
       return { ok: false, reason: "name" }
     }
   }
