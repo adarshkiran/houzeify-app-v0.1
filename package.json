@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:staging": "vite --host 0.0.0.0 --mode staging",
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt",
@@ -13,6 +14,7 @@
     "db:reset": "npx supabase db reset && npx tsx --env-file=.env.local scripts/seed-supabase.ts",
     "db:test": "npx supabase test db",
     "test": "vitest run",
+    "smoke:staging": "tsx --env-file=.env.staging.local scripts/staging-smoke.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
