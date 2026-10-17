@@ -5,8 +5,10 @@ describe("billing seed", () => {
   it("seeds the two plans with the spec entitlements", () => {
     const starter = seed.plans.find((p) => p.name === "Contractor Starter")!
     const pro = seed.plans.find((p) => p.name === "Contractor Pro")!
-    expect(starter.entitlements).toEqual(["marketplace.unlock", "marketplace.propose"])
-    expect(pro.entitlements).toEqual(["marketplace.unlock", "marketplace.propose", "team.members.unlimited"])
+    expect(starter.entitlements).toEqual(["marketplace.unlock", "marketplace.propose", "ai.narrative"])
+    expect(pro.entitlements).toEqual(["marketplace.unlock", "marketplace.propose", "team.members.unlimited", "ai.narrative"])
+    expect(starter.limits).toEqual({ aiNarrativesPerMonth: 10 })
+    expect(pro.limits).toEqual({ aiNarrativesPerMonth: 50 })
   })
 
   it("puts the demo contractor on Starter with a 30-credit wallet", () => {

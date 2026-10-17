@@ -648,6 +648,7 @@ describe("plan, subscription and credit row mapping", () => {
       price_label: "₹999/mo",
       entitlements: ["marketplace.unlock", "marketplace.propose"],
       monthly_credits: 50,
+      limits: {},
     })
     expect(plan).toEqual({
       id: "plan-1",
@@ -655,6 +656,7 @@ describe("plan, subscription and credit row mapping", () => {
       priceLabel: "₹999/mo",
       entitlements: ["marketplace.unlock", "marketplace.propose"],
       monthlyCredits: 50,
+      limits: {},
     })
   })
 
@@ -789,5 +791,29 @@ describe("proposal share row mapping", () => {
       id: "s", proposal_id: "p", created_by: "c", created_at: "a", expires_at: "b", revoked_at: "2026-10-16T00:00:00Z",
     })
     expect(share.revokedAt).toBe("2026-10-16T00:00:00Z")
+  })
+})
+
+describe("planFromRow limits", () => {
+  const row = { id: "u", legacy_id: "plan-x", name: "X", price_label: "₹1", entitlements: ["ai.narrative"], monthly_credits: 0 }
+
+  it("reads the AI narrative cap", () => {
+    expect(planFromRow({ ...row, limits: { ai_narratives_per_month: 10 } }).limits).toEqual({ aiNarrativesPerMonth: 10 })
+  })
+
+  it.each([[-1], [1.5], ["10"], [null], [Number.NaN], [Infinity]])("ignores invalid cap %s", (cap) => {
+    expect(planFromRow({ ...row, limits: { ai_narratives_per_month: cap } }).limits).toEqual({})
+  })
+
+  it("keeps a cap of zero", () => {
+    expect(planFromRow({ ...row, limits: { ai_narratives_per_month: 0 } }).limits).toEqual({ aiNarrativesPerMonth: 0 })
+  })
+
+  it("treats a row without the limits field as none", () => {
+    expect(planFromRow(row as unknown as Parameters<typeof planFromRow>[0]).limits).toEqual({})
+  })
+
+  it("treats missing limits as none", () => {
+    expect(planFromRow({ ...row, limits: {} }).limits).toEqual({})
   })
 })
