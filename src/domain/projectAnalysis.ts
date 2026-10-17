@@ -4,6 +4,7 @@ import type {
   ISODate,
   ISODateTime,
   Issue,
+  Narrative,
   Task,
 } from "./models"
 import { DONE_STATUSES, calculateProjectProgress, stagePercent } from "./progress"
@@ -84,6 +85,8 @@ export interface ProjectReport {
   approvedBy?: EntityId
   approvedAt?: ISODateTime
   generatedAt: ISODateTime
+  /** AI-written prose the reviewer chose to keep with this report; absent for the rules summary. */
+  narrative?: Narrative
 }
 
 const DAY_MS = 86_400_000

@@ -560,6 +560,8 @@ export interface CallLog {
   createdAt: ISODateTime
 }
 
+export type { Narrative } from "../../supabase/functions/_shared/narrative/types"
+
 /**
  * An approved Project AI report: the analysis exactly as the approver reviewed
  * it, stored immutably (see supabase/migrations/0029_project_reports.sql).
