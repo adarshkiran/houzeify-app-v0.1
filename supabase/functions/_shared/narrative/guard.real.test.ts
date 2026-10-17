@@ -58,7 +58,17 @@ const report = [
   "The site team should bring progress updates up to date so the position can be confirmed. The 3 assumptions should be reviewed to raise confidence in this report.",
 ]
 
+const weeklyC = [
+  "This summary covers the period from 2026-10-11 to 2026-10-17, a window of 7 days. There is not enough data to confirm activity on site, as no updates, evidence, or worker-day records were reported for this period.",
+  "No tasks completed, no issues raised or resolved, and no blockers were recorded. There is not enough data to assess what is behind schedule or at risk, since no workers, reports, or progress figures were logged for the period. Confidence in this report is low given the absence of data.",
+  "Attention is needed to confirm whether reporting for this period was missed or whether no activity actually took place on site. Establishing reliable data flow for the next reporting window should be a priority before any assessment of progress or risk can be made.",
+]
+
 describe("real model output regressions", () => {
+  it("accepts weekly text C (opened a sentence with 'Establishing')", () => {
+    expect(checkNarrative(weeklyC, zeroWeek)).toMatchObject({ ok: true })
+  })
+
   it("accepts weekly text A", () => {
     expect(checkNarrative(weeklyA, zeroWeek)).toMatchObject({ ok: true })
   })
@@ -90,6 +100,45 @@ describe("names stay rejected with the wider opener vocabulary", () => {
   it("rejects titles before names", () => {
     for (const text of ["Mr. Ramesh reported the delay.", "Dr. Rao reviewed it.", "Recorded by Mrs. Priya."]) {
       expect(checkNarrative([text], zeroReport)).toEqual({ ok: false, reason: "name" })
+    }
+  })
+})
+
+describe("sentence-initial structure check", () => {
+  it.each([
+    "Establishing a routine of 4 daily updates would help.",
+    "Absence of updates for 4 days is a concern.",
+    "Reliable data covers 4 days.",
+    "Weekly updates number 9.",
+    "Reviewing 2 open issues is the next step.",
+    "Missing updates span 4 days.",
+    "Confirmation of 3 open issues is needed.",
+    "Improvement is needed on 2 delay signals.",
+    "Limited evidence covers 4 days.",
+    "Understanding why 4 days passed without an update matters.",
+    "Documentation of 3 open issues is thin.",
+  ])("accepts %s", (sentence) => {
+    expect(checkNarrative([sentence], sampleReportFacts({ daysSinceLastUpdate: 4 })), sentence).toMatchObject({ ok: true })
+  })
+
+  const suffixNames = ["Ahmed", "Mohammed", "Naveed", "Sterling", "Kelly", "Ashley", "Bradley", "Sunny"]
+
+  it.each(suffixNames)("rejects %s at the start and in the middle of a sentence", (name) => {
+    expect(checkNarrative([`${name} reported a delay.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+    expect(checkNarrative([`The delay was reported by ${name}.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+  })
+
+  it("rejects unlisted names without a suffix", () => {
+    for (const name of ["Pradeepkumar", "Venkatesan"]) {
+      expect(checkNarrative([`${name} reported a delay.`], zeroReport)).toEqual({ ok: false, reason: "name" })
+    }
+  })
+
+  it("documents the accepted residual risk: an unlisted suffix-shaped name passes only at sentence start", () => {
+    for (const name of ["Rajpal", "Dhanapal"]) {
+      expect(checkNarrative([`${name} reported a delay.`], zeroReport).ok).toBe(true)
+      // ...but in the middle of a sentence it is still caught.
+      expect(checkNarrative([`The delay was reported by ${name}.`], zeroReport)).toEqual({ ok: false, reason: "name" })
     }
   })
 })
