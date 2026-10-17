@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: "node",
-      include: ["src/**/*.test.ts", "supabase/functions/**/*.test.ts"],
+      include: ["src/**/*.test.ts", "supabase/functions/**/*.test.ts", "scripts/**/*.test.ts"],
     },
     plugins: [
       react(),
